@@ -1,7 +1,44 @@
 @import 'tailwindcss';
+@import 'remixicon/fonts/remixicon.css';
 
+/**
+ * V-POS design tokens — Color Hunt palette
+ * https://colorhunt.co/palette/0c2b4e1a3d641d546cf4f4f4
+ * #0C2B4E · #1A3D64 · #1D546C · #F4F4F4
+ */
 @theme {
-  --font-sans: system-ui, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+  --font-sans: ui-sans-serif, system-ui, sans-serif, 'Apple Color Emoji',
+    'Segoe UI Emoji';
+
+  /* Palette core */
+  --color-vpos-dark: #0c2b4e;
+  --color-vpos-black: #081f38;
+  --color-vpos-primary: #1d546c;
+  --color-vpos-primary-2: #1a3d64;
+  --color-vpos-accent: #1a3d64;
+
+  /* Soft surfaces from palette light (#F4F4F4) */
+  --color-vpos-sand: #e8eef2;
+
+  /* Neutrals tuned to navy family */
+  --color-vpos-muted: #5a6f85;
+  --color-vpos-bg: #f4f4f4;
+  --color-vpos-surface: #ffffff;
+  --color-vpos-text: #0c2b4e;
+  --color-vpos-subtle: #eceff2;
+  --color-vpos-line: #d0d8e0;
+
+  /* Semantic status (kept for readability) */
+  --color-vpos-green: #079455;
+  --color-vpos-green-bg: #e9f8f1;
+  --color-vpos-orange: #dc6803;
+  --color-vpos-orange-bg: #fff5e7;
+  --color-vpos-red: #d92d20;
+  --color-vpos-red-bg: #fef0ef;
+
+  --shadow-vpos: 0 10px 28px #0c2b4e17;
+  --radius-vpos: 10px;
+  --radius-vpos-lg: 14px;
 }
 
 html,
@@ -13,6 +50,151 @@ body,
 body {
   margin: 0;
   font-family: var(--font-sans);
+  font-size: 15px;
+  line-height: 1.45;
+  color: var(--color-vpos-text);
+  background: var(--color-vpos-bg);
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+}
+
+button {
+  cursor: pointer;
+}
+
+input[type='search']::-webkit-search-cancel-button {
+  -webkit-appearance: none;
+}
+
+/* ── Modal popup keyframe animations (must be obvious on open) ── */
+@keyframes vpos-modal-backdrop-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes vpos-modal-backdrop-out {
+  from {
+    opacity: 1;
+  }
+  to {
+    opacity: 0;
+  }
+}
+
+@keyframes vpos-modal-panel-in {
+  0% {
+    opacity: 0;
+    transform: translateY(40px) scale(0.88);
+  }
+  60% {
+    opacity: 1;
+    transform: translateY(-4px) scale(1.02);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+@keyframes vpos-modal-panel-out {
+  from {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+  to {
+    opacity: 0;
+    transform: translateY(20px) scale(0.94);
+  }
+}
+
+.vpos-modal-backdrop {
+  background: rgba(12, 43, 78, 0.48);
+  backdrop-filter: blur(4px);
+  -webkit-backdrop-filter: blur(4px);
+}
+
+.vpos-modal-backdrop[data-modal-tone='dark'] {
+  background: rgba(3, 8, 18, 0.72);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+}
+
+.vpos-modal-backdrop-enter {
+  animation: vpos-modal-backdrop-in 280ms ease-out both;
+}
+
+.vpos-modal-backdrop-exit {
+  animation: vpos-modal-backdrop-out 220ms ease-in both;
+  pointer-events: none;
+}
+
+.vpos-modal-panel {
+  transform-origin: center center;
+  will-change: opacity, transform;
+}
+
+.vpos-modal-panel-enter {
+  animation: vpos-modal-panel-in 340ms cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+.vpos-modal-panel-exit {
+  animation: vpos-modal-panel-out 220ms ease-in both;
+}
+
+@keyframes modal-stagger {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.modal-stagger-in {
+  animation: modal-stagger 280ms cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .vpos-modal-backdrop-enter,
+  .vpos-modal-backdrop-exit,
+  .vpos-modal-panel-enter,
+  .vpos-modal-panel-exit,
+  .modal-stagger-in {
+    animation-duration: 1ms !important;
+  }
+}
+
+/* Better text selection inside dark panels */
+[role='dialog'] ::selection {
+  background: #1d546c55;
+  color: inherit;
+}
+
+/* Dropdown / popover pop-in */
+@keyframes popover-in {
+  from {
+    opacity: 0;
+    transform: translateY(-6px) scale(0.98);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+.popover-in {
+  animation: popover-in 180ms cubic-bezier(0.22, 1, 0.36, 1) both;
+  transform-origin: top center;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .popover-in {
+    animation: none !important;
+  }
 }

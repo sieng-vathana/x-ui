@@ -1,0 +1,227 @@
+import { useMemo, useState } from 'react'
+import { useNavigate } from 'react-router-dom'
+import {
+  Breadcrumb,
+  Button,
+  DataTable,
+  Icon,
+  ProductThumb,
+  Status,
+  StoreSwitcher,
+  Topbar,
+  type DataTableColumn,
+} from '../components'
+import { ProductsSubnav } from '../components/products/ProductsSubnav'
+import { money, products as catalog, type MockProduct } from '../data/mockup'
+import { useAdminStore } from '../hooks/useAdminStore'
+import { cn } from '../lib/cn'
+import { paths } from '../lib/paths'
+import { card, pageContent, selectClass } from '../lib/ui'
+
+export function ProductsPage() {
+  const navigate = useNavigate()
+  const { storeId, setStoreId } = useAdminStore()
+  const [statusFilter, setStatusFilter] = useState('All status')
+  const [categoryFilter, setCategoryFilter] = useState('All categories')
+
+  const baseRows = useMemo(() => {
+    return catalog.filter((p) => {
+      if (statusFilter !== 'All status' && p.status !== statusFilter) return false
+      if (categoryFilter !== 'All categories' && p.category !== categoryFilter)
+        return false
+      return true
+    })
+  }, [statusFilter, categoryFilter])
+
+  const columns: DataTableColumn<MockProduct>[] = useMemo(
+    () => [
+      {
+        id: 'product',
+        header: 'Product',
+        searchable: (p) => `${p.name} ${p.category}`,
+        cell: (p) => (
+          <div className="flex items-center gap-[11px]">
+            <ProductThumb tone={p.tone} />
+            <span>
+              <strong className="block text-[12px]">{p.name}</strong>
+              <small className="mt-1 block text-[10px] text-vpos-muted">
+                {p.category}
+              </small>
+            </span>
+          </div>
+        ),
+      },
+      {
+        id: 'sku',
+        header: 'SKU / Barcode',
+        searchable: (p) => `${p.sku} ${p.barcode}`,
+        cell: (p) => (
+          <>
+            <strong>{p.sku}</strong>
+            <div className="mt-1 text-[10px] text-vpos-muted">{p.barcode}</div>
+          </>
+        ),
+      },
+      {
+        id: 'category',
+        header: 'Category',
+        searchable: (p) => p.category,
+        hideOnMobile: true,
+        cell: (p) => p.category,
+      },
+      {
+        id: 'price',
+        header: 'Price',
+        cell: (p) => money(p.price),
+      },
+      {
+        id: 'stock',
+        header: 'Stock',
+        cell: (p) => (
+          <span
+            className={cn(p.stock === 0 && 'font-extrabold text-vpos-red')}
+          >
+            {p.stock}
+          </span>
+        ),
+      },
+      {
+        id: 'status',
+        header: 'Status',
+        searchable: (p) => p.status,
+        cell: (p) => <Status value={p.status} />,
+      },
+      {
+        id: 'actions',
+        header: 'Actions',
+        cell: (p) => (
+          <button
+            type="button"
+            className="border-0 bg-transparent text-[18px] text-vpos-muted hover:text-vpos-text"
+            onClick={() => navigate(paths.productEdit(p.sku))}
+            aria-label={`Edit ${p.name}`}
+          >
+            <Icon name="more-2-fill" />
+          </button>
+        ),
+      },
+    ],
+    [navigate],
+  )
+
+  return (
+    <>
+      <Topbar
+        title="Products"
+        subtitle="Catalog, pricing, stock movement, and low-stock alerts"
+        actions={<StoreSwitcher value={storeId} onChange={setStoreId} />}
+      />
+      <main className={pageContent}>
+        <section className="mb-6 flex min-h-12 flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+          <div className="min-w-0 flex-1">
+            <Breadcrumb items={[{ label: 'Products' }, { label: 'All products' }]} />
+          </div>
+          <div className="flex shrink-0 flex-wrap gap-2.5">
+            <Button variant="secondary">Import</Button>
+            <Button variant="primary" onClick={() => navigate(paths.productNew)}>
+              <Icon name="add-line" /> Add product
+            </Button>
+          </div>
+        </section>
+
+        {/* Section nav only once (sidebar children + this bar) */}
+        <ProductsSubnav />
+
+        {/* Summary cards — not navigation tabs */}
+        <section className="mb-[18px] grid grid-cols-1 gap-[18px] sm:grid-cols-2 xl:grid-cols-4">
+          {[
+            [
+              'shopping-bag-3-line',
+              'Total products',
+              String(catalog.length),
+              'bg-vpos-sand text-vpos-primary',
+            ],
+            [
+              'checkbox-circle-line',
+              'Active',
+              String(catalog.filter((p) => p.status === 'Active').length),
+              'bg-vpos-green-bg text-vpos-green',
+            ],
+            [
+              'error-warning-line',
+              'Low stock',
+              String(catalog.filter((p) => p.status === 'Low stock').length),
+              'bg-vpos-orange-bg text-vpos-orange',
+            ],
+            [
+              'forbid-line',
+              'Inactive',
+              String(catalog.filter((p) => p.status === 'Inactive').length),
+              'bg-vpos-subtle text-vpos-muted',
+            ],
+          ].map(([icon, label, value, tone]) => (
+            <article
+              key={label}
+              className={cn(
+                card,
+                'flex min-h-[86px] items-center gap-3.5 rounded-[13px] p-[17px]',
+              )}
+            >
+              <span
+                className={cn(
+                  'grid h-[42px] w-[42px] place-items-center rounded-[10px] text-[18px]',
+                  tone,
+                )}
+              >
+                <Icon name={icon} />
+              </span>
+              <span>
+                <small className="mb-1.5 block text-[11px] text-vpos-muted">
+                  {label}
+                </small>
+                <strong className="block text-[19px]">{value}</strong>
+              </span>
+            </article>
+          ))}
+        </section>
+
+        <DataTable
+          data={baseRows}
+          columns={columns}
+          rowKey={(p) => p.sku}
+          title="Product list"
+          searchPlaceholder="Search product, SKU, or barcode…"
+          pageSize={8}
+          emptyMessage="No products match your filters."
+          toolbar={
+            <>
+              <select
+                className={selectClass}
+                value={categoryFilter}
+                onChange={(e) => setCategoryFilter(e.target.value)}
+              >
+                <option>All categories</option>
+                <option>Coffee</option>
+                <option>Tea</option>
+                <option>Bakery</option>
+                <option>Meals</option>
+                <option>Cold drinks</option>
+              </select>
+              <select
+                className={selectClass}
+                value={statusFilter}
+                onChange={(e) => setStatusFilter(e.target.value)}
+              >
+                <option>All status</option>
+                <option>Active</option>
+                <option>Low stock</option>
+                <option>Out of stock</option>
+                <option>Inactive</option>
+              </select>
+            </>
+          }
+        />
+      </main>
+    </>
+  )
+}

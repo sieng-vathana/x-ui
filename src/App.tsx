@@ -1,59 +1,68 @@
-import { useState } from 'react'
-import reactLogo from './assets/react.svg'
-import viteLogo from './assets/vite.svg'
+import { BrowserRouter, Navigate, Route, Routes } from 'react-router-dom'
+import { AdminLayout } from './layouts/AdminLayout'
+import { DashboardPage } from './pages/DashboardPage'
+import { PlaceholderPage } from './pages/PlaceholderPage'
+import { PosPage } from './pages/PosPage'
+import { ProductFormPage } from './pages/ProductFormPage'
+import { ProductsPage } from './pages/ProductsPage'
+import { LowStockPage } from './pages/products/LowStockPage'
+import { ProductVariantsPage } from './pages/products/ProductVariantsPage'
+import { StockMovementPage } from './pages/products/StockMovementPage'
+import { PurchaseOrderDetailPage } from './pages/purchases/PurchaseOrderDetailPage'
+import { PurchaseOrdersPage } from './pages/purchases/PurchaseOrdersPage'
+import { ReceiveGoodsPage } from './pages/purchases/ReceiveGoodsPage'
+import { SupplierReturnsPage } from './pages/purchases/SupplierReturnsPage'
+import { SuppliersPage } from './pages/purchases/SuppliersPage'
+import { StoresPage } from './pages/StoresPage'
 
-function App() {
-  const [count, setCount] = useState(0)
-
+export default function App() {
   return (
-    <div className="flex min-h-full flex-col items-center justify-center bg-zinc-50 px-6 py-16 text-zinc-900 dark:bg-zinc-950 dark:text-zinc-100">
-      <div className="flex items-center gap-8">
-        <a
-          href="https://vite.dev"
-          target="_blank"
-          rel="noreferrer"
-          className="transition-transform hover:scale-110"
-        >
-          <img src={viteLogo} className="h-20 w-20" alt="Vite logo" />
-        </a>
-        <a
-          href="https://react.dev"
-          target="_blank"
-          rel="noreferrer"
-          className="transition-transform hover:scale-110"
-        >
-          <img
-            src={reactLogo}
-            className="h-20 w-20 animate-[spin_20s_linear_infinite]"
-            alt="React logo"
+    <BrowserRouter>
+      <Routes>
+        {/* Admin shell — POS uses same sidebar + top bar + brand colors */}
+        <Route element={<AdminLayout />}>
+          <Route index element={<DashboardPage />} />
+          <Route path="pos" element={<PosPage />} />
+          <Route path="products" element={<ProductsPage />} />
+          <Route path="products/variants" element={<ProductVariantsPage />} />
+          <Route path="products/stock-movement" element={<StockMovementPage />} />
+          <Route path="products/low-stock" element={<LowStockPage />} />
+          <Route path="products/new" element={<ProductFormPage />} />
+          <Route path="products/:sku/edit" element={<ProductFormPage />} />
+          <Route path="inventory" element={<Navigate to="/products/low-stock" replace />} />
+          <Route path="stores" element={<StoresPage />} />
+          <Route
+            path="sales"
+            element={<PlaceholderPage title="Sales" description="Sales history and invoices." />}
           />
-        </a>
-      </div>
+          <Route path="purchases" element={<PurchaseOrdersPage />} />
+          <Route path="purchases/orders/new" element={<PurchaseOrderDetailPage />} />
+          <Route path="purchases/orders/:id" element={<PurchaseOrderDetailPage />} />
+          <Route path="purchases/receive" element={<ReceiveGoodsPage />} />
+          <Route path="purchases/suppliers" element={<SuppliersPage />} />
+          <Route path="purchases/returns" element={<SupplierReturnsPage />} />
+          <Route
+            path="customers"
+            element={<PlaceholderPage title="Customers" description="Customer directory." />}
+          />
+          <Route
+            path="reports"
+            element={<PlaceholderPage title="Reports" description="Business reports." />}
+          />
+          <Route
+            path="settings"
+            element={<PlaceholderPage title="Settings" description="Store and account settings." />}
+          />
+          <Route
+            path="users"
+            element={
+              <PlaceholderPage title="Users & Roles" description="Team access and permissions." />
+            }
+          />
+        </Route>
 
-      <h1 className="mt-10 text-4xl font-semibold tracking-tight sm:text-5xl">
-        Vyntra UI
-      </h1>
-      <p className="mt-3 max-w-md text-center text-zinc-600 dark:text-zinc-400">
-        React + TypeScript + Tailwind CSS starter. Edit{' '}
-        <code className="rounded bg-zinc-200 px-1.5 py-0.5 text-sm dark:bg-zinc-800">
-          src/App.tsx
-        </code>{' '}
-        and save to test HMR.
-      </p>
-
-      <button
-        type="button"
-        onClick={() => setCount((value) => value + 1)}
-        className="mt-8 rounded-lg bg-violet-600 px-5 py-2.5 text-sm font-medium text-white shadow-sm transition hover:bg-violet-500 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-violet-600"
-      >
-        Count is {count}
-      </button>
-
-      <p className="mt-10 text-sm text-zinc-500 dark:text-zinc-500">
-        Click the logos to learn more about Vite and React.
-      </p>
-    </div>
+        <Route path="*" element={<Navigate to="/" replace />} />
+      </Routes>
+    </BrowserRouter>
   )
 }
-
-export default App
