@@ -1,6 +1,8 @@
 import { useEffect, useRef, useState } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { cn } from '../../lib/cn'
 import { Icon } from '../ui/Icon'
+import { useAuth } from '../../context/AuthContext'
 
 export interface UserMenuProps {
   userName?: string
@@ -21,6 +23,8 @@ export function UserMenu({
   role = 'Administrator',
   className,
 }: UserMenuProps) {
+  const navigate = useNavigate()
+  const { signOut } = useAuth()
   const [open, setOpen] = useState(false)
   const rootRef = useRef<HTMLDivElement>(null)
 
@@ -49,7 +53,7 @@ export function UserMenu({
         aria-expanded={open}
         aria-haspopup="menu"
         className={cn(
-          'grid h-[38px] w-[38px] place-items-center rounded-full bg-vpos-primary text-[12px] font-extrabold text-white transition ring-offset-2',
+          'grid h-[38px] w-[38px] place-items-center rounded-[4px] bg-vpos-primary text-[13px] font-semibold text-white transition ring-offset-2',
           open && 'ring-2 ring-vpos-primary/30',
         )}
       >
@@ -59,22 +63,22 @@ export function UserMenu({
       {open ? (
         <div
           role="menu"
-          className="popover-in absolute top-[calc(100%+8px)] right-0 z-[300] w-[240px] overflow-hidden rounded-xl border border-vpos-line bg-white py-2 shadow-[0_14px_36px_rgba(12,43,78,.14)]"
+          className="popover-in absolute top-[calc(100%+10px)] right-0 z-[300] w-[240px] overflow-hidden rounded-[4px] border border-vpos-line bg-white py-2 shadow-vpos"
         >
           <div className="border-b border-vpos-line px-4 py-3">
-            <p className="m-0 truncate text-[14px] font-extrabold text-vpos-text">
+            <p className="m-0 truncate text-[15px] font-semibold text-vpos-dark">
               {userName}
             </p>
-            <p className="mt-0.5 mb-0 text-[11px] font-semibold text-vpos-primary-2">
+            <p className="mt-0.5 mb-0 text-[12px] font-semibold text-vpos-primary-2">
               {role}
             </p>
           </div>
           <div className="py-1">
-            <MenuItem icon="user-settings-line" label="My profile" />
-            <MenuItem icon="settings-3-line" label="Account settings" />
+            <MenuItem icon="user-settings-line" label="My profile" onClick={() => { setOpen(false); navigate('/settings') }} />
+            <MenuItem icon="settings-3-line" label="Account settings" onClick={() => { setOpen(false); navigate('/settings') }} />
           </div>
           <div className="border-t border-vpos-line py-1">
-            <MenuItem icon="logout-box-r-line" label="Sign out" danger />
+            <MenuItem icon="logout-box-r-line" label="Sign out" danger onClick={() => { void signOut(); navigate('/sign-in', { replace: true }) }} />
           </div>
         </div>
       ) : null}
@@ -86,21 +90,24 @@ function MenuItem({
   icon,
   label,
   danger,
+  onClick,
 }: {
   icon: string
   label: string
   danger?: boolean
+  onClick?: () => void
 }) {
   return (
     <button
       type="button"
       role="menuitem"
+      onClick={onClick}
       className={cn(
-        'flex w-full items-center gap-2.5 border-0 bg-transparent px-4 py-2.5 text-left text-[13px] font-semibold transition-colors hover:bg-vpos-subtle',
+        'flex w-full items-center gap-2.5 border-0 bg-transparent px-4 py-2 text-left text-[14px] font-medium transition-colors hover:bg-vpos-subtle',
         danger ? 'text-vpos-red hover:bg-vpos-red-bg' : 'text-vpos-text',
       )}
     >
-      <Icon name={icon} className="text-[16px]" />
+      <Icon name={icon} className="text-[17px]" />
       {label}
     </button>
   )

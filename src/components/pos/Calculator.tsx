@@ -153,18 +153,18 @@ export function Calculator() {
         aria-label="Calculator"
         aria-expanded={open}
         className={cn(
-          'inline-flex h-10 shrink-0 items-center gap-1.5 rounded-[10px] border border-vpos-line bg-white px-3.5 text-[12px] font-bold text-vpos-text transition-colors hover:bg-vpos-subtle',
+          'inline-flex h-10 shrink-0 items-center gap-1.5 rounded-[10px] border border-vpos-line bg-white px-3.5 text-[13px] font-bold text-vpos-text transition-colors hover:bg-vpos-subtle',
           open && 'border-vpos-primary bg-vpos-sand text-vpos-primary',
         )}
       >
-        <Icon name="calculator-line" className="text-[16px]" />
+        <Icon name="calculator-line" className="text-[17px]" />
         Calculator
       </button>
 
       {open ? (
         <div className="popover-in absolute top-[calc(100%+8px)] right-0 z-[300] w-[260px] overflow-hidden rounded-xl border border-vpos-line bg-white p-3 shadow-[0_14px_36px_rgba(12,43,78,.16)]">
           <div className="mb-2 flex items-center justify-between px-1">
-            <span className="text-[11px] font-bold text-vpos-muted">Calculator</span>
+            <span className="text-[12px] font-bold text-vpos-muted">Calculator</span>
             <button
               type="button"
               aria-label="Close calculator"
@@ -175,12 +175,12 @@ export function Calculator() {
             </button>
           </div>
           <div className="mb-3 rounded-lg bg-vpos-subtle px-3 py-3 text-right">
-            <div className="min-h-[1.25rem] text-[11px] text-vpos-muted">
+            <div className="min-h-[1.25rem] text-[12px] text-vpos-muted">
               {stored != null && op
                 ? `${stored} ${op === '*' ? '×' : op === '/' ? '÷' : op}`
                 : '\u00a0'}
             </div>
-            <div className="truncate text-[22px] font-extrabold tracking-tight text-vpos-text">
+            <div className="truncate text-[23px] font-extrabold tracking-tight text-vpos-text">
               {formatDisplay(display)}
             </div>
           </div>
@@ -191,7 +191,7 @@ export function Calculator() {
                 type="button"
                 onClick={k.onClick}
                 className={cn(
-                  'h-11 rounded-lg border-0 bg-vpos-subtle text-[14px] font-bold text-vpos-text transition-colors hover:bg-[#e0e7ed]',
+                  'h-11 rounded-lg border-0 bg-vpos-subtle text-[15px] font-bold text-vpos-text transition-colors hover:bg-[#e0e7ed]',
                   k.className,
                 )}
               >

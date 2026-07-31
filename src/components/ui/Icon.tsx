@@ -14,11 +14,11 @@ export interface IconProps extends HTMLAttributes<HTMLElement> {
 }
 
 const sizeClass = {
-  xs: 'text-[12px]',
-  sm: 'text-[14px]',
-  md: 'text-[16px]',
-  lg: 'text-[20px]',
-  xl: 'text-[24px]',
+  xs: 'text-[13px]',
+  sm: 'text-[15px]',
+  md: 'text-[17px]',
+  lg: 'text-[21px]',
+  xl: 'text-[25px]',
 }
 
 export function Icon({ name, size, className, ...rest }: IconProps) {

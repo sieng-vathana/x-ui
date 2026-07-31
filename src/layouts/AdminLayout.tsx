@@ -1,63 +1,59 @@
-import { useCallback, useEffect, useState } from 'react'
+import { useState } from 'react'
 import { Outlet } from 'react-router-dom'
-import { Sidebar } from '../components'
+import { Sidebar } from '../components/layout/Sidebar'
+import { SidebarSettingsDrawer } from '../components/layout/SidebarSettingsDrawer'
+import { useSidebarLayout, type SidebarLayoutState } from '../hooks/useSidebarLayout'
 import { cn } from '../lib/cn'
-
-const SIDEBAR_EXPANDED = 248
-const SIDEBAR_COLLAPSED = 72
-const STORAGE_KEY = 'vpos-sidebar-collapsed'
+import { Icon } from '../components/ui/Icon'
 
 export function AdminLayout() {
   const [storeId, setStoreId] = useState('main')
-  const [collapsed, setCollapsed] = useState(() => {
-    try {
-      return localStorage.getItem(STORAGE_KEY) === '1'
-    } catch {
-      return false
-    }
-  })
-
-  const toggleSidebar = useCallback(() => {
-    setCollapsed((prev) => {
-      const next = !prev
-      try {
-        localStorage.setItem(STORAGE_KEY, next ? '1' : '0')
-      } catch {
-        /* ignore */
-      }
-      return next
-    })
-  }, [])
-
-  useEffect(() => {
-    document.documentElement.style.setProperty(
-      '--vpos-sidebar-width',
-      `${collapsed ? SIDEBAR_COLLAPSED : SIDEBAR_EXPANDED}px`,
-    )
-  }, [collapsed])
-
-  const sidebarWidth = collapsed ? SIDEBAR_COLLAPSED : SIDEBAR_EXPANDED
+  const sidebar = useSidebarLayout()
+  const isHorizontal = !sidebar.isMobile && sidebar.config.layout === 'horizontal'
+  const isDetached = !sidebar.isMobile && (sidebar.config.view === 'detached' || sidebar.config.layout === 'semi-box')
+  const contentOffset = isHorizontal || sidebar.config.visibility === 'hidden' || sidebar.isMobile
+    ? 0
+    : sidebar.sidebarWidth + (isDetached ? 32 : 0)
 
   return (
-    <div className="flex min-h-screen bg-vpos-bg">
-      <Sidebar collapsed={collapsed} onToggle={toggleSidebar} />
+    <div
+      className="relative min-h-screen bg-vpos-bg"
+      data-sidebar-layout={sidebar.config.layout}
+      data-sidebar-size={sidebar.effectiveSize}
+      data-sidebar-view={sidebar.config.view}
+      data-sidebar-color={sidebar.config.color}
+      data-topbar-color={sidebar.config.topbar}
+    >
+      <Sidebar state={sidebar} />
+      {sidebar.isMobile && sidebar.mobileOpen ? (
+        <button type="button" aria-label="Close navigation" className="fixed inset-0 z-[35] bg-vpos-black/40" onClick={() => sidebar.setMobileOpen(false)} />
+      ) : null}
       <div
-        className={cn('min-h-screen transition-[margin,width] duration-200 ease-out')}
-        style={{
-          marginLeft: sidebarWidth,
-          width: `calc(100% - ${sidebarWidth}px)`,
-        }}
+        className={cn('min-h-screen overflow-x-hidden transition-[margin,width,padding] duration-200 ease-out', isHorizontal && 'pt-12', sidebar.config.width === 'boxed' && 'mx-auto max-w-[1300px]')}
+        style={{ marginLeft: contentOffset, width: `calc(100% - ${contentOffset}px)` }}
       >
         <Outlet
           context={{
             storeId,
             setStoreId,
-            sidebarCollapsed: collapsed,
-            toggleSidebar,
-            sidebarWidth,
-          }}
+            sidebar,
+            sidebarCollapsed: sidebar.effectiveSize === 'small' || (sidebar.effectiveSize === 'hover' && !sidebar.hovered),
+            toggleSidebar: sidebar.toggleNavigation,
+            sidebarWidth: contentOffset,
+          } satisfies AdminOutletContext}
         />
       </div>
+      <SidebarSettingsDrawer state={sidebar} />
+      <button
+        type="button"
+        data-theme-customizer-trigger
+        onClick={() => sidebar.setSettingsOpen(true)}
+        className="fixed right-5 bottom-5 z-[300] grid h-12 w-12 place-items-center rounded-full bg-vpos-primary text-[22px] text-white shadow-[0_5px_18px_rgba(104,124,254,.34)] transition-transform duration-200 hover:-translate-y-1 hover:rotate-45 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-vpos-primary max-sm:right-4 max-sm:bottom-20"
+        aria-label="Open Theme Customizer"
+        title="Theme Customizer"
+      >
+        <Icon name="settings-3-line" />
+      </button>
     </div>
   )
 }
@@ -65,6 +61,7 @@ export function AdminLayout() {
 export type AdminOutletContext = {
   storeId: string
   setStoreId: (id: string) => void
+  sidebar: SidebarLayoutState
   sidebarCollapsed: boolean
   toggleSidebar: () => void
   sidebarWidth: number

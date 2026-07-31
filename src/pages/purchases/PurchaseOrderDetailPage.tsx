@@ -5,6 +5,7 @@ import {
   Button,
   FormField,
   Icon,
+  Select,
   Status,
   StoreSwitcher,
   Topbar,
@@ -25,7 +26,6 @@ import {
   card,
   formGrid,
   pageContent,
-  selectClass,
   tdClass,
   thClass,
 } from '../../lib/ui'
@@ -135,40 +135,28 @@ export function PurchaseOrderDetailPage() {
         <div className="grid grid-cols-1 gap-4 xl:grid-cols-[1fr_280px]">
           <div className="space-y-4">
             <article className={cn(card, 'p-5')}>
-              <h2 className="m-0 mb-4 text-[14px] font-extrabold text-vpos-text">
+              <h2 className="m-0 mb-4 text-[15px] font-extrabold text-vpos-text">
                 Order details
               </h2>
               <div className={formGrid}>
-                <label className="block">
-                  <span className="mb-1.5 block text-[11px] font-extrabold tracking-wide text-vpos-muted uppercase">
-                    Supplier
-                  </span>
-                  <select
-                    className={cn(selectClass, 'w-full')}
-                    value={supplierId}
-                    onChange={(e) => setSupplierId(e.target.value)}
-                    disabled={!isNew && existing?.status !== 'Draft'}
-                  >
-                    {suppliers.map((s) => (
-                      <option key={s.id} value={s.id}>
-                        {s.name}
-                      </option>
-                    ))}
-                  </select>
-                </label>
-                <label className="block">
-                  <span className="mb-1.5 block text-[11px] font-extrabold tracking-wide text-vpos-muted uppercase">
-                    Destination store
-                  </span>
-                  <select
-                    className={cn(selectClass, 'w-full')}
-                    value={store}
-                    onChange={(e) => setStore(e.target.value)}
-                  >
-                    <option>Main Store</option>
-                    <option>Warehouse A</option>
-                  </select>
-                </label>
+                <Select
+                  label="Supplier"
+                  value={supplierId}
+                  onChange={(v) => setSupplierId(v)}
+                  options={suppliers.map((s) => ({
+                    value: s.id,
+                    label: s.name,
+                  }))}
+                />
+                <Select
+                  label="Destination store"
+                  value={store}
+                  onChange={(v) => setStore(v)}
+                  options={[
+                    { value: 'Main Store', label: 'Main Store' },
+                    { value: 'Warehouse A', label: 'Warehouse A' },
+                  ]}
+                />
                 <FormField
                   label="Expected delivery"
                   type="date"
@@ -177,7 +165,7 @@ export function PurchaseOrderDetailPage() {
                 />
                 {!isNew && existing ? (
                   <div>
-                    <span className="mb-1.5 block text-[11px] font-extrabold tracking-wide text-vpos-muted uppercase">
+                    <span className="mb-1.5 block text-[12px] font-extrabold tracking-wide text-vpos-muted uppercase">
                       Status
                     </span>
                     <Status value={existing.status} />
@@ -185,14 +173,14 @@ export function PurchaseOrderDetailPage() {
                 ) : null}
               </div>
               <label className="mt-4 block">
-                <span className="mb-1.5 block text-[11px] font-extrabold tracking-wide text-vpos-muted uppercase">
+                <span className="mb-1.5 block text-[12px] font-extrabold tracking-wide text-vpos-muted uppercase">
                   Notes
                 </span>
                 <textarea
                   value={note}
                   onChange={(e) => setNote(e.target.value)}
                   rows={2}
-                  className="w-full resize-y rounded-[10px] border border-vpos-line px-3 py-2.5 text-[13px] outline-none focus:border-vpos-primary"
+                  className="w-full resize-y rounded-[10px] border border-vpos-line px-3 py-2.5 text-[14px] outline-none focus:border-vpos-primary"
                   placeholder="Optional note for warehouse or supplier…"
                 />
               </label>
@@ -200,7 +188,7 @@ export function PurchaseOrderDetailPage() {
 
             <article className={cn(card, 'p-5')}>
               <div className="mb-3 flex items-center justify-between gap-2">
-                <h2 className="m-0 text-[14px] font-extrabold text-vpos-text">
+                <h2 className="m-0 text-[15px] font-extrabold text-vpos-text">
                   Line items
                 </h2>
                 <Button variant="secondary" onClick={addLine}>
@@ -240,7 +228,7 @@ export function PurchaseOrderDetailPage() {
                                 ),
                               )
                             }}
-                            className="h-9 w-20 rounded-lg border border-vpos-line px-2 text-[12px] outline-none"
+                            className="h-9 w-20 rounded-lg border border-vpos-line px-2 text-[13px] outline-none"
                           />
                         </td>
                         <td className={tdClass}>{line.qtyReceived}</td>
@@ -258,7 +246,7 @@ export function PurchaseOrderDetailPage() {
                                 ),
                               )
                             }}
-                            className="h-9 w-24 rounded-lg border border-vpos-line px-2 text-[12px] outline-none"
+                            className="h-9 w-24 rounded-lg border border-vpos-line px-2 text-[13px] outline-none"
                           />
                         </td>
                         <td className={tdClass}>
@@ -289,10 +277,10 @@ export function PurchaseOrderDetailPage() {
           </div>
 
           <aside className={cn(card, 'h-fit p-5')}>
-            <h3 className="m-0 mb-3 text-[11px] font-extrabold tracking-wide text-vpos-muted uppercase">
+            <h3 className="m-0 mb-3 text-[12px] font-extrabold tracking-wide text-vpos-muted uppercase">
               Summary
             </h3>
-            <div className="space-y-2 text-[13px]">
+            <div className="space-y-2 text-[14px]">
               <div className="flex justify-between text-vpos-muted">
                 <span>Lines</span>
                 <span className="font-semibold text-vpos-text">{lines.length}</span>
@@ -305,12 +293,12 @@ export function PurchaseOrderDetailPage() {
               </div>
               <div className="flex justify-between border-t border-vpos-line pt-3">
                 <span className="font-bold text-vpos-text">Order total</span>
-                <strong className="text-[18px] text-vpos-primary">
+                <strong className="text-[19px] text-vpos-primary">
                   {money(existing ? poTotal(existing) : total)}
                 </strong>
               </div>
             </div>
-            <p className="mt-4 mb-0 text-[11px] leading-relaxed text-vpos-muted">
+            <p className="mt-4 mb-0 text-[12px] leading-relaxed text-vpos-muted">
               Receiving this order will increase on-hand stock in Inventory for
               the destination store.
             </p>

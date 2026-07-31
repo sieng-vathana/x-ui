@@ -5,8 +5,9 @@ import {
   type ReactNode,
 } from 'react'
 import { cn } from '../../lib/cn'
-import { card, searchField, selectClass, tdClass, thClass } from '../../lib/ui'
+import { card, searchField, tdClass, thClass } from '../../lib/ui'
 import { Icon } from './Icon'
+import { Select } from './Select'
 
 export interface DataTableColumn<T> {
   id: string
@@ -166,13 +167,13 @@ export function DataTable<T>({
   const cellPad = dense ? 'py-2.5' : ''
 
   return (
-    <article className={cn(card, 'p-4', className)}>
+    <article className={cn(card, 'overflow-hidden p-4', className)}>
       {(title || actions || searchable || toolbar) && (
         <div className="mb-3 flex flex-col gap-3">
           {(title || actions) && (
             <div className="flex flex-wrap items-center justify-between gap-2">
               {title ? (
-                <div className="min-w-0 text-[14px] font-extrabold text-vpos-text">
+                <div className="min-w-0 text-[15px] font-extrabold text-vpos-text">
                   {title}
                 </div>
               ) : (
@@ -195,7 +196,7 @@ export function DataTable<T>({
                     value={search}
                     onChange={(e) => setSearch(e.target.value)}
                     placeholder={searchPlaceholder}
-                    className="w-full border-0 bg-transparent text-[13px] outline-none selection:bg-vpos-sand"
+                    className="w-full border-0 bg-transparent text-[14px] outline-none selection:bg-vpos-sand"
                     aria-label="Search table"
                   />
                   {search ? (
@@ -205,7 +206,7 @@ export function DataTable<T>({
                       onClick={() => setSearch('')}
                       className="grid h-7 w-7 place-items-center rounded-md border-0 bg-transparent text-vpos-muted hover:text-vpos-text"
                     >
-                      <Icon name="close-line" className="text-[14px]" />
+                      <Icon name="close-line" className="text-[15px]" />
                     </button>
                   ) : null}
                 </label>
@@ -242,15 +243,15 @@ export function DataTable<T>({
                   className={cn(tdClass, 'border-0 py-14 text-center')}
                 >
                   <span className="inline-flex flex-col items-center gap-2 text-vpos-muted">
-                    <span className="grid h-12 w-12 place-items-center rounded-2xl bg-vpos-subtle text-[22px] text-vpos-muted">
+                    <span className="grid h-12 w-12 place-items-center rounded-[4px] bg-vpos-subtle text-[23px] text-vpos-muted">
                       <Icon name={emptyIcon} />
                     </span>
-                    <span className="text-[13px] font-semibold">{emptyMessage}</span>
+                    <span className="text-[14px] font-semibold">{emptyMessage}</span>
                     {search.trim() ? (
                       <button
                         type="button"
                         onClick={() => setSearch('')}
-                        className="border-0 bg-transparent text-[12px] font-bold text-vpos-primary hover:underline"
+                        className="border-0 bg-transparent text-[13px] font-bold text-vpos-primary hover:underline"
                       >
                         Clear search
                       </button>
@@ -262,7 +263,7 @@ export function DataTable<T>({
               pageRows.map((row, index) => (
                 <tr
                   key={rowKey(row)}
-                  className="transition-colors hover:bg-vpos-subtle/40"
+                  className={`animate-fade-in stagger-${(index % 8) + 1} transition-colors hover:bg-vpos-sand/45`}
                 >
                   {columns.map((col) => (
                     <td
@@ -285,8 +286,8 @@ export function DataTable<T>({
       </div>
 
       {/* Pagination footer */}
-      <div className="mt-4 flex flex-col gap-3 border-t border-vpos-line pt-4 sm:flex-row sm:items-center sm:justify-between">
-        <div className="flex flex-wrap items-center gap-3 text-[11px] text-vpos-muted">
+      <div className="mt-5 flex flex-col gap-3 border-t border-vpos-line/70 pt-4 sm:flex-row sm:items-center sm:justify-between">
+        <div className="flex flex-wrap items-center gap-3 text-[12px] text-vpos-muted">
           <span>
             Showing{' '}
             <strong className="text-vpos-text">
@@ -302,22 +303,19 @@ export function DataTable<T>({
           </span>
           <label className="inline-flex items-center gap-1.5">
             <span>Rows</span>
-            <select
-              className={cn(selectClass, 'h-8 min-w-0 px-2 text-[11px]')}
-              value={pageSize}
-              onChange={(e) => {
-                const next = Number(e.target.value)
+            <Select
+              variant="toolbar"
+              value={String(pageSize)}
+              onChange={(v) => {
+                const next = Number(v)
                 setPageSize(next)
                 setPage(1)
               }}
-              aria-label="Rows per page"
-            >
-              {pageSizeOptions.map((n) => (
-                <option key={n} value={n}>
-                  {n}
-                </option>
-              ))}
-            </select>
+              options={pageSizeOptions.map((n) => ({
+                value: String(n),
+                label: String(n),
+              }))}
+            />
           </label>
         </div>
 
@@ -332,7 +330,7 @@ export function DataTable<T>({
             p === '…' ? (
               <span
                 key={`e-${i}`}
-                className="px-1 text-[11px] font-bold text-vpos-muted"
+                className="px-1 text-[12px] font-bold text-vpos-muted"
               >
                 …
               </span>
@@ -343,10 +341,10 @@ export function DataTable<T>({
                 onClick={() => setPage(p)}
                 aria-current={p === safePage ? 'page' : undefined}
                 className={cn(
-                  'h-[30px] min-w-[30px] rounded-lg border-0 px-2 text-[11px] font-bold transition-colors',
+                  'h-[30px] min-w-[30px] rounded-[4px] border border-vpos-line px-2 text-[12px] font-semibold transition-colors',
                   p === safePage
                     ? 'bg-vpos-primary text-white'
-                    : 'bg-vpos-subtle text-vpos-muted hover:bg-vpos-sand hover:text-vpos-text',
+                    : 'bg-white text-vpos-muted hover:bg-vpos-subtle hover:text-vpos-text',
                 )}
               >
                 {p}
@@ -385,15 +383,15 @@ function PaginationBtn({
       disabled={disabled}
       onClick={onClick}
       className={cn(
-        'inline-flex h-[30px] items-center gap-0.5 rounded-lg border-0 px-2.5 text-[11px] font-bold transition-colors',
+        'inline-flex h-[30px] items-center gap-0.5 rounded-[4px] border border-vpos-line px-2.5 text-[12px] font-semibold transition-colors',
         disabled
           ? 'cursor-not-allowed bg-vpos-subtle text-vpos-muted/50'
-          : 'bg-vpos-subtle text-vpos-muted hover:bg-vpos-sand hover:text-vpos-text',
+          : 'bg-white text-vpos-muted hover:bg-vpos-subtle hover:text-vpos-text',
       )}
     >
-      {!iconRight ? <Icon name={icon} className="text-[16px]" /> : null}
+      {!iconRight ? <Icon name={icon} className="text-[17px]" /> : null}
       <span className="hidden sm:inline">{label}</span>
-      {iconRight ? <Icon name={icon} className="text-[16px]" /> : null}
+      {iconRight ? <Icon name={icon} className="text-[17px]" /> : null}
     </button>
   )
 }

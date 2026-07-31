@@ -165,7 +165,7 @@ export function DiscountModal({
         />
 
         <label className="block">
-          <span className="mb-1.5 block text-[11px] font-extrabold tracking-wide text-vpos-muted uppercase">
+          <span className="mb-1.5 block text-[12px] font-extrabold tracking-wide text-vpos-muted uppercase">
             {type === 'percent' ? 'Discount percent' : 'Discount amount'}
           </span>
           <div
@@ -176,7 +176,7 @@ export function DiscountModal({
                 : 'border-vpos-line focus-within:border-vpos-primary focus-within:shadow-[0_0_0_3px_#1d546c24]',
             )}
           >
-            <span className="grid h-8 w-8 shrink-0 place-items-center rounded-lg bg-vpos-subtle text-[13px] font-extrabold text-vpos-muted">
+            <span className="grid h-8 w-8 shrink-0 place-items-center rounded-lg bg-vpos-subtle text-[14px] font-extrabold text-vpos-muted">
               {type === 'percent' ? '%' : '$'}
             </span>
             <input
@@ -205,7 +205,7 @@ export function DiscountModal({
                 }
               }}
               placeholder={type === 'percent' ? 'e.g. 10' : 'e.g. 2.00'}
-              className="w-full border-0 bg-transparent text-[16px] font-semibold text-vpos-text outline-none selection:bg-vpos-sand selection:text-vpos-primary"
+              className="w-full border-0 bg-transparent text-[17px] font-semibold text-vpos-text outline-none selection:bg-vpos-sand selection:text-vpos-primary"
               aria-invalid={Boolean(error)}
             />
             {value ? (
@@ -219,23 +219,23 @@ export function DiscountModal({
                 }}
                 className="grid h-7 w-7 place-items-center rounded-md border-0 bg-transparent text-vpos-muted transition hover:bg-vpos-subtle hover:text-vpos-text"
               >
-                <Icon name="close-line" className="text-[14px]" />
+                <Icon name="close-line" className="text-[15px]" />
               </button>
             ) : null}
           </div>
           {error ? (
-            <small className="mt-1.5 block text-[11px] font-semibold text-vpos-red">
+            <small className="mt-1.5 block text-[12px] font-semibold text-vpos-red">
               {error}
             </small>
           ) : (
-            <small className="mt-1.5 block text-[11px] text-vpos-muted">
+            <small className="mt-1.5 block text-[12px] text-vpos-muted">
               Line: {quantity} × {formatUsd(unitPrice)} = {formatUsd(lineTotal)}
             </small>
           )}
         </label>
 
         <div>
-          <span className="mb-1.5 block text-[11px] font-extrabold tracking-wide text-vpos-muted uppercase">
+          <span className="mb-1.5 block text-[12px] font-extrabold tracking-wide text-vpos-muted uppercase">
             Quick select
           </span>
           <div className="flex flex-wrap gap-2">
@@ -258,7 +258,7 @@ export function DiscountModal({
           </div>
         </div>
 
-        <div className="rounded-xl border border-vpos-line bg-vpos-subtle px-4 py-3 text-[12px] transition-colors">
+        <div className="rounded-xl border border-vpos-line bg-vpos-subtle px-4 py-3 text-[13px] transition-colors">
           <div className="flex justify-between text-vpos-muted">
             <span>Line total</span>
             <span className="font-semibold text-vpos-text">
@@ -278,7 +278,7 @@ export function DiscountModal({
           </div>
           <div className="mt-2 flex justify-between border-t border-vpos-line pt-2">
             <span className="font-bold text-vpos-text">After discount</span>
-            <span className="text-[15px] font-extrabold text-vpos-primary tabular-nums transition-all">
+            <span className="text-[16px] font-extrabold text-vpos-primary tabular-nums transition-all">
               {formatUsd(finalTotal)}
             </span>
           </div>

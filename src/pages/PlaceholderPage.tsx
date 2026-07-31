@@ -23,7 +23,7 @@ export function PlaceholderPage({
           <Breadcrumb items={[{ label: title }]} />
         </section>
         <div className="rounded-[14px] border border-vpos-line bg-white p-8 shadow-vpos">
-          <p className="m-0 text-[13px] text-vpos-muted">
+          <p className="m-0 text-[14px] text-vpos-muted">
             This route is registered. Wire the full screen here when ready.
           </p>
         </div>

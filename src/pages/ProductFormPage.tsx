@@ -1,18 +1,17 @@
-import { useMemo, useState } from 'react'
+import { useCallback, useRef, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import {
   Breadcrumb,
   Button,
+  CropModal,
   FormField,
   Icon,
-  ProductMode,
+  Select,
   StoreSwitcher,
   TextAreaField,
   Toggle,
   Topbar,
-  UploadZone,
 } from '../components'
-import { productOptionTypes, products as catalog } from '../data/mockup'
 import { useAdminStore } from '../hooks/useAdminStore'
 import { cn } from '../lib/cn'
 import { paths } from '../lib/paths'
@@ -23,85 +22,150 @@ import {
   pageContent,
 } from '../lib/ui'
 
-type OptionDef = { id: string; name: string; values: string }
+interface ProductImage {
+  id: string
+  file: File
+  previewUrl: string
+  isPrimary: boolean
+}
 
-function cartesianVariants(options: OptionDef[]): string[] {
-  const cleaned = options
-    .map((o) => ({
-      name: o.name.trim() || 'Option',
-      values: o.values
-        .split(',')
-        .map((v) => v.trim())
-        .filter(Boolean),
-    }))
-    .filter((o) => o.values.length > 0)
-  if (cleaned.length === 0) return []
-  return cleaned.reduce<string[]>(
-    (acc, opt) => {
-      if (acc.length === 0) return opt.values.map((v) => `${opt.name}: ${v}`)
-      const next: string[] = []
-      for (const prev of acc) {
-        for (const v of opt.values) {
-          next.push(`${prev} · ${opt.name}: ${v}`)
-        }
-      }
-      return next
-    },
-    [],
-  )
+const mockCategories = [
+  { id: 1, name: 'Coffee', image: 'https://images.unsplash.com/photo-1509042239860-f550ce710b93?w=80&h=80&fit=crop' },
+  { id: 2, name: 'Bakery', image: 'https://images.unsplash.com/photo-1509440159596-0249088772ff?w=80&h=80&fit=crop' },
+]
+const mockBrands = [
+  { id: 1, name: 'V-POS House Brand', image: 'https://images.unsplash.com/photo-1559056199-641a0ac8b55e?w=80&h=80&fit=crop' },
+  { id: 2, name: 'Coffee House', image: 'https://images.unsplash.com/photo-1559496417-e7f25cb247f3?w=80&h=80&fit=crop' },
+]
+const mockUnits = [
+  { id: 1, name: 'Cup' },
+  { id: 2, name: 'Piece' },
+]
+const mockTaxes = [
+  { id: 1, name: 'VAT 10%', percentage: 10 },
+  { id: 2, name: 'VAT 0%', percentage: 0 },
+]
+const mockSuppliers = [
+  { id: 1, name: 'Coffee Supply Co.' },
+  { id: 2, name: 'Bake House Ltd.' },
+]
+
+interface VariantInput {
+  key: string
+  sku: string
+  barcode: string
+  variantName: string
+  costPrice: string
+  posPrice: string
+  compareAtPrice: string
+  onlinePrice: string
+  stockAlertQty: string
+  supplierId: string
+}
+
+function emptyVariant(id: number): VariantInput {
+  return {
+    key: String(Date.now() + id),
+    sku: '',
+    barcode: '',
+    variantName: '',
+    costPrice: '',
+    posPrice: '',
+    compareAtPrice: '',
+    onlinePrice: '',
+    stockAlertQty: '5',
+    supplierId: '',
+  }
 }
 
 export function ProductFormPage() {
   const navigate = useNavigate()
   const { sku } = useParams()
   const isEdit = Boolean(sku)
-  const product = catalog.find((p) => p.sku === sku)
   const { storeId, setStoreId, sidebarWidth } = useAdminStore()
 
   const [step, setStep] = useState(1)
-  const [productMode, setProductMode] = useState('simple')
-  const [trackStock, setTrackStock] = useState(true)
-  const [continueSelling, setContinueSelling] = useState(false)
-  const [optionDefs, setOptionDefs] = useState<OptionDef[]>(() => {
-    const size = productOptionTypes.find((o) => o.name === 'Size')
-    const color = productOptionTypes.find((o) => o.name === 'Color')
-    return [
-      {
-        id: size?.id ?? 'opt-1',
-        name: size?.name ?? 'Size',
-        values: (size?.values ?? ['S', 'M', 'L']).join(', '),
-      },
-      {
-        id: color?.id ?? 'opt-2',
-        name: color?.name ?? 'Color',
-        values: (color?.values ?? ['Black', 'White']).join(', '),
-      },
-    ]
-  })
+  const [productName, setProductName] = useState('')
+  const [productCode, setProductCode] = useState('')
+  const [shortName, setShortName] = useState('')
+  const [currencyCode, setCurrencyCode] = useState('USD')
+  const [salesChannel, setSalesChannel] = useState<'POS' | 'ONLINE' | 'BOTH'>('BOTH')
+  const [description, setDescription] = useState('')
+  const [categoryId, setCategoryId] = useState('')
+  const [brandId, setBrandId] = useState('')
+  const [unitId, setUnitId] = useState('')
+  const [taxId, setTaxId] = useState('')
+  const [isFeatured, setIsFeatured] = useState(false)
+  const [isSellable, setIsSellable] = useState(true)
+  const [isStockable, setIsStockable] = useState(true)
 
-  const applyPreset = (optionId: string) => {
-    const preset = productOptionTypes.find((o) => o.id === optionId)
-    if (!preset) return
-    setOptionDefs((prev) => {
-      if (prev.some((p) => p.name.toLowerCase() === preset.name.toLowerCase()))
-        return prev
-      return [
-        ...prev,
-        {
-          id: preset.id,
-          name: preset.name,
-          values: preset.values.join(', '),
-        },
-      ]
-    })
-  }
+  const [variants, setVariants] = useState<VariantInput[]>([emptyVariant(0)])
+  const [images, setImages] = useState<ProductImage[]>([])
+  const [cropTarget, setCropTarget] = useState<ProductImage | null>(null)
+  const fileInputRef = useRef<HTMLInputElement>(null)
 
-  const generated = useMemo(
-    () => cartesianVariants(optionDefs),
-    [optionDefs],
+  const updateVariant = useCallback(
+    (key: string, field: keyof VariantInput, value: string) => {
+      setVariants((prev) =>
+        prev.map((v) => (v.key === key ? { ...v, [field]: value } : v)),
+      )
+    },
+    [],
   )
 
-  const titleName = product?.name ?? 'Iced Americano'
+  const addVariant = useCallback(() => {
+    setVariants((prev) => [...prev, emptyVariant(prev.length)])
+  }, [])
+
+  const removeVariant = useCallback((key: string) => {
+    setVariants((prev) => prev.filter((v) => v.key !== key))
+  }, [])
+
+  const handleFiles = useCallback((files: FileList | null) => {
+    if (!files) return
+    const newImages: ProductImage[] = Array.from(files).map((file, i) => ({
+      id: `${Date.now()}-${i}`,
+      file,
+      previewUrl: URL.createObjectURL(file),
+      isPrimary: images.length === 0 && i === 0,
+    }))
+    setImages((prev) => {
+      const hasPrimary = prev.some((img) => img.isPrimary) || newImages.some((img) => img.isPrimary)
+      return [...prev, ...newImages].map((img, idx) => ({
+        ...img,
+        isPrimary: hasPrimary ? img.isPrimary : idx === 0,
+      }))
+    })
+  }, [images.length])
+
+  const removeImage = useCallback((id: string) => {
+    setImages((prev) => {
+      const next = prev.filter((img) => img.id !== id)
+      if (next.length > 0 && !next.some((img) => img.isPrimary)) {
+        next[0] = { ...next[0], isPrimary: true }
+      }
+      return next
+    })
+  }, [])
+
+  const setPrimary = useCallback((id: string) => {
+    setImages((prev) => prev.map((img) => ({ ...img, isPrimary: img.id === id })))
+  }, [])
+
+  const handleCrop = useCallback((blob: Blob) => {
+    if (!cropTarget) return
+    const croppedUrl = URL.createObjectURL(blob)
+    const croppedFile = new File([blob], cropTarget.file.name, { type: 'image/jpeg' })
+    setImages((prev) =>
+      prev.map((img) =>
+        img.id === cropTarget.id
+          ? { ...img, previewUrl: croppedUrl, file: croppedFile }
+          : img,
+      ),
+    )
+  }, [cropTarget])
+
+  const titleName = isEdit ? productName || 'Iced Americano' : productName || 'New product'
 
   return (
     <>
@@ -122,15 +186,11 @@ export function ProductFormPage() {
               ]}
             />
           </div>
-          <span className="inline-flex shrink-0 items-center gap-1.5 text-[12px] font-bold text-vpos-green">
-            <Icon name="checkbox-circle-line" />
-            {isEdit ? 'Last updated 1:34 PM' : 'Draft saved'}
-          </span>
         </section>
 
         <div className="relative mx-auto mb-[26px] grid max-w-[850px] grid-cols-3">
           <div className="absolute top-[18px] right-[15%] left-[15%] z-0 h-0.5 bg-[#c8d3dd]" />
-          {['Product details', 'Pricing & stock', 'Review'].map((label, i) => {
+          {['Product details', 'Variants & pricing', 'Review'].map((label, i) => {
             const n = i + 1
             const active = step === n
             const done = step > n
@@ -139,7 +199,7 @@ export function ProductFormPage() {
                 key={label}
                 type="button"
                 className={cn(
-                  'relative z-[1] flex items-center justify-center gap-2 border-0 bg-transparent text-[12px] font-bold',
+                  'relative z-[1] flex items-center justify-center gap-2 border-0 bg-transparent text-[13px] font-bold',
                   active || done ? 'text-vpos-primary' : 'text-vpos-muted',
                 )}
                 onClick={() => setStep(n)}
@@ -165,328 +225,210 @@ export function ProductFormPage() {
             <section className="grid content-start gap-[18px]">
               <article className={cn(card, 'p-[22px]')}>
                 <div className={formSectionTitle}>
-                  <h3 className="m-0 text-[14px]">Basic information</h3>
-                  <p className="mt-1.5 mb-0 text-[11px] text-vpos-muted">
-                    Use a clear product name and organize it for reporting.
+                  <h3 className="m-0 text-[15px]">Basic information</h3>
+                  <p className="mt-1.5 mb-0 text-[12px] text-vpos-muted">
+                    Product name, identifiers, and categorization.
                   </p>
                 </div>
                 <div className={formGrid}>
                   <div className="md:col-span-2">
-                    <FormField
-                      label="Product name"
-                      required
-                      placeholder={isEdit ? titleName : 'e.g. Iced Americano'}
-                      defaultValue={isEdit ? titleName : undefined}
-                    />
+                    <FormField label="Product name" required value={productName} onChange={(e) => setProductName(e.target.value)} placeholder="e.g. Iced Americano" />
                   </div>
-                  <FormField
-                    label="Category"
-                    required
-                    placeholder={isEdit ? product?.category ?? 'Coffee' : 'Select category'}
-                    defaultValue={isEdit ? product?.category : undefined}
-                  />
-                  <FormField
-                    label="Brand"
-                    placeholder={isEdit ? 'V-POS House Brand' : 'Select brand'}
-                    defaultValue={isEdit ? 'V-POS House Brand' : undefined}
-                  />
-                  <FormField
-                    label="SKU / Barcode"
-                    placeholder="Auto-generated if empty"
-                    defaultValue={isEdit ? sku : undefined}
-                  />
-                  <FormField label="Supplier" placeholder="Select supplier" />
+                  <FormField label="Product code" value={productCode} onChange={(e) => setProductCode(e.target.value.toUpperCase())} placeholder="e.g. ICE-AMER-001" />
+                  <FormField label="Short name" value={shortName} onChange={(e) => setShortName(e.target.value)} placeholder="e.g. Iced Americano" />
+                  <FormField label="Currency" required value={currencyCode} onChange={(e) => setCurrencyCode(e.target.value.toUpperCase())} placeholder="USD" maxLength={3} />
+                  <Select label="Category" requiredMark placeholder="Select a category" value={categoryId} onChange={setCategoryId} options={mockCategories.map((c) => ({ value: String(c.id), label: c.name, image: c.image }))} searchable />
+                  <Select label="Brand" placeholder="Select a brand" value={brandId} onChange={setBrandId} options={mockBrands.map((b) => ({ value: String(b.id), label: b.name, image: b.image }))} searchable />
+                  <Select label="Unit" requiredMark placeholder="Select a unit" value={unitId} onChange={setUnitId} options={mockUnits.map((u) => ({ value: String(u.id), label: u.name }))} />
+                  <Select label="Tax" placeholder="Select a tax rate" value={taxId} onChange={setTaxId} options={mockTaxes.map((t) => ({ value: String(t.id), label: t.name }))} />
                   <div className="md:col-span-2">
-                    <TextAreaField
-                      label="Description"
-                      placeholder="Write a short product description…"
-                      defaultValue={
-                        isEdit
-                          ? 'Explain what makes this product useful or unique.'
-                          : undefined
-                      }
-                    />
+                    <TextAreaField label="Description" value={description} onChange={(e) => setDescription(e.target.value)} placeholder="Write a short product description…" />
                   </div>
                 </div>
               </article>
 
               <article className={cn(card, 'p-[22px]')}>
                 <div className={formSectionTitle}>
-                  <h3 className="m-0 text-[14px]">Product images</h3>
-                  <p className="mt-1.5 mb-0 text-[11px] text-vpos-muted">
-                    Tip: Use a square image for best results.
+                  <h3 className="m-0 text-[15px]">Product images</h3>
+                  <p className="mt-1.5 mb-0 text-[12px] text-vpos-muted">
+                    Upload up to 6 images. Select one as the primary thumbnail.
                   </p>
                 </div>
-                <UploadZone />
+
+                {images.length > 0 ? (
+                  <div className="mb-4 grid grid-cols-2 gap-3 sm:grid-cols-3">
+                    {images.map((img) => (
+                      <div key={img.id} className="group relative overflow-hidden rounded-xl border border-vpos-line bg-vpos-subtle">
+                        <img src={img.previewUrl} alt="" className="aspect-square w-full object-cover" />
+                        <button
+                          type="button"
+                          onClick={() => setCropTarget(img)}
+                          className="absolute top-2 right-2 grid h-7 w-7 place-items-center rounded-lg border-0 bg-black/50 text-white opacity-0 transition group-hover:opacity-100 hover:bg-black/70"
+                          aria-label="Edit image"
+                        >
+                          <Icon name="crop-line" className="text-[14px]" />
+                        </button>
+                        <div className="absolute inset-x-0 bottom-0 flex items-center justify-between gap-1 bg-gradient-to-t from-black/60 to-transparent p-2 pt-6">
+                          <button
+                            type="button"
+                            onClick={() => setPrimary(img.id)}
+                            className={cn(
+                              'rounded-full border-0 px-2.5 py-1 text-[11px] font-extrabold transition',
+                              img.isPrimary
+                                ? 'bg-vpos-primary text-white'
+                                : 'bg-white/80 text-vpos-text hover:bg-white',
+                            )}
+                          >
+                            {img.isPrimary ? '★ Primary' : 'Set primary'}
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => removeImage(img.id)}
+                            className="grid h-7 w-7 place-items-center rounded-full border-0 bg-white/80 text-vpos-red hover:bg-white"
+                            aria-label="Remove image"
+                          >
+                            <Icon name="close-line" className="text-[14px]" />
+                          </button>
+                        </div>
+                        {img.isPrimary ? (
+                          <span className="absolute top-2 left-2 rounded-full bg-vpos-primary px-2 py-0.5 text-[10px] font-extrabold text-white shadow">
+                            PRIMARY
+                          </span>
+                        ) : null}
+                      </div>
+                    ))}
+                    {images.length < 6 ? (
+                      <button
+                        type="button"
+                        onClick={() => fileInputRef.current?.click()}
+                        className="flex aspect-square flex-col items-center justify-center gap-1.5 rounded-xl border-[1.5px] border-dashed border-vpos-primary-2 bg-[#f7f9fb] hover:border-vpos-primary hover:bg-vpos-sand/30"
+                      >
+                        <Icon name="add-line" className="text-[21px] text-vpos-primary" />
+                        <span className="text-[11px] font-bold text-vpos-muted">Add more</span>
+                      </button>
+                    ) : null}
+                  </div>
+                ) : (
+                  <button
+                    type="button"
+                    onClick={() => fileInputRef.current?.click()}
+                    className="flex min-h-[184px] w-full cursor-pointer flex-col items-center justify-center gap-2 rounded-xl border-[1.5px] border-dashed border-vpos-primary-2 bg-[#f7f9fb] px-4 hover:border-vpos-primary hover:bg-vpos-sand/30"
+                  >
+                    <span className="grid h-11 w-11 place-items-center rounded-full bg-vpos-sand text-[21px] text-vpos-primary">
+                      <Icon name="upload-cloud-2-line" />
+                    </span>
+                    <strong className="text-[13px] text-vpos-text">Click to upload or drag and drop</strong>
+                    <small className="text-[11px] text-vpos-muted">PNG, JPG or WEBP • Max 5 MB • Up to 6 images</small>
+                    <small className="text-[11px] text-vpos-muted">First image is automatically set as primary</small>
+                  </button>
+                )}
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  accept="image/*"
+                  multiple
+                  hidden
+                  onChange={(e) => { handleFiles(e.target.files); e.target.value = '' }}
+                />
               </article>
             </section>
 
             <aside className="grid content-start gap-[18px]">
               <article className={cn(card, 'p-[22px]')}>
                 <div className={formSectionTitle}>
-                  <h3 className="m-0 text-[14px]">Product type</h3>
-                  <p className="mt-1.5 mb-0 text-[11px] text-vpos-muted">
-                    Choose how inventory is controlled.
-                  </p>
+                  <h3 className="m-0 text-[15px]">Sales channel</h3>
+                  <p className="mt-1.5 mb-0 text-[12px] text-vpos-muted">Where this product is sold.</p>
                 </div>
-                <ProductMode
-                  value={productMode}
-                  onChange={setProductMode}
+                <Select
+                  label="Channel"
+                  placeholder="Select channel"
+                  value={salesChannel}
+                  onChange={(v) => setSalesChannel(v as typeof salesChannel)}
                   options={[
-                    {
-                      id: 'simple',
-                      title: 'Single product',
-                      description: 'One SKU, price, and stock quantity',
-                      badge: 'Simple',
-                    },
-                    {
-                      id: 'variant',
-                      title: 'With variants',
-                      description: 'Options like size & color, each with own stock',
-                      badge: 'Options',
-                    },
+                    { value: 'POS', label: 'POS only' },
+                    { value: 'BOTH', label: 'POS + Online' },
+                    { value: 'ONLINE', label: 'Online only' },
                   ]}
                 />
-                <Button
-                  variant="text"
-                  className="mt-3"
-                  onClick={() => navigate(paths.productVariants)}
-                >
-                  View all variants →
-                </Button>
+              </article>
+
+              <article className={cn(card, 'p-[22px]')}>
+                <div className={formSectionTitle}>
+                  <h3 className="m-0 text-[15px]">Settings</h3>
+                  <p className="mt-1.5 mb-0 text-[12px] text-vpos-muted">Product visibility and behavior.</p>
+                </div>
+                <Toggle checked={isSellable} onChange={setIsSellable} label="Available for sale" description="Show this item in POS and orders" />
+                <Toggle checked={isStockable} onChange={setIsStockable} label="Track inventory" description="Update stock after every sale" />
+                <Toggle checked={isFeatured} onChange={setIsFeatured} label="Featured product" description="Highlight in catalog and recommendations" />
               </article>
             </aside>
-
-            {productMode === 'variant' ? (
-              <article className={cn(card, 'p-[22px] xl:col-span-2')}>
-                <div className={formSectionTitle}>
-                  <h3 className="m-0 text-[14px]">Options (variants)</h3>
-                  <p className="mt-1.5 mb-0 text-[11px] text-vpos-muted">
-                    Pick or edit option types from your Variants library (Size,
-                    Color…). Combinations are generated for this product only —
-                    stock is set later per combination, not on the option itself.
-                  </p>
-                </div>
-                <div className="mb-3 flex flex-wrap gap-2">
-                  <span className="self-center text-[11px] font-bold text-vpos-muted">
-                    Add from library:
-                  </span>
-                  {productOptionTypes
-                    .filter((o) => o.status === 'Active')
-                    .map((o) => (
-                      <button
-                        key={o.id}
-                        type="button"
-                        onClick={() => applyPreset(o.id)}
-                        className="rounded-full border border-vpos-line bg-white px-3 py-1 text-[11px] font-bold text-vpos-text hover:border-vpos-primary hover:text-vpos-primary"
-                      >
-                        + {o.name}
-                      </button>
-                    ))}
-                </div>
-                <div className="space-y-3">
-                  {optionDefs.map((opt, idx) => (
-                    <div
-                      key={opt.id}
-                      className="grid grid-cols-1 gap-3 rounded-[12px] border border-vpos-line bg-vpos-subtle/40 p-3 sm:grid-cols-[1fr_2fr_auto]"
-                    >
-                      <FormField
-                        label="Option name"
-                        value={opt.name}
-                        onChange={(e) => {
-                          const name = e.target.value
-                          setOptionDefs((prev) =>
-                            prev.map((o, i) =>
-                              i === idx ? { ...o, name } : o,
-                            ),
-                          )
-                        }}
-                        placeholder="e.g. Size, Color"
-                      />
-                      <FormField
-                        label="Values (comma-separated)"
-                        value={opt.values}
-                        onChange={(e) => {
-                          const values = e.target.value
-                          setOptionDefs((prev) =>
-                            prev.map((o, i) =>
-                              i === idx ? { ...o, values } : o,
-                            ),
-                          )
-                        }}
-                        placeholder="e.g. S, M, L"
-                      />
-                      <div className="flex items-end">
-                        <button
-                          type="button"
-                          aria-label="Remove option"
-                          disabled={optionDefs.length <= 1}
-                          onClick={() =>
-                            setOptionDefs((prev) =>
-                              prev.filter((_, i) => i !== idx),
-                            )
-                          }
-                          className="grid h-[42px] w-[42px] place-items-center rounded-[9px] border-0 bg-white text-vpos-red disabled:opacity-40"
-                        >
-                          <Icon name="delete-bin-line" />
-                        </button>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-                <Button
-                  variant="secondary"
-                  className="mt-3"
-                  onClick={() =>
-                    setOptionDefs((prev) => [
-                      ...prev,
-                      {
-                        id: `opt-${Date.now()}`,
-                        name: '',
-                        values: '',
-                      },
-                    ])
-                  }
-                >
-                  <Icon name="add-line" /> Add option
-                </Button>
-
-                <div className="mt-5">
-                  <h4 className="m-0 mb-2 text-[12px] font-extrabold text-vpos-text">
-                    Generated variants ({generated.length})
-                  </h4>
-                  {generated.length === 0 ? (
-                    <p className="m-0 text-[12px] text-vpos-muted">
-                      Enter option names and values to generate variants.
-                    </p>
-                  ) : (
-                    <ul className="m-0 grid list-none grid-cols-1 gap-2 p-0 sm:grid-cols-2 lg:grid-cols-3">
-                      {generated.map((label) => (
-                        <li
-                          key={label}
-                          className="rounded-lg border border-vpos-line bg-white px-3 py-2 text-[12px] font-semibold text-vpos-text"
-                        >
-                          {label}
-                        </li>
-                      ))}
-                    </ul>
-                  )}
-                </div>
-              </article>
-            ) : null}
           </div>
         )}
 
         {step === 2 && (
-          <div className="grid grid-cols-1 gap-[18px] xl:grid-cols-[minmax(0,1.8fr)_minmax(330px,0.9fr)]">
-            <section className="grid content-start gap-[18px]">
-              <article className={cn(card, 'p-[22px]')}>
-                <div className={formSectionTitle}>
-                  <h3 className="m-0 text-[14px]">Pricing</h3>
-                  <p className="mt-1.5 mb-0 text-[11px] text-vpos-muted">
-                    Set the selling price and understand your margin.
+          <section className="grid content-start gap-[18px]">
+            <article className={cn(card, 'p-[22px]')}>
+              <div className="mb-4 flex items-center justify-between gap-3">
+                <div>
+                  <h3 className="m-0 text-[15px]">Variants</h3>
+                  <p className="mt-1 mb-0 text-[12px] text-vpos-muted">
+                    Every product needs at least one variant with SKU, barcode, pricing, and supplier.
                   </p>
                 </div>
-                <div className={formGrid}>
-                  <FormField
-                    label="Selling price"
-                    required
-                    placeholder="0.00"
-                    defaultValue={isEdit ? String(product?.price ?? '3.50') : undefined}
-                  />
-                  <FormField label="Compare-at price" placeholder="0.00" />
-                  <FormField
-                    label="Cost per item"
-                    placeholder="0.00"
-                    defaultValue={isEdit ? '1.20' : undefined}
-                  />
-                  <FormField label="Tax" defaultValue="VAT 10%" />
-                </div>
-              </article>
+                <Button variant="secondary" onClick={addVariant}>
+                  <Icon name="add-line" /> Add variant
+                </Button>
+              </div>
 
-              <article className={cn(card, 'p-[22px]')}>
-                <div className={formSectionTitle}>
-                  <h3 className="m-0 text-[14px]">Stock behavior</h3>
-                  <p className="mt-1.5 mb-0 text-[11px] text-vpos-muted">
-                    Configure stock controls for this product.
-                  </p>
-                </div>
-                <Toggle
-                  checked={trackStock}
-                  onChange={setTrackStock}
-                  label="Track inventory"
-                  description="Update stock after every sale"
-                />
-                <Toggle
-                  checked={continueSelling}
-                  onChange={setContinueSelling}
-                  label="Continue selling"
-                  description="Allow orders when stock reaches zero"
-                />
-                <div className={cn(formGrid, 'mt-[18px]')}>
-                  <FormField
-                    label="Opening stock"
-                    defaultValue={isEdit ? String(product?.stock ?? 24) : '0'}
-                  />
-                  <FormField label="Reorder point" defaultValue="8" />
-                </div>
-              </article>
-            </section>
+              <div className="space-y-4">
+                {variants.map((v, idx) => (
+                  <div key={v.key} className="rounded-xl border border-vpos-line bg-vpos-subtle/30 p-4">
+                    <div className="mb-3 flex items-center justify-between gap-2">
+                      <strong className="text-[13px] text-vpos-primary-2">Variant {idx + 1}</strong>
+                      {variants.length > 1 ? (
+                        <button type="button" onClick={() => removeVariant(v.key)} className="border-0 bg-transparent text-[13px] font-bold text-vpos-red hover:underline">
+                          Remove
+                        </button>
+                      ) : null}
+                    </div>
+                    <div className={formGrid}>
+                      <FormField label="SKU" required value={v.sku} onChange={(e) => updateVariant(v.key, 'sku', e.target.value.toUpperCase())} placeholder="e.g. ICE-AMER-M" />
+                      <FormField label="Barcode" required value={v.barcode} onChange={(e) => updateVariant(v.key, 'barcode', e.target.value)} placeholder="e.g. 885001020001" />
+                      <FormField label="Variant name" value={v.variantName} onChange={(e) => updateVariant(v.key, 'variantName', e.target.value)} placeholder="e.g. Medium" />
+                      <Select label="Supplier" placeholder="Select a supplier" value={v.supplierId} onChange={(val) => updateVariant(v.key, 'supplierId', val)} options={mockSuppliers.map((s) => ({ value: String(s.id), label: s.name }))} searchable />
+                    </div>
 
-            <aside className="grid content-start gap-[18px]">
-              <article className={cn(card, 'p-[22px]')}>
-                <small className="text-[11px] font-bold tracking-wide text-vpos-muted">
-                  EXPECTED MARGIN
-                </small>
-                <strong className="mt-2 block text-[28px]">65.7%</strong>
-                <p className="mt-2 mb-0 text-[11px] text-vpos-muted">
-                  Based on selling price and cost per item.
-                </p>
-              </article>
-              <article className={cn(card, 'p-[22px]')}>
-                <div className={formSectionTitle}>
-                  <h3 className="m-0 text-[14px]">Sales settings</h3>
-                  <p className="mt-1.5 mb-0 text-[11px] text-vpos-muted">
-                    Control how this product can be sold.
-                  </p>
-                </div>
-                <Toggle
-                  defaultChecked
-                  label="Available for sale"
-                  description="Show this item in POS and orders"
-                />
-                <Toggle
-                  defaultChecked
-                  label="Online store"
-                  description="Publish to your online catalog"
-                />
-              </article>
-            </aside>
-          </div>
+                    <div className="mt-4">
+                      <strong className="mb-2 block text-[12px] font-extrabold tracking-[.02em] text-vpos-primary-2">Pricing</strong>
+                      <div className={cn(formGrid)}>
+                        <FormField label="Cost price" type="number" step="0.01" value={v.costPrice} onChange={(e) => updateVariant(v.key, 'costPrice', e.target.value)} placeholder="0.00" />
+                        <FormField label="POS selling price" required type="number" step="0.01" value={v.posPrice} onChange={(e) => updateVariant(v.key, 'posPrice', e.target.value)} placeholder="0.00" />
+                        <FormField label="Compare-at price" type="number" step="0.01" value={v.compareAtPrice} onChange={(e) => updateVariant(v.key, 'compareAtPrice', e.target.value)} placeholder="Original price (shown crossed out)" />
+                        <FormField label="Online price" type="number" step="0.01" value={v.onlinePrice} onChange={(e) => updateVariant(v.key, 'onlinePrice', e.target.value)} placeholder="0.00" />
+                        <FormField label="Stock alert at" type="number" value={v.stockAlertQty} onChange={(e) => updateVariant(v.key, 'stockAlertQty', e.target.value)} placeholder="5" />
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </article>
+          </section>
         )}
 
         {step === 3 && (
           <section className="grid grid-cols-1 gap-4 md:grid-cols-3">
             {[
-              ['Product details', 'Name, category, images, and type are ready.'],
-              ['Pricing & stock', 'Selling price, tax, and stock rules configured.'],
-              [
-                'Ready to publish',
-                'Review once more, then save or publish the product.',
-              ],
+              ['Product details', `Name: ${productName || '(not set)'}. Category, brand, unit, tax assigned.`],
+              ['Variants & pricing', `${variants.length} variant${variants.length > 1 ? 's' : ''} with SKU, barcode, pricing, and supplier.`],
+              ['Ready to publish', 'Review once more, then save or publish the product.'],
             ].map(([title, desc]) => (
-              <article
-                key={title}
-                className={cn(card, 'flex items-start gap-3 p-[22px]')}
-              >
-                <span className="grid h-8 w-8 place-items-center rounded-full bg-vpos-green-bg text-[16px] text-vpos-green">
+              <article key={title} className={cn(card, 'flex items-start gap-3 p-[22px]')}>
+                <span className="grid h-8 w-8 place-items-center rounded-full bg-vpos-green-bg text-[17px] text-vpos-green">
                   <Icon name="check-line" />
                 </span>
                 <div>
-                  <strong className="block text-[13px]">{title}</strong>
-                  <small className="mt-1 block text-[11px] text-vpos-muted">
-                    {desc}
-                  </small>
+                  <strong className="block text-[14px]">{title}</strong>
+                  <small className="mt-1 block text-[12px] text-vpos-muted">{desc}</small>
                 </div>
               </article>
             ))}
@@ -497,32 +439,25 @@ export function ProductFormPage() {
           className="fixed right-0 bottom-0 z-[9] flex h-[76px] items-center justify-between border-t border-vpos-line bg-white px-[clamp(24px,2.5vw,48px)] shadow-[0_-8px_25px_#0c2b4e12] transition-[left] duration-200 ease-out"
           style={{ left: sidebarWidth }}
         >
-          <Button
-            variant="secondary"
-            onClick={() =>
-              step === 1 ? navigate(paths.products) : setStep((s) => s - 1)
-            }
-          >
-            Cancel
+          <Button variant="secondary" onClick={() => (step === 1 ? navigate(paths.products) : setStep((s) => s - 1))}>
+            {step === 1 ? 'Cancel' : 'Back'}
           </Button>
           <div className="flex gap-2.5">
             <Button variant="soft">Save draft</Button>
-            <Button
-              variant="primary"
-              onClick={() => {
-                if (step < 3) setStep((s) => s + 1)
-                else navigate(paths.products)
-              }}
-            >
-              {step < 3
-                ? 'Continue →'
-                : isEdit
-                  ? 'Update product'
-                  : 'Publish product'}
+            <Button variant="primary" onClick={() => { if (step < 3) setStep((s) => s + 1); else navigate(paths.products) }}>
+              {step < 3 ? 'Continue →' : isEdit ? 'Update product' : 'Publish product'}
             </Button>
           </div>
         </footer>
       </main>
+      {cropTarget ? (
+        <CropModal
+          open={Boolean(cropTarget)}
+          imageUrl={cropTarget.previewUrl}
+          onClose={() => setCropTarget(null)}
+          onCrop={handleCrop}
+        />
+      ) : null}
     </>
   )
 }

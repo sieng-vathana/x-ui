@@ -9,6 +9,7 @@ import {
   Topbar,
 } from '../../components'
 import { PurchasesSubnav } from '../../components/purchases/PurchasesSubnav'
+import { PurchaseOrderPicker } from '../../components/purchases/PurchaseOrderPicker'
 import {
   money,
   poTotal,
@@ -21,7 +22,6 @@ import { paths } from '../../lib/paths'
 import {
   card,
   pageContent,
-  selectClass,
   tdClass,
   thClass,
 } from '../../lib/ui'
@@ -102,41 +102,35 @@ export function ReceiveGoodsPage() {
         <PurchasesSubnav />
 
         {done ? (
-          <div className="mb-4 rounded-[12px] border border-vpos-green/30 bg-vpos-green-bg px-4 py-3 text-[13px] font-semibold text-vpos-green">
+          <div className="mb-4 rounded-[12px] border border-vpos-green/30 bg-vpos-green-bg px-4 py-3 text-[14px] font-semibold text-vpos-green">
             Receipt recorded (demo). Inventory quantities would update for{' '}
             {po?.store}.
           </div>
         ) : null}
 
         <article className={cn(card, 'mb-4 p-5')}>
-          <label className="block max-w-md">
-            <span className="mb-1.5 block text-[11px] font-extrabold tracking-wide text-vpos-muted uppercase">
+          <div className="max-w-md">
+            <span className="mb-1.5 block text-[12px] font-extrabold tracking-wide text-vpos-muted uppercase">
               Purchase order to receive
             </span>
             {receivable.length === 0 ? (
-              <p className="m-0 text-[13px] text-vpos-muted">
+              <p className="m-0 text-[14px] text-vpos-muted">
                 No open orders ready to receive. Create or submit a PO first.
               </p>
             ) : (
-              <select
-                className={cn(selectClass, 'w-full')}
+              <PurchaseOrderPicker
+                orders={receivable}
                 value={poId}
-                onChange={(e) => {
-                  setPoId(e.target.value)
+                onChange={(id) => {
+                  setPoId(id)
                   setDone(false)
                 }}
-              >
-                {receivable.map((p) => (
-                  <option key={p.id} value={p.id}>
-                    {p.ref} — {p.supplierName} ({p.status})
-                  </option>
-                ))}
-              </select>
+              />
             )}
-          </label>
+          </div>
 
           {po ? (
-            <div className="mt-4 flex flex-wrap gap-4 text-[12px] text-vpos-muted">
+            <div className="mt-4 flex flex-wrap gap-4 text-[13px] text-vpos-muted">
               <span>
                 Store:{' '}
                 <strong className="text-vpos-text">{po.store}</strong>
@@ -158,7 +152,7 @@ export function ReceiveGoodsPage() {
 
         {po ? (
           <article className={cn(card, 'p-4')}>
-            <strong className="mb-3 block text-[14px]">Receive quantities</strong>
+            <strong className="mb-3 block text-[15px]">Receive quantities</strong>
             <div className="overflow-x-auto">
               <table className="w-full border-collapse">
                 <thead>
@@ -203,7 +197,7 @@ export function ReceiveGoodsPage() {
                             onChange={(e) =>
                               setQty(line.sku, Number(e.target.value) || 0)
                             }
-                            className="h-9 w-24 rounded-lg border border-vpos-line px-2 text-[12px] font-semibold outline-none focus:border-vpos-primary"
+                            className="h-9 w-24 rounded-lg border border-vpos-line px-2 text-[13px] font-semibold outline-none focus:border-vpos-primary"
                           />
                         </td>
                       </tr>

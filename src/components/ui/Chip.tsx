@@ -28,7 +28,7 @@ export function Chip({
       aria-pressed={selected}
       onClick={onClick}
       className={cn(
-        'rounded-full border px-3 py-1.5 text-[12px] font-bold transition-all duration-200 ease-out',
+        'rounded-full border px-3.5 py-1.5 text-[13px] font-bold transition-all duration-200 ease-out',
         'focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-vpos-primary',
         'disabled:cursor-not-allowed disabled:opacity-50',
         selected

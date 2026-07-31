@@ -5,6 +5,7 @@ import {
   DataTable,
   Icon,
   MetricCard,
+  Select,
   Status,
   StoreSwitcher,
   Topbar,
@@ -14,7 +15,7 @@ import { PurchasesSubnav } from '../../components/purchases/PurchasesSubnav'
 import { money, suppliers, type Supplier } from '../../data/purchases-mockup'
 import { useAdminStore } from '../../hooks/useAdminStore'
 import { paths } from '../../lib/paths'
-import { pageContent, selectClass } from '../../lib/ui'
+import { pageContent } from '../../lib/ui'
 
 export function SuppliersPage() {
   const { storeId, setStoreId } = useAdminStore()
@@ -38,7 +39,7 @@ export function SuppliersPage() {
         cell: (s) => (
           <>
             <strong className="block">{s.name}</strong>
-            <small className="text-[10px] text-vpos-muted">{s.email}</small>
+            <small className="text-[11px] text-vpos-muted">{s.email}</small>
           </>
         ),
       },
@@ -168,15 +169,16 @@ export function SuppliersPage() {
           pageSize={10}
           emptyMessage="No suppliers match your filters."
           toolbar={
-            <select
-              className={selectClass}
-              value={status}
-              onChange={(e) => setStatus(e.target.value)}
-            >
-              <option>All status</option>
-              <option>Active</option>
-              <option>Inactive</option>
-            </select>
+            <Select
+              variant="toolbar"
+              placeholder="All status"
+              value={status === 'All status' ? '' : status}
+              onChange={(v) => setStatus(v || 'All status')}
+              options={[
+                { value: 'Active', label: 'Active' },
+                { value: 'Inactive', label: 'Inactive' },
+              ]}
+            />
           }
         />
       </main>

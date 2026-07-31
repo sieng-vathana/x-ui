@@ -22,8 +22,8 @@ export function Kbd({
     <kbd
       className={cn(
         'inline-flex min-w-[1.65rem] items-center justify-center rounded-md border font-bold tracking-wide select-none',
-        size === 'sm' && 'px-1.5 py-0.5 text-[10px]',
-        size === 'md' && 'px-2 py-1 text-[11px]',
+        size === 'sm' && 'px-1.5 py-0.5 text-[11px]',
+        size === 'md' && 'px-2 py-1 text-[12px]',
         tone === 'light' &&
           'border-vpos-line bg-vpos-subtle text-vpos-text shadow-[0_1px_0_#d0d8e0]',
         tone === 'dark' &&
@@ -62,7 +62,7 @@ export function ShortcutKeys({
           {i > 0 ? (
             <span
               className={cn(
-                'text-[10px] font-semibold',
+                'text-[11px] font-semibold',
                 tone === 'dark' ? 'text-[#91A0B8]' : 'text-vpos-muted',
               )}
             >

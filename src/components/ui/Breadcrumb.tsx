@@ -35,7 +35,7 @@ export function Breadcrumb({
   return (
     <nav
       aria-label="Breadcrumb"
-      className={cn('block w-full text-[13px] leading-normal', className)}
+      className={cn('block w-full text-[14px] leading-normal', className)}
       {...rest}
     >
       <div className="flex flex-wrap items-center gap-x-1.5 gap-y-1">
@@ -49,7 +49,7 @@ export function Breadcrumb({
               {index > 0 ? (
                 <Icon
                   name="arrow-right-s-line"
-                  className="shrink-0 text-[16px] text-[#9aa8b7]"
+                  className="shrink-0 text-[17px] text-[#9aa8b7]"
                 />
               ) : null}
 
@@ -59,7 +59,7 @@ export function Breadcrumb({
                   className="inline-flex items-center gap-1 font-bold text-vpos-primary-2 no-underline hover:text-vpos-primary"
                 >
                   {isHome ? (
-                    <Icon name="home-4-line" className="text-[15px]" />
+                    <Icon name="home-4-line" className="text-[16px]" />
                   ) : null}
                   <span>{item.label}</span>
                 </Link>
@@ -69,7 +69,7 @@ export function Breadcrumb({
                   aria-current={isLast ? 'page' : undefined}
                 >
                   {isHome ? (
-                    <Icon name="home-4-line" className="text-[15px]" />
+                    <Icon name="home-4-line" className="text-[16px]" />
                   ) : null}
                   <span>{item.label}</span>
                 </span>

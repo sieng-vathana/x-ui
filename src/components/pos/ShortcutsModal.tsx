@@ -66,7 +66,7 @@ export interface ShortcutsModalProps {
 }
 
 /**
- * Keyboard shortcut details dialog — dark FinPOS-style panel with animations.
+ * Keyboard shortcut details dialog using the shared light dialog surface.
  */
 export function ShortcutsModal({
   open,
@@ -79,7 +79,7 @@ export function ShortcutsModal({
     <Modal
       open={open}
       onClose={onClose}
-      tone="dark"
+      tone="light"
       size="shortcut"
       contained={contained}
       title="Shortcut Details"
@@ -89,23 +89,23 @@ export function ShortcutsModal({
           type="button"
           onClick={onClose}
           className={cn(
-            'rounded-[9px] border border-[#34435C] bg-[#1B2639] px-4 py-2',
-            'text-[13px] font-semibold text-[#F4F6FA]',
-            'transition-all duration-200 hover:bg-[#243247] hover:border-[#445572]',
-            'active:scale-[0.98] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#5B7C99]',
+            'rounded-[4px] border border-vpos-line bg-white px-4 py-2',
+            'text-[14px] font-semibold text-vpos-text',
+            'transition-all duration-200 hover:bg-vpos-subtle hover:border-vpos-primary',
+            'active:scale-[0.98] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-vpos-primary',
           )}
         >
           Close
         </button>
       }
     >
-      <div className="overflow-hidden rounded-[10px] border border-[#2D394E] bg-[#111827]">
+      <div className="overflow-hidden rounded-[4px] border border-vpos-line bg-white">
         {/* Column headers */}
-        <div className="flex items-center border-b border-[#2D394E] bg-[#0E1522] px-4 py-2.5">
-          <span className="w-[min(75%,1fr)] flex-1 text-[11px] font-semibold tracking-wide text-[#91A0B8] uppercase">
+        <div className="flex items-center border-b border-vpos-line bg-vpos-subtle px-4 py-2.5">
+          <span className="w-[min(75%,1fr)] flex-1 text-[12px] font-semibold tracking-wide text-vpos-muted uppercase">
             Action
           </span>
-          <span className="w-[28%] shrink-0 text-right text-[11px] font-semibold tracking-wide text-[#91A0B8] uppercase">
+          <span className="w-[28%] shrink-0 text-right text-[12px] font-semibold tracking-wide text-vpos-muted uppercase">
             Shortcuts
           </span>
         </div>
@@ -116,22 +116,22 @@ export function ShortcutsModal({
               key={row.action}
               className={cn(
                 'group flex items-center gap-3 px-4 py-3.5 transition-colors duration-150',
-                'hover:bg-[#161F30]',
-                idx < rows.length - 1 && 'border-b border-[#2D394E]/60',
+                'hover:bg-vpos-subtle',
+                idx < rows.length - 1 && 'border-b border-vpos-line/60',
                 open && 'modal-stagger-in',
               )}
               style={{ animationDelay: `${48 + idx * 30}ms` }}
             >
               <div className="min-w-0 flex-1">
-                <div className="text-[13px] font-semibold text-[#F4F6FA] transition-colors group-hover:text-white">
+                <div className="text-[14px] font-semibold text-vpos-text transition-colors group-hover:text-vpos-primary">
                   {row.action}
                 </div>
-                <div className="mt-0.5 text-[12px] leading-snug text-[#91A0B8]">
+                <div className="mt-0.5 text-[13px] leading-snug text-vpos-muted">
                   {row.description}
                 </div>
               </div>
               <div className="flex w-[28%] shrink-0 justify-end">
-                <ShortcutKeys shortcut={row.shortcut} tone="dark" />
+                <ShortcutKeys shortcut={row.shortcut} tone="light" />
               </div>
             </li>
           ))}

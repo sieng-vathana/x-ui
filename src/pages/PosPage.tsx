@@ -4,6 +4,7 @@ import {
   Breadcrumb,
   Button,
   Icon,
+  Select,
   StoreSwitcher,
   Topbar,
 } from '../components'
@@ -306,7 +307,7 @@ export function PosPage() {
                 name={isFullscreen ? 'fullscreen-exit-line' : 'fullscreen-line'}
               />
               {isFullscreen ? 'Exit full screen' : 'Full screen'}
-              <kbd className="ml-1 rounded border border-vpos-line bg-vpos-subtle px-1.5 py-0.5 text-[10px] font-bold text-vpos-muted">
+              <kbd className="ml-1 rounded border border-vpos-line bg-vpos-subtle px-1.5 py-0.5 text-[11px] font-bold text-vpos-muted">
                 F11
               </kbd>
             </Button>
@@ -325,10 +326,10 @@ export function PosPage() {
           <section className={cn(card, 'p-4 sm:p-5')}>
             <div className="mb-4 flex flex-wrap items-end justify-between gap-2">
               <div>
-                <h2 className="m-0 text-[22px] font-extrabold tracking-tight text-vpos-text">
+                <h2 className="m-0 text-[23px] font-extrabold tracking-tight text-vpos-text">
                   Menu
                 </h2>
-                <p className="m-0 mt-1 text-[12px] text-vpos-muted">
+                <p className="m-0 mt-1 text-[13px] text-vpos-muted">
                   Browse categories and add items to the order
                 </p>
               </div>
@@ -343,26 +344,27 @@ export function PosPage() {
                   value={query}
                   onChange={(e) => setQuery(e.target.value)}
                   placeholder="Search product..."
-                  className="w-full border-0 bg-transparent text-[13px] outline-none"
+                  className="w-full border-0 bg-transparent text-[14px] outline-none"
                 />
                 <kbd
-                  className="rounded border border-vpos-line bg-vpos-subtle px-1.5 py-0.5 text-[10px] font-bold text-vpos-muted"
+                  className="rounded border border-vpos-line bg-vpos-subtle px-1.5 py-0.5 text-[11px] font-bold text-vpos-muted"
                   title="Press F to focus search"
                 >
                   F
                 </kbd>
               </label>
 
-              <select
+              <Select
+                variant="toolbar"
                 value={sort}
-                onChange={(e) => setSort(e.target.value as SortMode)}
-                className="h-[42px] rounded-[10px] border border-vpos-line bg-white px-3 text-[12px] font-semibold text-vpos-text outline-none"
-              >
-                <option value="name-asc">Name A-Z</option>
-                <option value="name-desc">Name Z-A</option>
-                <option value="price-asc">Price low–high</option>
-                <option value="price-desc">Price high–low</option>
-              </select>
+                onChange={(v) => setSort(v as SortMode)}
+                options={[
+                  { value: 'name-asc', label: 'Name A-Z' },
+                  { value: 'name-desc', label: 'Name Z-A' },
+                  { value: 'price-asc', label: 'Price low–high' },
+                  { value: 'price-desc', label: 'Price high–low' },
+                ]}
+              />
 
               <div className="flex rounded-[10px] border border-vpos-line bg-vpos-subtle p-0.5">
                 <button
@@ -370,7 +372,7 @@ export function PosPage() {
                   aria-label="Grid view"
                   onClick={() => setView('grid')}
                   className={cn(
-                    'grid h-9 w-9 place-items-center rounded-lg border-0 text-[16px]',
+                    'grid h-9 w-9 place-items-center rounded-lg border-0 text-[17px]',
                     view === 'grid'
                       ? 'bg-white text-vpos-primary shadow-sm'
                       : 'bg-transparent text-vpos-muted',
@@ -383,7 +385,7 @@ export function PosPage() {
                   aria-label="List view"
                   onClick={() => setView('list')}
                   className={cn(
-                    'grid h-9 w-9 place-items-center rounded-lg border-0 text-[16px]',
+                    'grid h-9 w-9 place-items-center rounded-lg border-0 text-[17px]',
                     view === 'list'
                       ? 'bg-white text-vpos-primary shadow-sm'
                       : 'bg-transparent text-vpos-muted',
@@ -396,7 +398,7 @@ export function PosPage() {
               <button
                 type="button"
                 aria-label="Filter"
-                className="grid h-[42px] w-[42px] place-items-center rounded-[10px] border border-vpos-line bg-white text-[16px] text-vpos-muted hover:text-vpos-primary"
+                className="grid h-[42px] w-[42px] place-items-center rounded-[10px] border border-vpos-line bg-white text-[17px] text-vpos-muted hover:text-vpos-primary"
               >
                 <Icon name="filter-3-line" />
               </button>
@@ -436,15 +438,15 @@ export function PosPage() {
                         className="h-12 w-12 rounded-lg object-cover"
                       />
                       <span className="min-w-0">
-                        <strong className="block truncate text-[12px] font-extrabold text-vpos-text">
+                        <strong className="block truncate text-[13px] font-extrabold text-vpos-text">
                           {cat.name}
                         </strong>
-                        <small className="block text-[10px] text-vpos-muted">
+                        <small className="block text-[11px] text-vpos-muted">
                           {cat.count} Items
                         </small>
                         <span
                           className={cn(
-                            'mt-0.5 inline-block rounded-full px-1.5 py-0.5 text-[9px] font-extrabold',
+                            'mt-0.5 inline-block rounded-full px-1.5 py-0.5 text-[10px] font-extrabold',
                             cat.status === 'Available'
                               ? 'bg-vpos-green-bg text-vpos-green'
                               : 'bg-vpos-orange-bg text-vpos-orange',
@@ -480,12 +482,12 @@ export function PosPage() {
                       className="relative flex min-h-[260px] flex-col overflow-hidden rounded-[12px] border border-vpos-line bg-white text-left shadow-sm transition hover:-translate-y-0.5 hover:border-vpos-primary/50 hover:shadow-md"
                     >
                       {p.badge ? (
-                        <span className="absolute top-2 left-2 z-[1] rounded-full bg-vpos-primary px-2 py-0.5 text-[9px] font-extrabold text-white">
+                        <span className="absolute top-2 left-2 z-[1] rounded-full bg-vpos-primary px-2 py-0.5 text-[10px] font-extrabold text-white">
                           {p.badge}
                         </span>
                       ) : null}
                       {qty > 0 ? (
-                        <span className="absolute top-2 right-2 z-[1] grid h-6 min-w-6 place-items-center rounded-full bg-vpos-primary px-1.5 text-[11px] font-extrabold text-white">
+                        <span className="absolute top-2 right-2 z-[1] grid h-6 min-w-6 place-items-center rounded-full bg-vpos-primary px-1.5 text-[12px] font-extrabold text-white">
                           {qty}
                         </span>
                       ) : null}
@@ -498,18 +500,18 @@ export function PosPage() {
                         />
                       </div>
                       <div className="flex flex-1 flex-col p-3">
-                        <strong className="line-clamp-2 text-[13px] font-extrabold text-vpos-text">
+                        <strong className="line-clamp-2 text-[14px] font-extrabold text-vpos-text">
                           {p.name}
                         </strong>
-                        <small className="mt-1 text-[11px] text-vpos-muted">
+                        <small className="mt-1 text-[12px] text-vpos-muted">
                           {p.variant}
                         </small>
                         <div className="mt-auto flex flex-wrap items-baseline gap-1.5 pt-2">
-                          <span className="text-[14px] font-extrabold text-vpos-primary">
+                          <span className="text-[15px] font-extrabold text-vpos-primary">
                             {formatUsd(p.price)}
                           </span>
                           {p.oldPrice != null ? (
-                            <span className="text-[11px] text-vpos-muted line-through">
+                            <span className="text-[12px] text-vpos-muted line-through">
                               {formatUsd(p.oldPrice)}
                             </span>
                           ) : null}
@@ -536,19 +538,19 @@ export function PosPage() {
                         className="h-14 w-14 rounded-lg object-cover"
                       />
                       <span className="min-w-0 flex-1">
-                        <strong className="block text-[13px] text-vpos-text">
+                        <strong className="block text-[14px] text-vpos-text">
                           {p.name}
                         </strong>
-                        <small className="text-[11px] text-vpos-muted">
+                        <small className="text-[12px] text-vpos-muted">
                           {p.variant}
                         </small>
                       </span>
                       {qty > 0 ? (
-                        <span className="rounded-full bg-vpos-sand px-2 py-0.5 text-[11px] font-bold text-vpos-primary">
+                        <span className="rounded-full bg-vpos-sand px-2 py-0.5 text-[12px] font-bold text-vpos-primary">
                           ×{qty}
                         </span>
                       ) : null}
-                      <span className="text-[14px] font-extrabold text-vpos-primary">
+                      <span className="text-[15px] font-extrabold text-vpos-primary">
                         {formatUsd(p.price)}
                       </span>
                     </button>
@@ -561,7 +563,7 @@ export function PosPage() {
           {/* ── Order panel — new ── */}
           <aside className={cn(card, 'flex max-h-[calc(100vh-200px)] flex-col overflow-hidden p-0')}>
             <div className="border-b border-vpos-line p-4">
-              <h2 className="m-0 mb-2 text-[13px] font-extrabold text-vpos-text">
+              <h2 className="m-0 mb-2 text-[14px] font-extrabold text-vpos-text">
                 Customer
               </h2>
               <label className="flex h-10 items-center gap-2 rounded-[10px] border border-vpos-line bg-vpos-subtle px-3">
@@ -569,7 +571,7 @@ export function PosPage() {
                 <input
                   value={customer}
                   onChange={(e) => setCustomer(e.target.value)}
-                  className="w-full border-0 bg-transparent text-[13px] text-vpos-text outline-none"
+                  className="w-full border-0 bg-transparent text-[14px] text-vpos-text outline-none"
                 />
                 {customer ? (
                   <button
@@ -586,9 +588,9 @@ export function PosPage() {
 
             <div className="flex min-h-0 flex-1 flex-col p-4">
               <div className="mb-3 flex items-center justify-between">
-                <h2 className="m-0 text-[13px] font-extrabold text-vpos-text">
+                <h2 className="m-0 text-[14px] font-extrabold text-vpos-text">
                   Order Details{' '}
-                  <span className="ml-1 rounded-full bg-vpos-sand px-2 py-0.5 text-[11px] text-vpos-primary">
+                  <span className="ml-1 rounded-full bg-vpos-sand px-2 py-0.5 text-[12px] text-vpos-primary">
                     {itemCount}
                   </span>
                 </h2>
@@ -599,7 +601,7 @@ export function PosPage() {
                       setCart({})
                       setDiscountTargetId(null)
                     }}
-                    className="border-0 bg-transparent text-[11px] font-bold text-vpos-red hover:underline"
+                    className="border-0 bg-transparent text-[12px] font-bold text-vpos-red hover:underline"
                   >
                     Clear all
                   </button>
@@ -608,7 +610,7 @@ export function PosPage() {
 
               <div className="min-h-0 flex-1 space-y-2 overflow-y-auto">
                 {lines.length === 0 ? (
-                  <p className="py-10 text-center text-[12px] text-vpos-muted">
+                  <p className="py-10 text-center text-[13px] text-vpos-muted">
                     No items yet. Tap a product to add.
                   </p>
                 ) : (
@@ -630,14 +632,14 @@ export function PosPage() {
                           <div className="min-w-0 flex-1">
                             <div className="flex items-start justify-between gap-2">
                               <div className="min-w-0">
-                                <strong className="block truncate text-[13px] text-vpos-text">
+                                <strong className="block truncate text-[14px] text-vpos-text">
                                   {p.name}
                                 </strong>
-                                <small className="text-[11px] text-vpos-muted">
+                                <small className="text-[12px] text-vpos-muted">
                                   {p.variant}
                                 </small>
                                 {lineDisc > 0 && discount ? (
-                                  <small className="mt-0.5 block text-[10px] font-bold text-vpos-red">
+                                  <small className="mt-0.5 block text-[11px] font-bold text-vpos-red">
                                     −
                                     {discount.type === 'percent'
                                       ? `${discount.value}%`
@@ -648,11 +650,11 @@ export function PosPage() {
                               </div>
                               <div className="shrink-0 text-right">
                                 {lineDisc > 0 ? (
-                                  <span className="block text-[11px] text-vpos-muted line-through">
+                                  <span className="block text-[12px] text-vpos-muted line-through">
                                     {formatUsd(lineGross)}
                                   </span>
                                 ) : null}
-                                <strong className="text-[13px] text-vpos-primary">
+                                <strong className="text-[14px] text-vpos-primary">
                                   {formatUsd(lineNet)}
                                 </strong>
                               </div>
@@ -682,7 +684,7 @@ export function PosPage() {
                                 >
                                   <Icon name="subtract-line" />
                                 </button>
-                                <b className="w-7 text-center text-[12px]">
+                                <b className="w-7 text-center text-[13px]">
                                   {qty}
                                 </b>
                                 <button
@@ -705,10 +707,10 @@ export function PosPage() {
             </div>
 
             <div className="mt-auto border-t border-vpos-line p-4">
-              <h3 className="m-0 mb-2 text-[11px] font-extrabold tracking-wide text-vpos-muted">
+              <h3 className="m-0 mb-2 text-[12px] font-extrabold tracking-wide text-vpos-muted">
                 ORDER SUMMARY
               </h3>
-              <div className="mb-3 space-y-1.5 text-[12px]">
+              <div className="mb-3 space-y-1.5 text-[13px]">
                 <Row label="Items" value={String(itemCount)} />
                 <Row label="Sub Total" value={formatUsd(grossSubTotal)} />
                 {totalDiscount > 0 ? (
@@ -721,14 +723,14 @@ export function PosPage() {
                 ) : null}
                 <Row label="Tax / VAT" value={formatUsd(taxVat)} />
                 <div className="flex items-end justify-between border-t border-vpos-line pt-2">
-                  <span className="text-[13px] font-bold text-vpos-text">
+                  <span className="text-[14px] font-bold text-vpos-text">
                     Total
                   </span>
                   <span className="text-right">
-                    <strong className="block text-[20px] text-vpos-primary">
+                    <strong className="block text-[21px] text-vpos-primary">
                       {formatUsd(totalUsd)}
                     </strong>
-                    <small className="text-[11px] text-vpos-muted">
+                    <small className="text-[12px] text-vpos-muted">
                       {formatKhr(totalUsd)}
                     </small>
                   </span>
@@ -812,7 +814,7 @@ function IconBtn({
       aria-label={label}
       onClick={onClick}
       className={cn(
-        'grid h-7 w-7 place-items-center rounded-md border-0 text-[13px]',
+        'grid h-7 w-7 place-items-center rounded-md border-0 text-[14px]',
         danger
           ? 'bg-white text-vpos-red'
           : active
@@ -861,12 +863,12 @@ function PayMethod({
       <Icon
         name={icon}
         className={cn(
-          'text-[18px]',
+          'text-[19px]',
           selected ? 'text-vpos-primary' : 'text-vpos-muted',
         )}
       />
-      <span className="text-[12px] font-extrabold text-vpos-text">{name}</span>
-      <span className="text-[10px] text-vpos-muted">{shortcut}</span>
+      <span className="text-[13px] font-extrabold text-vpos-text">{name}</span>
+      <span className="text-[11px] text-vpos-muted">{shortcut}</span>
     </button>
   )
 }

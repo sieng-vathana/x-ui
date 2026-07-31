@@ -63,11 +63,11 @@ export function Toggle({
       )}
     >
       <span>
-        <strong className="block text-[12px] font-bold text-vpos-text">
+        <strong className="block text-[13px] font-bold text-vpos-text">
           {label}
         </strong>
         {description ? (
-          <small className="mt-1 block text-[10px] text-vpos-muted">
+          <small className="mt-1 block text-[11px] text-vpos-muted">
             {description}
           </small>
         ) : null}

@@ -5,6 +5,7 @@ import {
   DataTable,
   Icon,
   MetricCard,
+  Select,
   Status,
   StoreSwitcher,
   Topbar,
@@ -17,9 +18,8 @@ import {
   type SupplierReturn,
 } from '../../data/purchases-mockup'
 import { useAdminStore } from '../../hooks/useAdminStore'
-import { cn } from '../../lib/cn'
 import { paths } from '../../lib/paths'
-import { pageContent, selectClass } from '../../lib/ui'
+import { pageContent } from '../../lib/ui'
 
 export function SupplierReturnsPage() {
   const { storeId, setStoreId } = useAdminStore()
@@ -155,18 +155,19 @@ export function SupplierReturnsPage() {
           pageSize={10}
           emptyMessage="No returns match your filters."
           toolbar={
-            <select
-              className={cn(selectClass)}
-              value={status}
-              onChange={(e) => setStatus(e.target.value)}
-            >
-              <option>All status</option>
-              <option>Pending</option>
-              <option>Approved</option>
-              <option>Shipped</option>
-              <option>Completed</option>
-              <option>Rejected</option>
-            </select>
+            <Select
+              variant="toolbar"
+              placeholder="All status"
+              value={status === 'All status' ? '' : status}
+              onChange={(v) => setStatus(v || 'All status')}
+              options={[
+                { value: 'Pending', label: 'Pending' },
+                { value: 'Approved', label: 'Approved' },
+                { value: 'Shipped', label: 'Shipped' },
+                { value: 'Completed', label: 'Completed' },
+                { value: 'Rejected', label: 'Rejected' },
+              ]}
+            />
           }
         />
       </main>

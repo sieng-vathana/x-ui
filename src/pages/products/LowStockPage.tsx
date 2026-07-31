@@ -51,8 +51,8 @@ export function LowStockPage() {
           <div className="flex items-center gap-[11px]">
             <ProductThumb tone={p.tone} />
             <span>
-              <strong className="block text-[12px]">{p.name}</strong>
-              <small className="mt-1 block text-[10px] text-vpos-muted">
+              <strong className="block text-[13px]">{p.name}</strong>
+              <small className="mt-1 block text-[11px] text-vpos-muted">
                 {p.sku} · {p.category}
               </small>
             </span>
@@ -65,7 +65,7 @@ export function LowStockPage() {
         cell: (p) => (
           <strong
             className={cn(
-              'text-[14px]',
+              'text-[15px]',
               p.stock === 0 ? 'text-vpos-red' : 'text-vpos-orange',
             )}
           >

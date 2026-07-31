@@ -39,21 +39,21 @@ export function ProductMode({
             )}
             onClick={() => onChange?.(opt.id)}
           >
-            <span className="text-[18px] text-vpos-primary" aria-hidden>
+            <span className="text-[19px] text-vpos-primary" aria-hidden>
               <Icon name={selected ? 'radio-button-fill' : 'checkbox-blank-circle-line'} />
             </span>
             <span>
-              <strong className="block text-[13px] text-vpos-text">
+              <strong className="block text-[14px] text-vpos-text">
                 {opt.title}
               </strong>
-              <small className="mt-1.5 block text-[11px] text-vpos-muted">
+              <small className="mt-1.5 block text-[12px] text-vpos-muted">
                 {opt.description}
               </small>
             </span>
             {opt.badge != null ? (
               <b
                 className={cn(
-                  'rounded-full px-2.5 py-1 text-[10px] font-bold',
+                  'rounded-full px-2.5 py-1 text-[11px] font-bold',
                   selected
                     ? 'bg-vpos-primary text-white'
                     : 'bg-[#e6edf3] text-vpos-dark',

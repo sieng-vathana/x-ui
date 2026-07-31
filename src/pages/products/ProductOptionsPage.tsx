@@ -6,6 +6,7 @@ import {
   DataTable,
   Icon,
   MetricCard,
+  Select,
   Status,
   StoreSwitcher,
   Topbar,
@@ -18,13 +19,9 @@ import {
 } from '../../data/mockup'
 import { useAdminStore } from '../../hooks/useAdminStore'
 import { paths } from '../../lib/paths'
-import { pageContent, selectClass } from '../../lib/ui'
+import { pageContent } from '../../lib/ui'
 
-/**
- * Variants = option templates for “create product with variants”.
- * e.g. Size (S,M,L), Color (Black, White) — NOT sellable SKUs, no stock.
- */
-export function ProductVariantsPage() {
+export function ProductOptionsPage() {
   const navigate = useNavigate()
   const { storeId, setStoreId } = useAdminStore()
   const [status, setStatus] = useState('All status')
@@ -47,7 +44,7 @@ export function ProductVariantsPage() {
             <span className="grid h-9 w-9 place-items-center rounded-lg bg-vpos-sand text-vpos-primary">
               <Icon name="list-settings-line" />
             </span>
-            <strong className="text-[13px]">{o.name}</strong>
+            <strong className="text-[14px]">{o.name}</strong>
           </div>
         ),
       },
@@ -60,7 +57,7 @@ export function ProductVariantsPage() {
             {o.values.map((v) => (
               <span
                 key={v}
-                className="inline-flex rounded-full border border-vpos-line bg-vpos-subtle px-2.5 py-0.5 text-[11px] font-bold text-vpos-text"
+                className="inline-flex rounded-full border border-vpos-line bg-vpos-subtle px-2.5 py-0.5 text-[12px] font-bold text-vpos-text"
               >
                 {v}
               </span>
@@ -93,7 +90,7 @@ export function ProductVariantsPage() {
     <>
       <Topbar
         title="Products"
-        subtitle="Option types for products with variants — Size, Color, etc. (not stock items)"
+        subtitle="Option types for products — Size, Color, etc. (not stock items)"
         actions={<StoreSwitcher value={storeId} onChange={setStoreId} />}
       />
       <main className={pageContent}>
@@ -102,7 +99,7 @@ export function ProductVariantsPage() {
             <Breadcrumb
               items={[
                 { label: 'Products', to: paths.products },
-                { label: 'Variants' },
+                { label: 'Options' },
               ]}
             />
           </div>
@@ -121,14 +118,14 @@ export function ProductVariantsPage() {
 
         <ProductsSubnav />
 
-        <div className="mb-4 rounded-[12px] border border-vpos-line bg-vpos-subtle/60 px-4 py-3 text-[12px] leading-relaxed text-vpos-muted">
+        <div className="mb-4 rounded-[12px] border border-vpos-line bg-vpos-subtle/60 px-4 py-3 text-[13px] leading-relaxed text-vpos-muted">
           <strong className="text-vpos-text">What this is: </strong>
           reusable <strong className="text-vpos-text">options</strong> (Size,
           Color, Milk…) you attach when creating a product of type{' '}
-          <em>With variants</em>.
+          <em>With options</em>.
           <br />
           <strong className="text-vpos-text">What this is not: </strong>
-          not products, not SKUs, not inventory. Stock lives on the product’s
+          not products, not SKUs, not inventory. Stock lives on the product's
           generated combinations after you save the product — not here.
         </div>
 
@@ -155,20 +152,21 @@ export function ProductVariantsPage() {
           data={rows}
           columns={columns}
           rowKey={(o) => o.id}
-          title="Variant options"
+          title="Option types"
           searchPlaceholder="Search option name or value…"
           pageSize={10}
           emptyMessage="No options yet. Add Size, Color, etc."
           toolbar={
-            <select
-              className={selectClass}
-              value={status}
-              onChange={(e) => setStatus(e.target.value)}
-            >
-              <option>All status</option>
-              <option>Active</option>
-              <option>Inactive</option>
-            </select>
+            <Select
+              variant="toolbar"
+              placeholder="All status"
+              value={status === 'All status' ? '' : status}
+              onChange={(v) => setStatus(v || 'All status')}
+              options={[
+                { value: 'Active', label: 'Active' },
+                { value: 'Inactive', label: 'Inactive' },
+              ]}
+            />
           }
         />
       </main>

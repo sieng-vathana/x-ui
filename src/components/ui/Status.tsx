@@ -11,8 +11,8 @@ const statusStyles: Record<string, string> = {
   received: 'bg-vpos-green-bg text-vpos-green',
   approved: 'bg-vpos-green-bg text-vpos-green',
   shipped: 'bg-vpos-green-bg text-vpos-green',
-  closed: 'bg-[#ededf0] text-vpos-muted',
-  inactive: 'bg-[#ededf0] text-vpos-muted',
+  closed: 'bg-vpos-subtle text-vpos-muted',
+  inactive: 'bg-vpos-subtle text-vpos-muted',
   draft: 'bg-vpos-subtle text-vpos-muted',
   pending: 'bg-vpos-orange-bg text-vpos-orange',
   ordered: 'bg-vpos-orange-bg text-vpos-orange',
@@ -28,7 +28,7 @@ export function Status({ value, className, ...rest }: StatusProps) {
   return (
     <span
       className={cn(
-        'inline-flex min-w-[78px] items-center justify-center rounded-full px-2.5 py-1.5 text-[11px] font-extrabold',
+        'inline-flex min-w-[78px] items-center justify-center rounded-full px-2.5 py-1.5 text-[12px] font-extrabold',
         statusStyles[slug] ?? 'bg-vpos-subtle text-vpos-muted',
         className,
       )}

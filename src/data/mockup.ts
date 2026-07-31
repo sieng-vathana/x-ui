@@ -234,7 +234,7 @@ export const products: MockProduct[] = [
 ]
 
 /**
- * Reusable option type for “product with variants”.
+ * Reusable option type for products with options.
  * NOT a sellable item — no price, no stock.
  * Example: Size → S, M, L | Color → Black, White
  * When creating a product, pick these options; combinations become SKUs later on that product.
@@ -249,9 +249,6 @@ export interface ProductOptionType {
   usedOnProducts: number
   status: 'Active' | 'Inactive'
 }
-
-/** @deprecated use ProductOptionType — kept name for path `variants` menu */
-export type ProductVariant = ProductOptionType
 
 export const productOptionTypes: ProductOptionType[] = [
   {
@@ -305,8 +302,7 @@ export const productOptionTypes: ProductOptionType[] = [
   },
 ]
 
-/** Alias used by Variants page (menu key still “variants”) */
-export const productVariants = productOptionTypes
+
 
 export const navPrimary = [
   { key: 'dashboard', label: 'Overview', icon: 'dashboard-line' },

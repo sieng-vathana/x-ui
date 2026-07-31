@@ -6,6 +6,7 @@ import {
   DataTable,
   Icon,
   MetricCard,
+  Select,
   Status,
   StoreSwitcher,
   Topbar,
@@ -21,7 +22,7 @@ import {
 } from '../../data/purchases-mockup'
 import { useAdminStore } from '../../hooks/useAdminStore'
 import { paths } from '../../lib/paths'
-import { pageContent, selectClass } from '../../lib/ui'
+import { pageContent } from '../../lib/ui'
 
 const STATUSES: Array<PoStatus | 'All status'> = [
   'All status',
@@ -213,19 +214,18 @@ export function PurchaseOrdersPage() {
           pageSize={5}
           emptyMessage="No purchase orders match your filters."
           toolbar={
-            <select
-              className={selectClass}
-              value={status}
-              onChange={(e) =>
-                setStatus(e.target.value as (typeof STATUSES)[number])
+            <Select
+              variant="toolbar"
+              placeholder="All status"
+              value={status === 'All status' ? '' : status}
+              onChange={(v) =>
+                setStatus((v || 'All status') as (typeof STATUSES)[number])
               }
-            >
-              {STATUSES.map((s) => (
-                <option key={s} value={s}>
-                  {s}
-                </option>
-              ))}
-            </select>
+              options={STATUSES.filter((s) => s !== 'All status').map((s) => ({
+                value: s,
+                label: s,
+              }))}
+            />
           }
         />
       </main>

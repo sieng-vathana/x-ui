@@ -6,6 +6,7 @@ import {
   DataTable,
   Icon,
   ProductThumb,
+  Select,
   Status,
   StoreSwitcher,
   Topbar,
@@ -16,7 +17,7 @@ import { money, products as catalog, type MockProduct } from '../data/mockup'
 import { useAdminStore } from '../hooks/useAdminStore'
 import { cn } from '../lib/cn'
 import { paths } from '../lib/paths'
-import { card, pageContent, selectClass } from '../lib/ui'
+import { card, pageContent } from '../lib/ui'
 
 export function ProductsPage() {
   const navigate = useNavigate()
@@ -43,8 +44,8 @@ export function ProductsPage() {
           <div className="flex items-center gap-[11px]">
             <ProductThumb tone={p.tone} />
             <span>
-              <strong className="block text-[12px]">{p.name}</strong>
-              <small className="mt-1 block text-[10px] text-vpos-muted">
+              <strong className="block text-[13px]">{p.name}</strong>
+              <small className="mt-1 block text-[11px] text-vpos-muted">
                 {p.category}
               </small>
             </span>
@@ -58,7 +59,7 @@ export function ProductsPage() {
         cell: (p) => (
           <>
             <strong>{p.sku}</strong>
-            <div className="mt-1 text-[10px] text-vpos-muted">{p.barcode}</div>
+            <div className="mt-1 text-[11px] text-vpos-muted">{p.barcode}</div>
           </>
         ),
       },
@@ -97,7 +98,7 @@ export function ProductsPage() {
         cell: (p) => (
           <button
             type="button"
-            className="border-0 bg-transparent text-[18px] text-vpos-muted hover:text-vpos-text"
+            className="border-0 bg-transparent text-[19px] text-vpos-muted hover:text-vpos-text"
             onClick={() => navigate(paths.productEdit(p.sku))}
             aria-label={`Edit ${p.name}`}
           >
@@ -169,17 +170,17 @@ export function ProductsPage() {
             >
               <span
                 className={cn(
-                  'grid h-[42px] w-[42px] place-items-center rounded-[10px] text-[18px]',
+                  'grid h-[42px] w-[42px] place-items-center rounded-[10px] text-[19px]',
                   tone,
                 )}
               >
                 <Icon name={icon} />
               </span>
               <span>
-                <small className="mb-1.5 block text-[11px] text-vpos-muted">
+                <small className="mb-1.5 block text-[12px] text-vpos-muted">
                   {label}
                 </small>
-                <strong className="block text-[19px]">{value}</strong>
+                <strong className="block text-[20px]">{value}</strong>
               </span>
             </article>
           ))}
@@ -195,29 +196,31 @@ export function ProductsPage() {
           emptyMessage="No products match your filters."
           toolbar={
             <>
-              <select
-                className={selectClass}
-                value={categoryFilter}
-                onChange={(e) => setCategoryFilter(e.target.value)}
-              >
-                <option>All categories</option>
-                <option>Coffee</option>
-                <option>Tea</option>
-                <option>Bakery</option>
-                <option>Meals</option>
-                <option>Cold drinks</option>
-              </select>
-              <select
-                className={selectClass}
-                value={statusFilter}
-                onChange={(e) => setStatusFilter(e.target.value)}
-              >
-                <option>All status</option>
-                <option>Active</option>
-                <option>Low stock</option>
-                <option>Out of stock</option>
-                <option>Inactive</option>
-              </select>
+              <Select
+                variant="toolbar"
+                placeholder="All categories"
+                value={categoryFilter === 'All categories' ? '' : categoryFilter}
+                onChange={(v) => setCategoryFilter(v || 'All categories')}
+                options={[
+                  { value: 'Coffee', label: 'Coffee' },
+                  { value: 'Tea', label: 'Tea' },
+                  { value: 'Bakery', label: 'Bakery' },
+                  { value: 'Meals', label: 'Meals' },
+                  { value: 'Cold drinks', label: 'Cold drinks' },
+                ]}
+              />
+              <Select
+                variant="toolbar"
+                placeholder="All status"
+                value={statusFilter === 'All status' ? '' : statusFilter}
+                onChange={(v) => setStatusFilter(v || 'All status')}
+                options={[
+                  { value: 'Active', label: 'Active' },
+                  { value: 'Low stock', label: 'Low stock' },
+                  { value: 'Out of stock', label: 'Out of stock' },
+                  { value: 'Inactive', label: 'Inactive' },
+                ]}
+              />
             </>
           }
         />

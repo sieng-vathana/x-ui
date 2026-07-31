@@ -11,7 +11,7 @@ const items: Array<{ to: string; label: string; end?: boolean }> = [
 
 export function PurchasesSubnav() {
   return (
-    <div className="mb-[18px] flex flex-wrap gap-1 border-b border-vpos-line">
+    <div className="mb-5 flex flex-wrap gap-1.5 rounded-[4px] border border-vpos-line bg-white p-1.5 shadow-vpos">
       {items.map((item) => (
         <NavLink
           key={item.to}
@@ -19,10 +19,10 @@ export function PurchasesSubnav() {
           end={item.end}
           className={({ isActive }) =>
             cn(
-              '-mb-px rounded-t-lg border-0 border-b-2 bg-transparent px-3.5 py-3 text-[12px] font-bold no-underline transition-colors',
+              'rounded-[4px] border-0 bg-transparent px-3.5 py-2 text-[13px] font-semibold no-underline transition-colors',
               isActive
-                ? 'border-vpos-primary text-vpos-dark'
-                : 'border-transparent text-vpos-muted hover:text-vpos-text',
+                ? 'bg-vpos-sand text-vpos-primary-2'
+                : 'text-vpos-muted hover:bg-vpos-subtle hover:text-vpos-text',
             )
           }
         >

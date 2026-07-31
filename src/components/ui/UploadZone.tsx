@@ -45,12 +45,12 @@ export function UploadZone({
         }
       }}
     >
-      <span className="grid h-11 w-11 place-items-center rounded-full bg-vpos-sand text-[20px] text-vpos-primary">
+      <span className="grid h-11 w-11 place-items-center rounded-full bg-vpos-sand text-[21px] text-vpos-primary">
         <Icon name="upload-cloud-2-line" />
       </span>
-      <strong className="text-[12px] text-vpos-text">{title}</strong>
-      <small className="text-[10px] text-vpos-muted">{description}</small>
-      {tip ? <small className="text-[10px] text-vpos-muted">{tip}</small> : null}
+      <strong className="text-[13px] text-vpos-text">{title}</strong>
+      <small className="text-[11px] text-vpos-muted">{description}</small>
+      {tip ? <small className="text-[11px] text-vpos-muted">{tip}</small> : null}
       <input
         ref={inputRef}
         type="file"

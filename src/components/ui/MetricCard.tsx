@@ -20,11 +20,11 @@ const iconTone: Record<MetricTone, string> = {
   danger: 'bg-vpos-red-bg text-vpos-red',
 }
 
-const trendToneClass: Record<MetricTone, string> = {
-  primary: 'bg-[#ededf3] text-vpos-primary',
-  positive: 'bg-vpos-green-bg text-vpos-green',
-  warning: 'bg-vpos-orange-bg text-vpos-orange',
-  danger: 'bg-vpos-red-bg text-vpos-red',
+const trendTextClass: Record<MetricTone, string> = {
+  primary: 'text-vpos-primary',
+  positive: 'text-vpos-green',
+  warning: 'text-vpos-orange',
+  danger: 'text-vpos-red',
 }
 
 export function MetricCard({
@@ -41,41 +41,38 @@ export function MetricCard({
   return (
     <article
       className={cn(
-        'flex min-h-[128px] flex-col justify-between rounded-[14px] border border-vpos-line bg-white p-5 shadow-vpos',
+        'animate-slide-up flex min-h-[132px] flex-col justify-between rounded-[4px] border border-vpos-line bg-white p-4 shadow-vpos',
         className,
       )}
       {...rest}
     >
-      <div className="flex items-center justify-start gap-2.5 text-[13px] font-semibold text-vpos-muted">
+      <div className="flex items-center justify-between gap-2 text-[13px] font-semibold text-vpos-muted">
+        <span className="text-[11px] uppercase tracking-[0.06em]">{label}</span>
+        {trend != null && trendAs !== 'small' ? (
+          <span className={cn('text-[13px] font-bold', trendTextClass[trendTone])}>
+            {trend}
+          </span>
+        ) : null}
+      </div>
+      <div className="flex items-center justify-between gap-2.5">
+        <div>
+          <strong className="text-[24px] tracking-[-0.03em] text-vpos-text">
+            {value}
+          </strong>
+          {trend != null && trendAs === 'small' ? (
+            <small className="ml-2 text-[12px] font-bold text-vpos-muted">{trend}</small>
+          ) : null}
+          <span className="mt-2 block text-[13px] text-vpos-primary underline">View details</span>
+        </div>
         {icon != null ? (
           <span
             className={cn(
-              'grid h-[38px] w-[38px] place-items-center rounded-[10px] text-[14px] font-extrabold',
+              'grid h-11 w-11 place-items-center rounded-md text-[21px] font-extrabold',
               iconTone[iconT],
             )}
           >
             {icon}
           </span>
-        ) : null}
-        <span>{label}</span>
-      </div>
-      <div className="flex items-center justify-between gap-2.5">
-        <strong className="text-[28px] tracking-tight text-vpos-text">
-          {value}
-        </strong>
-        {trend != null ? (
-          trendAs === 'small' ? (
-            <small className="text-[11px] font-bold text-vpos-muted">{trend}</small>
-          ) : (
-            <span
-              className={cn(
-                'rounded-full px-2.5 py-1.5 text-[11px] font-extrabold',
-                trendToneClass[trendTone],
-              )}
-            >
-              {trend}
-            </span>
-          )
         ) : null}
       </div>
     </article>

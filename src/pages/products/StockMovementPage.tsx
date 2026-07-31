@@ -6,6 +6,7 @@ import {
   DataTable,
   Icon,
   MetricCard,
+  Select,
   StoreSwitcher,
   Topbar,
   type DataTableColumn,
@@ -19,7 +20,7 @@ import {
 import { useAdminStore } from '../../hooks/useAdminStore'
 import { cn } from '../../lib/cn'
 import { paths } from '../../lib/paths'
-import { pageContent, selectClass } from '../../lib/ui'
+import { pageContent } from '../../lib/ui'
 
 const TYPES: Array<StockMovementType | 'All types'> = [
   'All types',
@@ -58,7 +59,7 @@ export function StockMovementPage() {
         cell: (m) => (
           <>
             <strong className="block">{m.date}</strong>
-            <small className="text-[10px] text-vpos-muted">{m.time}</small>
+            <small className="text-[11px] text-vpos-muted">{m.time}</small>
           </>
         ),
       },
@@ -69,7 +70,7 @@ export function StockMovementPage() {
         cell: (m) => (
           <span
             className={cn(
-              'inline-flex rounded-full px-2.5 py-1 text-[11px] font-extrabold',
+              'inline-flex rounded-full px-2.5 py-1 text-[12px] font-extrabold',
               m.qtyChange > 0
                 ? 'bg-vpos-green-bg text-vpos-green'
                 : m.qtyChange < 0
@@ -88,7 +89,7 @@ export function StockMovementPage() {
         cell: (m) => (
           <>
             <strong className="block">{m.productName}</strong>
-            <small className="text-[10px] text-vpos-muted">{m.sku}</small>
+            <small className="text-[11px] text-vpos-muted">{m.sku}</small>
           </>
         ),
       },
@@ -214,19 +215,18 @@ export function StockMovementPage() {
           pageSize={8}
           emptyMessage="No stock movements match your filters."
           toolbar={
-            <select
-              className={selectClass}
-              value={type}
-              onChange={(e) =>
-                setType(e.target.value as (typeof TYPES)[number])
+            <Select
+              variant="toolbar"
+              placeholder="All types"
+              value={type === 'All types' ? '' : type}
+              onChange={(v) =>
+                setType((v || 'All types') as (typeof TYPES)[number])
               }
-            >
-              {TYPES.map((t) => (
-                <option key={t} value={t}>
-                  {t}
-                </option>
-              ))}
-            </select>
+              options={TYPES.filter((t) => t !== 'All types').map((t) => ({
+                value: t,
+                label: t,
+              }))}
+            />
           }
         />
       </main>

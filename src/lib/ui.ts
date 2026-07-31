@@ -1,19 +1,19 @@
 /** Shared layout class strings */
 export const pageContent =
-  'mx-auto max-w-[1750px] px-[clamp(24px,2.5vw,48px)] pt-[30px] pb-12'
+  'mx-auto max-w-[1680px] px-[clamp(16px,2.5vw,32px)] pt-6 pb-10'
 export const card =
-  'rounded-[14px] border border-vpos-line bg-white shadow-vpos'
+  'rounded-[4px] border border-vpos-line bg-vpos-surface shadow-vpos'
 export const pageHeading =
-  'mb-6 flex min-h-14 flex-col gap-5 sm:flex-row sm:items-start sm:justify-between'
+  'mb-6 flex min-h-12 flex-col gap-4 sm:flex-row sm:items-start sm:justify-between'
 export const filterBar =
-  'mb-[18px] flex flex-col gap-2.5 rounded-[13px] border border-vpos-line bg-white p-4 shadow-vpos sm:flex-row sm:flex-wrap sm:items-center'
+  'mb-5 flex flex-col gap-2.5 rounded-[4px] border border-vpos-line bg-vpos-surface p-4 shadow-vpos sm:flex-row sm:flex-wrap sm:items-center'
 export const searchField =
-  'flex h-[42px] min-w-[220px] flex-[360px] items-center gap-2 rounded-[10px] border border-vpos-line bg-white px-3.5'
+  'flex h-[39px] min-w-[220px] flex-[360px] items-center gap-2 rounded-[4px] border border-vpos-line bg-vpos-surface px-3.5 transition-colors focus-within:border-vpos-primary focus-within:bg-vpos-surface focus-within:shadow-[0_0_0_2px_rgb(104_124_254_/_0.12)]'
 export const selectClass =
-  'h-[42px] min-w-[140px] rounded-[10px] border border-vpos-line bg-white px-3.5 text-[12px] text-[#4f5064] outline-none'
+  'h-[39px] min-w-[140px] rounded-[4px] border border-vpos-line bg-vpos-surface px-3.5 text-[13px] text-vpos-text outline-none transition-colors focus:border-vpos-primary focus:shadow-[0_0_0_2px_rgb(104_124_254_/_0.12)]'
 export const thClass =
-  'bg-vpos-subtle px-[15px] py-[13px] text-left text-[11px] font-extrabold whitespace-nowrap text-vpos-muted first:rounded-l-lg last:rounded-r-lg'
+  'bg-vpos-subtle px-4 py-3 text-left text-[11px] font-semibold tracking-[0.08em] whitespace-nowrap uppercase text-vpos-muted'
 export const tdClass =
-  'border-b border-[#eeeef1] px-[15px] py-[15px] text-[12px] whitespace-nowrap text-vpos-text'
+  'border-b border-vpos-line/70 px-4 py-3.5 text-[13px] whitespace-nowrap text-vpos-text'
 export const formSectionTitle = 'mb-5'
 export const formGrid = 'grid grid-cols-1 gap-[18px] md:grid-cols-2'

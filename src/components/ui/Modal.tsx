@@ -63,7 +63,11 @@ export function Modal({
   const { mounted, phase, generation, onExitComplete } = usePresence(open)
   const titleId = useId()
   const panelRef = useRef<HTMLDivElement>(null)
-  const isDark = tone === 'dark'
+  const onCloseRef = useRef(onClose)
+  onCloseRef.current = onClose
+  // Preserve the tone API for callers while keeping every dialog on the
+  // shared Velzon light surface.
+  const isDark = false
 
   useEffect(() => {
     if (!open || !mounted) return
@@ -71,7 +75,7 @@ export function Modal({
       if (e.key === 'Escape') {
         e.preventDefault()
         e.stopPropagation()
-        onClose()
+        onCloseRef.current()
       }
     }
     document.addEventListener('keydown', onKey, true)
@@ -83,7 +87,7 @@ export function Modal({
       if (!contained) document.body.style.overflow = prev
       window.clearTimeout(t)
     }
-  }, [open, mounted, onClose, contained])
+  }, [open, mounted, contained])
 
   // Fallback unmount if animationend never fires
   useEffect(() => {
@@ -129,8 +133,8 @@ export function Modal({
           phase === 'exit' && 'vpos-modal-panel-exit',
           sizeClass[size],
           isDark
-            ? 'rounded-2xl border border-[#303B51] bg-[#141C2B] shadow-[0_24px_64px_rgba(0,0,0,.45)]'
-            : 'rounded-2xl border border-vpos-line bg-white shadow-[0_20px_50px_rgba(12,43,78,.22)]',
+            ? 'rounded-[6px] border border-vpos-line bg-white shadow-vpos'
+            : 'rounded-[6px] border border-vpos-line bg-white shadow-vpos',
           size === 'shortcut' &&
             'h-[min(662px,calc(100vh-2rem))] max-h-[min(662px,calc(100vh-2rem))]',
           panelClassName,
@@ -152,8 +156,8 @@ export function Modal({
                   className={cn(
                     'm-0',
                     isDark
-                      ? 'text-[14px] font-semibold text-[#F4F6FA]'
-                      : 'text-[16px] font-extrabold text-vpos-text',
+                      ? 'text-[15px] font-semibold text-[#F4F6FA]'
+                    : 'text-[16px] font-semibold text-vpos-dark',
                   )}
                 >
                   {title}
@@ -162,7 +166,7 @@ export function Modal({
               {description ? (
                 <p
                   className={cn(
-                    'mt-1 mb-0 text-[12px]',
+                    'mt-1 mb-0 text-[13px]',
                     isDark ? 'text-[#91A0B8]' : 'text-vpos-muted',
                   )}
                 >
