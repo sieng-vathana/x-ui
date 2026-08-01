@@ -3,11 +3,9 @@ import { Icon } from '../ui/Icon'
 
 type Coordinates = { latitude: string; longitude: string }
 
-type MapTilerSdk = {
-  config: { apiKey: string }
+type MapLibreSdk = {
   Map: new (options: Record<string, unknown>) => MapInstance
   Marker: new (options: Record<string, unknown>) => MarkerInstance
-  MapStyle: { STREETS: unknown }
 }
 
 type MapPoint = { lng: number; lat: number }
@@ -26,20 +24,34 @@ type MarkerInstance = {
 
 declare global {
   interface Window {
-    maptilersdk?: MapTilerSdk
+    maplibregl?: MapLibreSdk
   }
 }
 
-const SCRIPT_ID = 'maptiler-sdk'
-const STYLE_ID = 'maptiler-sdk-style'
+const SCRIPT_ID = 'maplibre-sdk'
+const STYLE_ID = 'maplibre-sdk-style'
 const DEFAULT_CENTER: [number, number] = [104.9282, 11.5564]
-const SDK_URL = 'https://cdn.maptiler.com/maptiler-sdk-js/v3.6.1/maptiler-sdk.umd.min.js'
-const SDK_STYLE_URL = 'https://cdn.maptiler.com/maptiler-sdk-js/v3.6.1/maptiler-sdk.css'
+const SDK_URL = 'https://cdn.jsdelivr.net/npm/maplibre-gl@5.14.0/dist/maplibre-gl.js'
+const SDK_STYLE_URL = 'https://cdn.jsdelivr.net/npm/maplibre-gl@5.14.0/dist/maplibre-gl.css'
 
-let sdkPromise: Promise<MapTilerSdk> | undefined
+// OpenStreetMap tiles keep location picking available without a MapTiler key.
+const OPEN_STREET_MAP_STYLE = {
+  version: 8,
+  sources: {
+    openstreetmap: {
+      type: 'raster',
+      tiles: ['https://tile.openstreetmap.org/{z}/{x}/{y}.png'],
+      tileSize: 256,
+      attribution: '© OpenStreetMap contributors',
+    },
+  },
+  layers: [{ id: 'openstreetmap', type: 'raster', source: 'openstreetmap' }],
+}
 
-function loadMapTilerSdk(): Promise<MapTilerSdk> {
-  if (window.maptilersdk) return Promise.resolve(window.maptilersdk)
+let sdkPromise: Promise<MapLibreSdk> | undefined
+
+function loadMapLibreSdk(): Promise<MapLibreSdk> {
+  if (window.maplibregl) return Promise.resolve(window.maplibregl)
   if (sdkPromise) return sdkPromise
 
   sdkPromise = new Promise((resolve, reject) => {
@@ -51,11 +63,11 @@ function loadMapTilerSdk(): Promise<MapTilerSdk> {
       document.head.appendChild(style)
     }
 
-    const ready = () => window.maptilersdk ? resolve(window.maptilersdk) : reject(new Error('MapTiler did not load.'))
+    const ready = () => window.maplibregl ? resolve(window.maplibregl) : reject(new Error('Map library did not load.'))
     const existing = document.getElementById(SCRIPT_ID) as HTMLScriptElement | null
     if (existing) {
       existing.addEventListener('load', ready, { once: true })
-      existing.addEventListener('error', () => reject(new Error('MapTiler could not load.')), { once: true })
+      existing.addEventListener('error', () => reject(new Error('Map library could not load.')), { once: true })
       return
     }
 
@@ -64,7 +76,7 @@ function loadMapTilerSdk(): Promise<MapTilerSdk> {
     script.src = SDK_URL
     script.async = true
     script.addEventListener('load', ready, { once: true })
-    script.addEventListener('error', () => reject(new Error('MapTiler could not load.')), { once: true })
+    script.addEventListener('error', () => reject(new Error('Map library could not load.')), { once: true })
     document.head.appendChild(script)
   })
 
@@ -91,7 +103,6 @@ export const StoreLocationPicker = memo(function StoreLocationPicker({
   const initialCoordinatesRef = useRef<Coordinates>({ latitude, longitude })
   const [coordinates, setCoordinates] = useState<Coordinates>(() => initialCoordinatesRef.current)
   const [status, setStatus] = useState('Click the map or drag the pin to set your store location.')
-  const apiKey = import.meta.env.VITE_MAPTILER_KEY as string | undefined
 
   useEffect(() => {
     onChangeRef.current = onChange
@@ -108,15 +119,14 @@ export const StoreLocationPicker = memo(function StoreLocationPicker({
   }, [latitude, longitude])
 
   useEffect(() => {
-    if (!apiKey || !targetRef.current) return
+    if (!targetRef.current) return
 
     let disposed = false
 
-    void loadMapTilerSdk()
+    void loadMapLibreSdk()
       .then((sdk) => {
         if (disposed || !targetRef.current || mapRef.current) return
 
-        sdk.config.apiKey = apiKey
         const initialCoordinates = initialCoordinatesRef.current
         const center = isCoordinatePair(initialCoordinates.latitude, initialCoordinates.longitude)
           ? [Number(initialCoordinates.longitude), Number(initialCoordinates.latitude)] as [number, number]
@@ -124,7 +134,7 @@ export const StoreLocationPicker = memo(function StoreLocationPicker({
 
         const map = new sdk.Map({
           container: targetRef.current,
-          style: sdk.MapStyle.STREETS,
+          style: OPEN_STREET_MAP_STYLE,
           center,
           zoom: 12,
         })
@@ -156,7 +166,7 @@ export const StoreLocationPicker = memo(function StoreLocationPicker({
       mapRef.current = null
       markerRef.current = null
     }
-  }, [apiKey])
+  }, [])
 
   const selectCoordinates = (nextCoordinates: Coordinates) => {
     setCoordinates(nextCoordinates)
@@ -186,13 +196,7 @@ export const StoreLocationPicker = memo(function StoreLocationPicker({
         <p className="mt-1 mb-0 text-[13px] leading-5 text-vpos-muted">Set the exact location for your default store. It is used for receipts, delivery zones, and future reporting.</p>
       </div>
 
-      {apiKey ? (
-        <div ref={targetRef} className="h-72 overflow-hidden rounded-xl border border-vpos-line bg-vpos-subtle" />
-      ) : (
-        <div className="grid h-40 place-items-center rounded-xl border border-dashed border-vpos-line bg-vpos-subtle p-5 text-center text-[13px] leading-5 text-vpos-muted">
-          MapTiler is not configured. Enter latitude and longitude below to continue.
-        </div>
-      )}
+      <div ref={targetRef} className="h-72 overflow-hidden rounded-xl border border-vpos-line bg-vpos-subtle" />
 
       <div className="flex flex-wrap items-center justify-between gap-3">
         <button type="button" onClick={useCurrentLocation} className="inline-flex h-9 items-center gap-2 rounded-lg border border-vpos-line bg-white px-3 text-[12px] font-bold text-vpos-primary transition-colors hover:border-vpos-primary/40 hover:bg-vpos-sand focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-vpos-primary">
