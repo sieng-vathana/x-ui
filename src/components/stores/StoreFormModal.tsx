@@ -230,11 +230,6 @@ export function StoreFormModal({ open, onClose, store = null }: StoreFormModalPr
         <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
           <div className="md:col-span-2"><FormField label="Store name" required value={name} onChange={(event) => setName(event.target.value)} placeholder="e.g. Riverside Flagship" /></div>
           <FormField label="Store code" required value={code} onChange={(event) => setCode(event.target.value.toUpperCase())} placeholder="e.g. PNH-001" />
-          <FormField label="Phone" value={phone} onChange={(event) => setPhone(event.target.value)} placeholder="+855 23 123 456" />
-          <div className="md:col-span-2"><FormField label="Address line 1" required value={addressLine1} onChange={(event) => setAddressLine1(event.target.value)} placeholder="No. 123, Street 456" /></div>
-          <FormField label="City" required value={city} onChange={(event) => setCity(event.target.value)} placeholder="e.g. Phnom Penh" />
-          <FormField label="Country code" required value={countryCode} onChange={(event) => setCountryCode(event.target.value.toUpperCase())} placeholder="KH" maxLength={2} />
-          <div className="md:col-span-2"><FormField label="Email" type="email" value={email} onChange={(event) => setEmail(event.target.value)} placeholder="store@example.com" /></div>
         </div>
 
         <div className="border-t border-vpos-line pt-5">
@@ -244,6 +239,14 @@ export function StoreFormModal({ open, onClose, store = null }: StoreFormModalPr
             longitude={longitude}
             onChange={updateLocation}
           />
+        </div>
+
+        <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+          <FormField label="Phone" value={phone} onChange={(event) => setPhone(event.target.value)} placeholder="+855 23 123 456" />
+          <div className="md:col-span-2"><FormField label="Address line 1" required value={addressLine1} onChange={(event) => setAddressLine1(event.target.value)} placeholder="No. 123, Street 456" /></div>
+          <FormField label="City" required value={city} onChange={(event) => setCity(event.target.value)} placeholder="e.g. Phnom Penh" />
+          <FormField label="Country code" required value={countryCode} onChange={(event) => setCountryCode(event.target.value.toUpperCase())} placeholder="KH" maxLength={2} />
+          <div className="md:col-span-2"><FormField label="Email" type="email" value={email} onChange={(event) => setEmail(event.target.value)} placeholder="store@example.com" /></div>
         </div>
 
         <div>
