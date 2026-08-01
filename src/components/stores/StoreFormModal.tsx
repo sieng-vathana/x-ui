@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { useToast } from '../../context/ToastContext'
-import { fileApi, fileUrl, resolveImageUrl } from '../../features/files/fileApi'
+import { fileApi, fileContentPath, resolveImageUrl } from '../../features/files/fileApi'
 import { useCreateStore, useUpdateStore } from '../../features/stores/useStores'
 import type { BffStore } from '../../features/stores/types'
 import { Button } from '../ui/Button'
@@ -99,7 +99,7 @@ export function StoreFormModal({ open, onClose, store = null }: StoreFormModalPr
           const hasPrimary = displayableImages.some(({ image }) => image.isPrimary)
           return displayableImages.map(({ image, index, url }) => ({
             key: String(image.id),
-            imageUrl: url!,
+            imageUrl: image.fileId ? fileContentPath(image.fileId) : image.imageUrl,
             previewUrl: url!,
             isPrimary: image.isPrimary || (!hasPrimary && index === 0),
             sortOrder: image.sortOrder ?? index,
@@ -127,7 +127,7 @@ export function StoreFormModal({ open, onClose, store = null }: StoreFormModalPr
           objectUrlsRef.current.add(previewUrl)
           return {
             key: `${uploaded.id}-${Date.now()}-${index}`,
-            imageUrl: fileUrl(uploaded),
+            imageUrl: fileContentPath(uploaded.id),
             previewUrl,
             isPrimary: !hasPrimary && index === 0,
             sortOrder: current.length + index,

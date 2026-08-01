@@ -25,6 +25,7 @@ export interface BffStore {
 export interface BffStoreImage {
   id: number
   imageUrl: string
+  fileId?: number | null
   isPrimary: boolean
   sortOrder: number
 }

@@ -4,6 +4,11 @@ import type { FileResponse } from './types'
 type ApiEnvelope<T> = { data?: T; message?: string }
 const LEGACY_FILE_CONTENT_PATH = /^\/api\/v1\/files\/(\d+)\/content(?:\?.*)?$/
 
+/** Stable value to persist for a storage file; the BFF resolves it to a fresh direct AWS URL for display. */
+export function fileContentPath(fileId: number): string {
+  return `/api/v1/files/${fileId}/content`
+}
+
 /** Prefer the storage service's browser-ready URL (AWS/public or presigned); use the BFF only as a fallback. */
 export function fileUrl(file: FileResponse): string {
   const publicUrl = file.url?.trim()
