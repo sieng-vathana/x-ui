@@ -98,6 +98,16 @@ export const StoreLocationPicker = memo(function StoreLocationPicker({
   }, [onChange])
 
   useEffect(() => {
+    const nextCoordinates = { latitude, longitude }
+    setCoordinates((current) => current.latitude === latitude && current.longitude === longitude
+      ? current
+      : nextCoordinates)
+    if (markerRef.current && isCoordinatePair(latitude, longitude)) {
+      markerRef.current.setLngLat([Number(longitude), Number(latitude)])
+    }
+  }, [latitude, longitude])
+
+  useEffect(() => {
     if (!apiKey || !targetRef.current) return
 
     let disposed = false
@@ -198,7 +208,9 @@ export const StoreLocationPicker = memo(function StoreLocationPicker({
       </div>
     </section>
   )
-}, (previous, next) => previous.onChange === next.onChange)
+}, (previous, next) => previous.onChange === next.onChange
+  && previous.latitude === next.latitude
+  && previous.longitude === next.longitude)
 
 function CoordinateField({ label, value, onChange }: { label: string; value: string; onChange: (value: string) => void }) {
   return (

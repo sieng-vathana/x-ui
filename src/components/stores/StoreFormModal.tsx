@@ -3,6 +3,7 @@ import { useToast } from '../../context/ToastContext'
 import { fileApi, fileContentPath, resolveImageUrl } from '../../features/files/fileApi'
 import { useCreateStore, useUpdateStore } from '../../features/stores/useStores'
 import type { BffStore } from '../../features/stores/types'
+import { StoreLocationPicker } from '../business/StoreLocationPicker'
 import { Button } from '../ui/Button'
 import { FormField } from '../ui/FormField'
 import { Icon } from '../ui/Icon'
@@ -36,6 +37,8 @@ export function StoreFormModal({ open, onClose, store = null }: StoreFormModalPr
   const [countryCode, setCountryCode] = useState('KH')
   const [phone, setPhone] = useState('')
   const [email, setEmail] = useState('')
+  const [latitude, setLatitude] = useState('')
+  const [longitude, setLongitude] = useState('')
   const [images, setImages] = useState<StoreImageDraft[]>([])
   const [isUploading, setIsUploading] = useState(false)
   const [uploadError, setUploadError] = useState<string | null>(null)
@@ -60,6 +63,8 @@ export function StoreFormModal({ open, onClose, store = null }: StoreFormModalPr
     setCountryCode('KH')
     setPhone('')
     setEmail('')
+    setLatitude('')
+    setLongitude('')
     setImages((current) => {
       current.forEach((image) => revokePreview(image.previewUrl))
       return []
@@ -90,6 +95,8 @@ export function StoreFormModal({ open, onClose, store = null }: StoreFormModalPr
     setCountryCode(store.countryCode)
     setPhone(store.phone ?? '')
     setEmail(store.email ?? '')
+    setLatitude(store.latitude?.toString() ?? '')
+    setLongitude(store.longitude?.toString() ?? '')
     void Promise.all((store.images ?? []).map(async (image, index) => ({ image, index, url: await resolveImageUrl(image.imageUrl) })))
       .then((resolvedImages) => {
         if (lastPopulatedIdRef.current !== store.id) return
@@ -154,11 +161,20 @@ export function StoreFormModal({ open, onClose, store = null }: StoreFormModalPr
     })
   }
 
+  const updateLocation = useCallback(({ latitude: nextLatitude, longitude: nextLongitude }: { latitude: string; longitude: string }) => {
+    setLatitude(nextLatitude)
+    setLongitude(nextLongitude)
+  }, [])
+
   const handleSubmit = async (event: React.FormEvent) => {
     event.preventDefault()
     setSubmitError(null)
     if (!name.trim() || !code.trim() || !addressLine1.trim() || !city.trim() || !countryCode.trim()) {
       setSubmitError('Please fill in all required fields.')
+      return
+    }
+    if (!Number.isFinite(Number(latitude)) || !Number.isFinite(Number(longitude))) {
+      setSubmitError('Choose your store location on the map or enter valid coordinates.')
       return
     }
 
@@ -170,6 +186,8 @@ export function StoreFormModal({ open, onClose, store = null }: StoreFormModalPr
       countryCode: countryCode.trim(),
       phone: phone.trim() || undefined,
       email: email.trim() || undefined,
+      latitude: Number(latitude),
+      longitude: Number(longitude),
       images: images.map((image, index) => ({ imageUrl: image.imageUrl, isPrimary: image.isPrimary, sortOrder: index })),
       ...(store ? {
         addressLine2: store.addressLine2 ?? undefined,
@@ -178,8 +196,6 @@ export function StoreFormModal({ open, onClose, store = null }: StoreFormModalPr
         postalCode: store.postalCode ?? undefined,
         alternatePhone: store.alternatePhone ?? undefined,
         website: store.website ?? undefined,
-        latitude: store.latitude,
-        longitude: store.longitude,
       } : {}),
     }
 
@@ -219,6 +235,15 @@ export function StoreFormModal({ open, onClose, store = null }: StoreFormModalPr
           <FormField label="City" required value={city} onChange={(event) => setCity(event.target.value)} placeholder="e.g. Phnom Penh" />
           <FormField label="Country code" required value={countryCode} onChange={(event) => setCountryCode(event.target.value.toUpperCase())} placeholder="KH" maxLength={2} />
           <div className="md:col-span-2"><FormField label="Email" type="email" value={email} onChange={(event) => setEmail(event.target.value)} placeholder="store@example.com" /></div>
+        </div>
+
+        <div className="border-t border-vpos-line pt-5">
+          <StoreLocationPicker
+            key={store?.id ?? 'new-store'}
+            latitude={latitude}
+            longitude={longitude}
+            onChange={updateLocation}
+          />
         </div>
 
         <div>
