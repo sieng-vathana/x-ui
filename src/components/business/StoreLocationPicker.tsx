@@ -1,92 +1,27 @@
 import { memo, useEffect, useRef, useState } from 'react'
+import L, { type Map as LeafletMap, type Marker as LeafletMarker } from 'leaflet'
+import 'leaflet/dist/leaflet.css'
 import { Icon } from '../ui/Icon'
 
 type Coordinates = { latitude: string; longitude: string }
+type MapPoint = { lat: number; lng: number }
 
-type MapLibreSdk = {
-  Map: new (options: Record<string, unknown>) => MapInstance
-  Marker: new (options: Record<string, unknown>) => MarkerInstance
-}
-
-type MapPoint = { lng: number; lat: number }
-
-type MapInstance = {
-  on: (event: string, handler: (event: { lngLat: MapPoint }) => void) => void
-  remove: () => void
-}
-
-type MarkerInstance = {
-  addTo: (map: MapInstance) => MarkerInstance
-  getLngLat: () => MapPoint
-  on: (event: string, handler: () => void) => void
-  setLngLat: (point: [number, number] | MapPoint) => MarkerInstance
-}
-
-declare global {
-  interface Window {
-    maplibregl?: MapLibreSdk
-  }
-}
-
-const SCRIPT_ID = 'maplibre-sdk'
-const STYLE_ID = 'maplibre-sdk-style'
-const DEFAULT_CENTER: [number, number] = [104.9282, 11.5564]
-const SDK_URL = 'https://cdn.jsdelivr.net/npm/maplibre-gl@5.14.0/dist/maplibre-gl.js'
-const SDK_STYLE_URL = 'https://cdn.jsdelivr.net/npm/maplibre-gl@5.14.0/dist/maplibre-gl.css'
-
-// OpenStreetMap tiles keep location picking available without a MapTiler key.
-const OPEN_STREET_MAP_STYLE = {
-  version: 8,
-  sources: {
-    openstreetmap: {
-      type: 'raster',
-      tiles: ['https://tile.openstreetmap.org/{z}/{x}/{y}.png'],
-      tileSize: 256,
-      attribution: '© OpenStreetMap contributors',
-    },
-  },
-  layers: [{ id: 'openstreetmap', type: 'raster', source: 'openstreetmap' }],
-}
-
-let sdkPromise: Promise<MapLibreSdk> | undefined
-
-function loadMapLibreSdk(): Promise<MapLibreSdk> {
-  if (window.maplibregl) return Promise.resolve(window.maplibregl)
-  if (sdkPromise) return sdkPromise
-
-  sdkPromise = new Promise((resolve, reject) => {
-    if (!document.getElementById(STYLE_ID)) {
-      const style = document.createElement('link')
-      style.id = STYLE_ID
-      style.rel = 'stylesheet'
-      style.href = SDK_STYLE_URL
-      document.head.appendChild(style)
-    }
-
-    const ready = () => window.maplibregl ? resolve(window.maplibregl) : reject(new Error('Map library did not load.'))
-    const existing = document.getElementById(SCRIPT_ID) as HTMLScriptElement | null
-    if (existing) {
-      existing.addEventListener('load', ready, { once: true })
-      existing.addEventListener('error', () => reject(new Error('Map library could not load.')), { once: true })
-      return
-    }
-
-    const script = document.createElement('script')
-    script.id = SCRIPT_ID
-    script.src = SDK_URL
-    script.async = true
-    script.addEventListener('load', ready, { once: true })
-    script.addEventListener('error', () => reject(new Error('Map library could not load.')), { once: true })
-    document.head.appendChild(script)
-  })
-
-  return sdkPromise
-}
+const DEFAULT_CENTER: [number, number] = [11.5564, 104.9282]
+const STORE_MARKER = L.divIcon({
+  className: 'vpos-store-map-marker',
+  html: '<span style="display:block;width:20px;height:20px;border:3px solid #fff;border-radius:9999px;background:#16705b;box-shadow:0 2px 6px rgba(0,0,0,.35)"></span>',
+  iconSize: [20, 20],
+  iconAnchor: [10, 10],
+})
 
 function isCoordinatePair(latitude: string, longitude: string) {
   return Number.isFinite(Number(latitude)) && Number.isFinite(Number(longitude))
 }
 
+/**
+ * A bundled Leaflet picker backed by OpenStreetMap. No MapTiler SDK, key, or
+ * style endpoint is required, so the map remains available in every store form.
+ */
 export const StoreLocationPicker = memo(function StoreLocationPicker({
   latitude,
   longitude,
@@ -97,8 +32,8 @@ export const StoreLocationPicker = memo(function StoreLocationPicker({
   onChange: (value: Coordinates) => void
 }) {
   const targetRef = useRef<HTMLDivElement>(null)
-  const mapRef = useRef<MapInstance | null>(null)
-  const markerRef = useRef<MarkerInstance | null>(null)
+  const mapRef = useRef<LeafletMap | null>(null)
+  const markerRef = useRef<LeafletMarker | null>(null)
   const onChangeRef = useRef(onChange)
   const initialCoordinatesRef = useRef<Coordinates>({ latitude, longitude })
   const [coordinates, setCoordinates] = useState<Coordinates>(() => initialCoordinatesRef.current)
@@ -114,55 +49,45 @@ export const StoreLocationPicker = memo(function StoreLocationPicker({
       ? current
       : nextCoordinates)
     if (markerRef.current && isCoordinatePair(latitude, longitude)) {
-      markerRef.current.setLngLat([Number(longitude), Number(latitude)])
+      const point: [number, number] = [Number(latitude), Number(longitude)]
+      markerRef.current.setLatLng(point)
+      mapRef.current?.panTo(point)
     }
   }, [latitude, longitude])
 
   useEffect(() => {
-    if (!targetRef.current) return
+    if (!targetRef.current || mapRef.current) return
 
-    let disposed = false
+    const initialCoordinates = initialCoordinatesRef.current
+    const center: [number, number] = isCoordinatePair(initialCoordinates.latitude, initialCoordinates.longitude)
+      ? [Number(initialCoordinates.latitude), Number(initialCoordinates.longitude)]
+      : DEFAULT_CENTER
+    const map = L.map(targetRef.current, { scrollWheelZoom: true }).setView(center, 12)
+    L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
+      attribution: '© OpenStreetMap contributors',
+      maxZoom: 19,
+    }).addTo(map)
 
-    void loadMapLibreSdk()
-      .then((sdk) => {
-        if (disposed || !targetRef.current || mapRef.current) return
+    const marker = L.marker(center, { draggable: true, icon: STORE_MARKER }).addTo(map)
+    const selectPoint = (point: MapPoint) => {
+      const nextCoordinates = {
+        latitude: point.lat.toFixed(6),
+        longitude: point.lng.toFixed(6),
+      }
+      setCoordinates(nextCoordinates)
+      onChangeRef.current(nextCoordinates)
+    }
 
-        const initialCoordinates = initialCoordinatesRef.current
-        const center = isCoordinatePair(initialCoordinates.latitude, initialCoordinates.longitude)
-          ? [Number(initialCoordinates.longitude), Number(initialCoordinates.latitude)] as [number, number]
-          : DEFAULT_CENTER
-
-        const map = new sdk.Map({
-          container: targetRef.current,
-          style: OPEN_STREET_MAP_STYLE,
-          center,
-          zoom: 12,
-        })
-        const marker = new sdk.Marker({ draggable: true }).setLngLat(center).addTo(map)
-        const selectPoint = (point: MapPoint) => {
-          const nextCoordinates = {
-            latitude: point.lat.toFixed(6),
-            longitude: point.lng.toFixed(6),
-          }
-          setCoordinates(nextCoordinates)
-          onChangeRef.current(nextCoordinates)
-        }
-
-        map.on('click', (event) => {
-          marker.setLngLat(event.lngLat)
-          selectPoint(event.lngLat)
-        })
-        marker.on('dragend', () => selectPoint(marker.getLngLat()))
-        mapRef.current = map
-        markerRef.current = marker
-      })
-      .catch((reason: unknown) => {
-        if (!disposed) setStatus(reason instanceof Error ? reason.message : 'The map is unavailable. Enter coordinates manually.')
-      })
+    map.on('click', (event: L.LeafletMouseEvent) => {
+      marker.setLatLng(event.latlng)
+      selectPoint(event.latlng)
+    })
+    marker.on('dragend', () => selectPoint(marker.getLatLng()))
+    mapRef.current = map
+    markerRef.current = marker
 
     return () => {
-      disposed = true
-      mapRef.current?.remove()
+      map.remove()
       mapRef.current = null
       markerRef.current = null
     }
@@ -171,7 +96,9 @@ export const StoreLocationPicker = memo(function StoreLocationPicker({
   const selectCoordinates = (nextCoordinates: Coordinates) => {
     setCoordinates(nextCoordinates)
     if (markerRef.current && isCoordinatePair(nextCoordinates.latitude, nextCoordinates.longitude)) {
-      markerRef.current.setLngLat([Number(nextCoordinates.longitude), Number(nextCoordinates.latitude)])
+      const point: [number, number] = [Number(nextCoordinates.latitude), Number(nextCoordinates.longitude)]
+      markerRef.current.setLatLng(point)
+      mapRef.current?.panTo(point)
     }
     onChangeRef.current(nextCoordinates)
   }
@@ -193,10 +120,10 @@ export const StoreLocationPicker = memo(function StoreLocationPicker({
     <section aria-labelledby="store-location-heading" className="space-y-4">
       <div>
         <p id="store-location-heading" className="m-0 text-[12px] font-extrabold tracking-[.12em] text-vpos-primary">STORE LOCATION</p>
-        <p className="mt-1 mb-0 text-[13px] leading-5 text-vpos-muted">Set the exact location for your default store. It is used for receipts, delivery zones, and future reporting.</p>
+        <p className="mt-1 mb-0 text-[13px] leading-5 text-vpos-muted">Click the map, drag the pin, or use your device location.</p>
       </div>
 
-      <div ref={targetRef} className="h-72 overflow-hidden rounded-xl border border-vpos-line bg-vpos-subtle" />
+      <div ref={targetRef} aria-label="Store location map" className="h-72 overflow-hidden rounded-xl border border-vpos-line bg-vpos-subtle" />
 
       <div className="flex flex-wrap items-center justify-between gap-3">
         <button type="button" onClick={useCurrentLocation} className="inline-flex h-9 items-center gap-2 rounded-lg border border-vpos-line bg-white px-3 text-[12px] font-bold text-vpos-primary transition-colors hover:border-vpos-primary/40 hover:bg-vpos-sand focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-vpos-primary">
