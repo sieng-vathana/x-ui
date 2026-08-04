@@ -29,8 +29,11 @@ const keyToPath: Record<string, string> = {
   settings: paths.settings, users: paths.users,
 }
 
-const productSubItems = [
-  { to: paths.products, label: 'All products', end: true }, { to: paths.productOptions, label: 'Variants' },
+const productSubItems: Array<{ to: string; label: string; end?: boolean; permission?: string }> = [
+  { to: paths.products, label: 'All products', end: true },
+  { to: paths.productUnits, label: 'Unit', permission: 'x-product:unit' },
+  { to: paths.productCategories, label: 'Category', permission: 'x-product:category' },
+  { to: paths.productOptions, label: 'Variants' },
   { to: paths.productStockMovement, label: 'Stock movement' }, { to: paths.productLowStock, label: 'Low stock' },
 ]
 
@@ -123,6 +126,7 @@ function MenuGroup({ id, icon, label, items, active, state, iconOnly, theme, onN
 }
 
 export function Sidebar({ state }: SidebarProps) {
+  const { user } = useAuth()
   const { config, effectiveSize, isMobile, mobileOpen, hovered, setHovered, setMobileOpen } = state
   const hoverView = effectiveSize === 'hover' && !isMobile
   const iconOnly = !isMobile && (effectiveSize === 'small' || (hoverView && !hovered))
@@ -132,6 +136,9 @@ export function Sidebar({ state }: SidebarProps) {
   const location = useLocation()
   const inProducts = location.pathname === paths.products || location.pathname.startsWith(`${paths.products}/`)
   const inPurchases = location.pathname.startsWith(paths.purchases)
+  const visibleProductSubItems = productSubItems.filter(
+    (item) => !item.permission || user?.permissions.includes(item.permission),
+  )
   const onNavigate = () => { if (isMobile) setMobileOpen(false) }
 
   const backgroundImages: Record<string, string> = { 'img-1': sidebarGrid, 'img-2': sidebarOrbit, 'img-3': sidebarLines, 'img-4': sidebarDots }
@@ -145,7 +152,7 @@ export function Sidebar({ state }: SidebarProps) {
     <SidebarBrand iconOnly={iconOnly} compact={effectiveSize === 'compact'} theme={theme} />
     <nav className={cn('flex flex-1 flex-col', iconOnly ? 'items-center gap-1.5 overflow-visible py-3' : effectiveSize === 'compact' ? 'gap-1 overflow-y-auto overflow-x-hidden px-2 py-3' : 'gap-1 overflow-y-auto overflow-x-hidden px-3 py-3')}>
       {navPrimary.filter((item) => item.key !== 'products').map((item) => <NavItem key={item.key} to={keyToPath[item.key] ?? paths.home} icon={item.icon} label={item.label} end={item.key === 'dashboard'} iconOnly={iconOnly} hint={navMeta[item.key]?.hint} theme={theme} onNavigate={onNavigate} hovered={state.hoveredMenuItem === item.label} onHover={state.setHoveredMenuItem} />)}
-      <MenuGroup id="products" icon="shopping-bag-3-line" label="Products" items={productSubItems} active={inProducts} state={state} iconOnly={iconOnly} theme={theme} onNavigate={onNavigate} />
+      <MenuGroup id="products" icon="shopping-bag-3-line" label="Products" items={visibleProductSubItems} active={inProducts} state={state} iconOnly={iconOnly} theme={theme} onNavigate={onNavigate} />
       <StaticNavItem icon="line-chart-line" label="Sales" iconOnly={iconOnly} hint={navMeta.sales?.hint} theme={theme} hovered={state.hoveredMenuItem === 'Sales'} onHover={state.setHoveredMenuItem} />
       <MenuGroup id="purchases" icon="truck-line" label="Purchases" items={purchaseSubItems} active={inPurchases} state={state} iconOnly={iconOnly} theme={theme} onNavigate={onNavigate} />
       {staticItems.filter((item) => item.key !== 'sales').map((item) => <StaticNavItem key={item.key} icon={item.icon} label={item.label} iconOnly={iconOnly} hint={navMeta[item.key]?.hint} theme={theme} hovered={state.hoveredMenuItem === item.label} onHover={state.setHoveredMenuItem} />)}

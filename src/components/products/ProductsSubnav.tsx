@@ -1,18 +1,26 @@
 import { NavLink } from 'react-router-dom'
 import { cn } from '../../lib/cn'
 import { paths } from '../../lib/paths'
+import { useAuth } from '../../context/AuthContext'
 
-const items: Array<{ to: string; label: string; end?: boolean }> = [
+const items: Array<{ to: string; label: string; end?: boolean; permission?: string }> = [
   { to: paths.products, label: 'All products', end: true },
+  { to: paths.productUnits, label: 'Units', permission: 'x-product:unit' },
+  { to: paths.productCategories, label: 'Categories', permission: 'x-product:category' },
   { to: paths.productOptions, label: 'Options' },
   { to: paths.productStockMovement, label: 'Stock movement' },
   { to: paths.productLowStock, label: 'Low stock' },
 ]
 
 export function ProductsSubnav() {
+  const { user } = useAuth()
+  const visibleItems = items.filter(
+    (item) => !item.permission || user?.permissions.includes(item.permission),
+  )
+
   return (
     <div className="mb-5 flex flex-wrap gap-1.5 rounded-[4px] border border-vpos-line bg-white p-1.5 shadow-vpos">
-      {items.map((item) => (
+      {visibleItems.map((item) => (
         <NavLink
           key={item.to}
           to={item.to}

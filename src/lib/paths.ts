@@ -6,6 +6,8 @@ export const paths = {
   products: '/products',
   productNew: '/products/new',
   productEdit: (sku: string) => `/products/${encodeURIComponent(sku)}/edit`,
+  productUnits: '/products/units',
+  productCategories: '/products/categories',
   productOptions: '/products/options',
   productStockMovement: '/products/stock-movement',
   productLowStock: '/products/low-stock',

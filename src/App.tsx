@@ -9,6 +9,8 @@ import { ProductFormPage } from './pages/ProductFormPage'
 import { ProductsPage } from './pages/ProductsPage'
 import { LowStockPage } from './pages/products/LowStockPage'
 import { ProductOptionsPage } from './pages/products/ProductOptionsPage'
+import { ProductCategoriesPage } from './pages/products/ProductCategoriesPage'
+import { ProductUnitsPage } from './pages/products/ProductUnitsPage'
 import { StockMovementPage } from './pages/products/StockMovementPage'
 import { PurchaseOrderDetailPage } from './pages/purchases/PurchaseOrderDetailPage'
 import { PurchaseOrdersPage } from './pages/purchases/PurchaseOrdersPage'
@@ -18,6 +20,7 @@ import { SuppliersPage } from './pages/purchases/SuppliersPage'
 import { StoresPage } from './pages/StoresPage'
 import { AppLoader } from './components/AppLoader'
 import { RequireAuth } from './components/auth/RequireAuth'
+import { RequirePermission } from './components/auth/RequirePermission'
 import { AuthProvider } from './context/AuthContext'
 import { ToastProvider } from './context/ToastContext'
 import { Toaster } from './components/Toaster'
@@ -60,6 +63,18 @@ export default function App() {
                 <Route index element={<DashboardPage />} />
                 <Route path="pos" element={<PosPage />} />
                 <Route path="products" element={<ProductsPage />} />
+                <Route element={<RequirePermission permission="x-product:unit" />}>
+                  <Route
+                    path="products/units"
+                    element={<ProductUnitsPage />}
+                  />
+                </Route>
+                <Route element={<RequirePermission permission="x-product:category" />}>
+                  <Route
+                    path="products/categories"
+                    element={<ProductCategoriesPage />}
+                  />
+                </Route>
                 <Route path="products/options" element={<ProductOptionsPage />} />
                 <Route path="products/variants" element={<Navigate to="/products/options" replace />} />
                 <Route path="products/stock-movement" element={<StockMovementPage />} />
