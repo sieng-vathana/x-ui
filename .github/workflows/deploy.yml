@@ -122,7 +122,7 @@ jobs:
           commit_message=$(printf '%s' "$commit_message" | html_escape)
           artifact="${IMAGE_REPOSITORY}:${GITHUB_SHA}"
 
-          message=$(printf '%s\n\n📌 Project Details\n• Environment : %s\n• Project     : x-platform\n• Application : x-ui\n• Build #     : #%s\n• Time        : %s\n\n%s\n• Build UI          : %s\n• Build & Push Image: %s\n• Deploy K3s       : %s\n\n📦 Artifact\n<code>%s</code>\n\n👤 Commit Info\n• Branch    : origin/%s (<code>%s</code>)\n• Committer : %s\n• Message   : %s' \
+          message=$(printf '%s\n\n📌 Project Details\n• Environment : %s\n• Project     : x-platform\n• Application : x-ui\n• Build #     : #%s\n• Time        : %s\n\n%s\n• Build UI          : %s\n• Build & Push Image: %s\n• Deploy K3s       : %s\n\n🐳 Container Image\n<code>%s</code>\n\n👤 Commit Info\n• Branch    : origin/%s (<code>%s</code>)\n• Committer : %s\n• Message   : %s' \
             "$title" "$DEPLOY_ENVIRONMENT" "$GITHUB_RUN_NUMBER" "$build_time" \
             "$([ "$title" = '🟢 CI/CD PIPELINE SUCCEEDED' ] && printf '✅ Stage Breakdown' || printf '❌ Stage Breakdown')" \
             "$(stage_icon "$BUILD_UI_RESULT")" \
