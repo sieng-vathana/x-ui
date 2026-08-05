@@ -50,3 +50,19 @@ export function useProductBrands(storeId?: string | number) {
     },
   })
 }
+
+export function useProductTaxes(storeId?: string | number) {
+  const { user } = useAuth()
+  const businessId = user?.business?.id
+
+  return useQuery({
+    queryKey: ['product-taxes', { businessId, storeId }],
+    queryFn: () => productApi.getTaxes(businessId!, storeId),
+    enabled: Boolean(businessId),
+    staleTime: 5 * 60 * 1000,
+    retry: (failureCount, error) => {
+      if (error instanceof ApiError && (error.status === 401 || error.status === 403)) return false
+      return failureCount < 1
+    },
+  })
+}

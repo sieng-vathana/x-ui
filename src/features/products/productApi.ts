@@ -4,6 +4,7 @@ import type {
   PageEnvelope,
   ProductBrand,
   ProductCategory,
+  ProductTax,
   ProductUnit,
 } from './types'
 
@@ -39,6 +40,14 @@ export const productApi = {
     const storeParam = buildStoreParam(storeId)
     const response = await api.request<ApiEnvelope<PageEnvelope<ProductBrand>>>(
       `/products/brands?businessId=${businessId}${storeParam}&size=100`,
+    )
+    return response.data?.content ?? []
+  },
+
+  async getTaxes(businessId: string | number, storeId?: string | number): Promise<ProductTax[]> {
+    const storeParam = buildStoreParam(storeId)
+    const response = await api.request<ApiEnvelope<PageEnvelope<ProductTax>>>(
+      `/products/taxes?businessId=${businessId}${storeParam}&size=100`,
     )
     return response.data?.content ?? []
   },

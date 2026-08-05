@@ -16,6 +16,7 @@ import { useAdminStore } from '../hooks/useAdminStore'
 import {
   useProductBrands,
   useProductCategories,
+  useProductTaxes,
   useProductUnits,
 } from '../features/products/useProducts'
 import { cn } from '../lib/cn'
@@ -107,6 +108,7 @@ export function ProductFormPage() {
   const { data: apiCategories = [], isLoading: loadingCategories } = useProductCategories(storeId)
   const { data: apiBrands = [], isLoading: loadingBrands } = useProductBrands(storeId)
   const { data: apiUnits = [], isLoading: loadingUnits } = useProductUnits(storeId)
+  const { data: apiTaxes = [], isLoading: loadingTaxes } = useProductTaxes(storeId)
 
   const categoryOptions = useMemo(() => {
     if (apiCategories.length > 0) {
@@ -139,6 +141,16 @@ export function ProductFormPage() {
     }
     return mockUnits.map((u) => ({ value: String(u.id), label: u.name }))
   }, [apiUnits])
+
+  const taxOptions = useMemo(() => {
+    if (apiTaxes.length > 0) {
+      return apiTaxes.map((t) => ({
+        value: String(t.id),
+        label: `${t.taxName} (${t.percentage}%)`,
+      }))
+    }
+    return mockTaxes.map((t) => ({ value: String(t.id), label: t.name }))
+  }, [apiTaxes])
 
   const [variants, setVariants] = useState<VariantInput[]>([emptyVariant(0)])
   const [images, setImages] = useState<ProductImage[]>([])
@@ -281,7 +293,7 @@ export function ProductFormPage() {
                   <Select label="Category" requiredMark placeholder={loadingCategories ? "Loading categories…" : "Select a category"} value={categoryId} onChange={setCategoryId} options={categoryOptions} searchable />
                   <Select label="Brand" placeholder={loadingBrands ? "Loading brands…" : "Select a brand"} value={brandId} onChange={setBrandId} options={brandOptions} searchable />
                   <Select label="Unit" requiredMark placeholder={loadingUnits ? "Loading units…" : "Select a unit"} value={unitId} onChange={setUnitId} options={unitOptions} />
-                  <Select label="Tax" placeholder="Select a tax rate" value={taxId} onChange={setTaxId} options={mockTaxes.map((t) => ({ value: String(t.id), label: t.name }))} />
+                  <Select label="Tax" placeholder={loadingTaxes ? "Loading taxes…" : "Select a tax rate"} value={taxId} onChange={setTaxId} options={taxOptions} />
                   <div className="md:col-span-2">
                     <TextAreaField label="Description" value={description} onChange={(e) => setDescription(e.target.value)} placeholder="Write a short product description…" />
                   </div>
