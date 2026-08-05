@@ -20,7 +20,7 @@ spec:
       automountServiceAccountToken: false
       containers:
         - name: x-ui
-          image: ghcr.io/sieng-vathana/x-ui:main
+          image: ghcr.io/sieng-vathana/x-ui-portal:main
           imagePullPolicy: Always
           ports:
             - name: http
