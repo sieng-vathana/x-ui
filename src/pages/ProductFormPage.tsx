@@ -35,22 +35,7 @@ interface ProductImage {
   isPrimary: boolean
 }
 
-const mockCategories = [
-  { id: 1, name: 'Coffee', image: 'https://images.unsplash.com/photo-1509042239860-f550ce710b93?w=80&h=80&fit=crop' },
-  { id: 2, name: 'Bakery', image: 'https://images.unsplash.com/photo-1509440159596-0249088772ff?w=80&h=80&fit=crop' },
-]
-const mockBrands = [
-  { id: 1, name: 'V-POS House Brand', image: 'https://images.unsplash.com/photo-1559056199-641a0ac8b55e?w=80&h=80&fit=crop' },
-  { id: 2, name: 'Coffee House', image: 'https://images.unsplash.com/photo-1559496417-e7f25cb247f3?w=80&h=80&fit=crop' },
-]
-const mockUnits = [
-  { id: 1, name: 'Cup' },
-  { id: 2, name: 'Piece' },
-]
-const mockTaxes = [
-  { id: 1, name: 'VAT 10%', percentage: 10 },
-  { id: 2, name: 'VAT 0%', percentage: 0 },
-]
+
 const mockSuppliers = [
   { id: 1, name: 'Coffee Supply Co.' },
   { id: 2, name: 'Bake House Ltd.' },
@@ -111,45 +96,33 @@ export function ProductFormPage() {
   const { data: apiTaxes = [], isLoading: loadingTaxes } = useProductTaxes(storeId)
 
   const categoryOptions = useMemo(() => {
-    if (apiCategories.length > 0) {
-      return apiCategories.map((c) => ({
-        value: String(c.id),
-        label: c.categoryName,
-        image: c.image,
-      }))
-    }
-    return mockCategories.map((c) => ({ value: String(c.id), label: c.name, image: c.image }))
+    return apiCategories.map((c) => ({
+      value: String(c.id),
+      label: c.categoryName,
+      image: c.image,
+    }))
   }, [apiCategories])
 
   const brandOptions = useMemo(() => {
-    if (apiBrands.length > 0) {
-      return apiBrands.map((b) => ({
-        value: String(b.id),
-        label: b.brandName,
-        image: b.logo,
-      }))
-    }
-    return mockBrands.map((b) => ({ value: String(b.id), label: b.name, image: b.image }))
+    return apiBrands.map((b) => ({
+      value: String(b.id),
+      label: b.brandName,
+      image: b.logo,
+    }))
   }, [apiBrands])
 
   const unitOptions = useMemo(() => {
-    if (apiUnits.length > 0) {
-      return apiUnits.map((u) => ({
-        value: String(u.id),
-        label: u.unitName,
-      }))
-    }
-    return mockUnits.map((u) => ({ value: String(u.id), label: u.name }))
+    return apiUnits.map((u) => ({
+      value: String(u.id),
+      label: u.unitName,
+    }))
   }, [apiUnits])
 
   const taxOptions = useMemo(() => {
-    if (apiTaxes.length > 0) {
-      return apiTaxes.map((t) => ({
-        value: String(t.id),
-        label: `${t.taxName} (${t.percentage}%)`,
-      }))
-    }
-    return mockTaxes.map((t) => ({ value: String(t.id), label: t.name }))
+    return apiTaxes.map((t) => ({
+      value: String(t.id),
+      label: `${t.taxName} (${t.percentage}%)`,
+    }))
   }, [apiTaxes])
 
   const [variants, setVariants] = useState<VariantInput[]>([emptyVariant(0)])
