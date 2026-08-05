@@ -1,4 +1,4 @@
-import { useCallback, useRef, useState } from 'react'
+import { useCallback, useMemo, useRef, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import {
   Breadcrumb,
@@ -13,6 +13,11 @@ import {
   Topbar,
 } from '../components'
 import { useAdminStore } from '../hooks/useAdminStore'
+import {
+  useProductBrands,
+  useProductCategories,
+  useProductUnits,
+} from '../features/products/useProducts'
 import { cn } from '../lib/cn'
 import { paths } from '../lib/paths'
 import {
@@ -98,6 +103,42 @@ export function ProductFormPage() {
   const [isFeatured, setIsFeatured] = useState(false)
   const [isSellable, setIsSellable] = useState(true)
   const [isStockable, setIsStockable] = useState(true)
+
+  const { data: apiCategories = [], isLoading: loadingCategories } = useProductCategories(storeId)
+  const { data: apiBrands = [], isLoading: loadingBrands } = useProductBrands(storeId)
+  const { data: apiUnits = [], isLoading: loadingUnits } = useProductUnits(storeId)
+
+  const categoryOptions = useMemo(() => {
+    if (apiCategories.length > 0) {
+      return apiCategories.map((c) => ({
+        value: String(c.id),
+        label: c.categoryName,
+        image: c.image,
+      }))
+    }
+    return mockCategories.map((c) => ({ value: String(c.id), label: c.name, image: c.image }))
+  }, [apiCategories])
+
+  const brandOptions = useMemo(() => {
+    if (apiBrands.length > 0) {
+      return apiBrands.map((b) => ({
+        value: String(b.id),
+        label: b.brandName,
+        image: b.logo,
+      }))
+    }
+    return mockBrands.map((b) => ({ value: String(b.id), label: b.name, image: b.image }))
+  }, [apiBrands])
+
+  const unitOptions = useMemo(() => {
+    if (apiUnits.length > 0) {
+      return apiUnits.map((u) => ({
+        value: String(u.id),
+        label: u.unitName,
+      }))
+    }
+    return mockUnits.map((u) => ({ value: String(u.id), label: u.name }))
+  }, [apiUnits])
 
   const [variants, setVariants] = useState<VariantInput[]>([emptyVariant(0)])
   const [images, setImages] = useState<ProductImage[]>([])
@@ -237,9 +278,9 @@ export function ProductFormPage() {
                   <FormField label="Product code" value={productCode} onChange={(e) => setProductCode(e.target.value.toUpperCase())} placeholder="e.g. ICE-AMER-001" />
                   <FormField label="Short name" value={shortName} onChange={(e) => setShortName(e.target.value)} placeholder="e.g. Iced Americano" />
                   <FormField label="Currency" required value={currencyCode} onChange={(e) => setCurrencyCode(e.target.value.toUpperCase())} placeholder="USD" maxLength={3} />
-                  <Select label="Category" requiredMark placeholder="Select a category" value={categoryId} onChange={setCategoryId} options={mockCategories.map((c) => ({ value: String(c.id), label: c.name, image: c.image }))} searchable />
-                  <Select label="Brand" placeholder="Select a brand" value={brandId} onChange={setBrandId} options={mockBrands.map((b) => ({ value: String(b.id), label: b.name, image: b.image }))} searchable />
-                  <Select label="Unit" requiredMark placeholder="Select a unit" value={unitId} onChange={setUnitId} options={mockUnits.map((u) => ({ value: String(u.id), label: u.name }))} />
+                  <Select label="Category" requiredMark placeholder={loadingCategories ? "Loading categories…" : "Select a category"} value={categoryId} onChange={setCategoryId} options={categoryOptions} searchable />
+                  <Select label="Brand" placeholder={loadingBrands ? "Loading brands…" : "Select a brand"} value={brandId} onChange={setBrandId} options={brandOptions} searchable />
+                  <Select label="Unit" requiredMark placeholder={loadingUnits ? "Loading units…" : "Select a unit"} value={unitId} onChange={setUnitId} options={unitOptions} />
                   <Select label="Tax" placeholder="Select a tax rate" value={taxId} onChange={setTaxId} options={mockTaxes.map((t) => ({ value: String(t.id), label: t.name }))} />
                   <div className="md:col-span-2">
                     <TextAreaField label="Description" value={description} onChange={(e) => setDescription(e.target.value)} placeholder="Write a short product description…" />
