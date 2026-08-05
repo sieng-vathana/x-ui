@@ -1,0 +1,140 @@
+name: Build and deploy x-ui
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+concurrency:
+  group: x-ui-production
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+  packages: write
+
+env:
+  IMAGE_REPOSITORY: ghcr.io/sieng-vathana/x-ui
+  DEPLOY_ENVIRONMENT: production
+
+jobs:
+  build-ui:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+      - name: Build UI
+        env:
+          VITE_API_GATEWAY_URL: https://api.learner-teach.online
+        run: |
+          npm ci
+          npm run build
+      - uses: actions/upload-artifact@v4
+        with:
+          name: x-ui-dist
+          path: dist
+          retention-days: 1
+
+  build-image:
+    needs: build-ui
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          name: x-ui-dist
+          path: dist
+      - uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - name: Build and push image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: Dockerfile.prod
+          push: true
+          tags: |
+            ${{ env.IMAGE_REPOSITORY }}:main
+            ${{ env.IMAGE_REPOSITORY }}:${{ github.sha }}
+
+  deploy:
+    needs: build-image
+    runs-on: [self-hosted, linux, x64, x-platform-deploy]
+    steps:
+      - uses: actions/checkout@v4
+      - name: Deploy to K3s
+        run: |
+          sudo k3s kubectl apply -f k8s/x-ui.yaml
+          sudo k3s kubectl -n x-platform set image deployment/x-ui x-ui=${{ env.IMAGE_REPOSITORY }}:${{ github.sha }}
+          sudo k3s kubectl -n x-platform rollout status deployment/x-ui --timeout=180s
+
+  notify:
+    if: always()
+    needs: [build-ui, build-image, deploy]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Send Telegram pipeline alert
+        env:
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+          BUILD_UI_RESULT: ${{ needs.build-ui.result }}
+          BUILD_IMAGE_RESULT: ${{ needs.build-image.result }}
+          DEPLOY_RESULT: ${{ needs.deploy.result }}
+          COMMITTER: ${{ github.event.head_commit.author.name || github.actor }}
+          COMMIT_MESSAGE: ${{ github.event.head_commit.message || 'Manual workflow dispatch' }}
+        run: |
+          if [ -z "$TELEGRAM_BOT_TOKEN" ] || [ -z "$TELEGRAM_CHAT_ID" ]; then
+            echo "::warning::Telegram notification skipped; configure TELEGRAM_BOT_TOKEN and TELEGRAM_CHAT_ID."
+            exit 0
+          fi
+
+          stage_icon() {
+            case "$1" in
+              success) printf '✅ Success' ;;
+              failure) printf '🛑 Failed' ;;
+              cancelled) printf '🚫 Cancelled' ;;
+              *) printf '⏭ Skipped' ;;
+            esac
+          }
+
+          html_escape() {
+            sed -e 's/&/\&amp;/g' -e 's/</\&lt;/g' -e 's/>/\&gt;/g'
+          }
+
+          if [ "$BUILD_UI_RESULT" = success ] \
+            && [ "$BUILD_IMAGE_RESULT" = success ] \
+            && [ "$DEPLOY_RESULT" = success ]; then
+            title='🟢 CI/CD PIPELINE SUCCEEDED'
+          else
+            title='🔴 CI/CD PIPELINE FAILED'
+          fi
+
+          short_sha=${GITHUB_SHA::7}
+          build_time=$(TZ=Asia/Phnom_Penh date '+%d-%b-%Y | %I:%M %p')
+          committer=$(printf '%s' "$COMMITTER" | html_escape)
+          commit_message=${COMMIT_MESSAGE%%$'\n'*}
+          commit_message=$(printf '%s' "$commit_message" | html_escape)
+          artifact="${IMAGE_REPOSITORY}:${GITHUB_SHA}"
+
+          message=$(printf '%s\n\n📌 Project Details\n• Environment : %s\n• Project     : x-platform\n• Application : x-ui\n• Build #     : #%s\n• Time        : %s\n\n%s\n• Build UI          : %s\n• Build & Push Image: %s\n• Deploy K3s       : %s\n\n📦 Artifact\n<code>%s</code>\n\n👤 Commit Info\n• Branch    : origin/%s (<code>%s</code>)\n• Committer : %s\n• Message   : %s' \
+            "$title" "$DEPLOY_ENVIRONMENT" "$GITHUB_RUN_NUMBER" "$build_time" \
+            "$([ "$title" = '🟢 CI/CD PIPELINE SUCCEEDED' ] && printf '✅ Stage Breakdown' || printf '❌ Stage Breakdown')" \
+            "$(stage_icon "$BUILD_UI_RESULT")" \
+            "$(stage_icon "$BUILD_IMAGE_RESULT")" \
+            "$(stage_icon "$DEPLOY_RESULT")" \
+            "$artifact" "$GITHUB_REF_NAME" "$short_sha" "$committer" "$commit_message")
+
+          jq -n \
+            --arg chat_id "$TELEGRAM_CHAT_ID" \
+            --arg text "$message" \
+            '{chat_id: $chat_id, text: $text, parse_mode: "HTML", disable_web_page_preview: true}' \
+            | curl --fail --silent --show-error \
+                -H 'Content-Type: application/json' \
+                --data-binary @- \
+                "https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendMessage" \
+                >/dev/null
