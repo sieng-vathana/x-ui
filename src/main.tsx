@@ -13,7 +13,7 @@ if (!rootElement) {
 initializeThemeConfig()
 
 createRoot(rootElement).render(
-  <StrictMode>
+  <StrictMode> 
     <App />
   </StrictMode>,
 )
