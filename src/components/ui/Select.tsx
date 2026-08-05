@@ -91,7 +91,14 @@ export function Select({
         )}
       >
         {selected?.image ? (
-          <img src={selected.image} alt="" className="h-6 w-6 shrink-0 rounded-md object-cover" />
+          <img
+            src={selected.image}
+            alt=""
+            className="h-6 w-6 shrink-0 rounded-md object-cover"
+            onError={(e) => {
+              e.currentTarget.src = 'https://images.unsplash.com/photo-1541643600914-78b084683601?w=80&h=80&fit=crop'
+            }}
+          />
         ) : null}
         <span
           className={cn(
@@ -164,7 +171,14 @@ export function Select({
                     }}
                   >
                     {opt.image ? (
-                      <img src={opt.image} alt="" className="h-7 w-7 shrink-0 rounded-lg object-cover" />
+                      <img
+                        src={opt.image}
+                        alt=""
+                        className="h-7 w-7 shrink-0 rounded-lg object-cover"
+                        onError={(e) => {
+                          e.currentTarget.src = 'https://images.unsplash.com/photo-1541643600914-78b084683601?w=80&h=80&fit=crop'
+                        }}
+                      />
                     ) : null}
                     {opt.label}
                     {sel ? (
