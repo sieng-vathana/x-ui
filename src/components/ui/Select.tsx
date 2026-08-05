@@ -90,15 +90,8 @@ export function Select({
             : 'h-[39px] w-full rounded-[4px] px-3.5 text-[14px]',
         )}
       >
-        {selected?.image ? (
-          <img
-            src={selected.image}
-            alt=""
-            className="h-6 w-6 shrink-0 rounded-md object-cover"
-            onError={(e) => {
-              e.currentTarget.src = 'https://images.unsplash.com/photo-1541643600914-78b084683601?w=80&h=80&fit=crop'
-            }}
-          />
+        {selected && (selected.image !== undefined || options.some((o) => o.image !== undefined)) ? (
+          <OptionAvatar label={selected.label} image={selected.image} size="sm" />
         ) : null}
         <span
           className={cn(
@@ -152,6 +145,7 @@ export function Select({
             ) : (
               filtered.map((opt) => {
                 const sel = opt.value === value
+                const hasAnyImage = options.some((o) => o.image !== undefined)
                 return (
                   <button
                     key={opt.value}
@@ -170,19 +164,14 @@ export function Select({
                       setQuery('')
                     }}
                   >
-                    {opt.image ? (
-                      <img
-                        src={opt.image}
-                        alt=""
-                        className="h-7 w-7 shrink-0 rounded-lg object-cover"
-                        onError={(e) => {
-                          e.currentTarget.src = 'https://images.unsplash.com/photo-1541643600914-78b084683601?w=80&h=80&fit=crop'
-                        }}
-                      />
-                    ) : null}
-                    {opt.label}
+                    <div className="flex min-w-0 flex-1 items-center gap-2">
+                      {hasAnyImage || opt.image !== undefined ? (
+                        <OptionAvatar label={opt.label} image={opt.image} size="md" />
+                      ) : null}
+                      <span className="truncate">{opt.label}</span>
+                    </div>
                     {sel ? (
-                      <Icon name="check-line" className="text-[15px] text-vpos-primary" />
+                      <Icon name="check-line" className="text-[15px] text-vpos-primary shrink-0" />
                     ) : null}
                   </button>
                 )
@@ -192,5 +181,33 @@ export function Select({
         </div>
       ) : null}
     </div>
+  )
+}
+
+function OptionAvatar({ label, image, size = 'md' }: { label: string; image?: string; size?: 'sm' | 'md' }) {
+  const [failed, setFailed] = useState(false)
+  const isSm = size === 'sm'
+  const initial = label ? label.trim().charAt(0).toUpperCase() : '?'
+
+  if (image && !failed) {
+    return (
+      <img
+        src={image}
+        alt=""
+        className={cn('shrink-0 object-cover', isSm ? 'h-6 w-6 rounded-md' : 'h-7 w-7 rounded-lg')}
+        onError={() => setFailed(true)}
+      />
+    )
+  }
+
+  return (
+    <span
+      className={cn(
+        'grid shrink-0 place-items-center bg-vpos-sand font-bold text-vpos-primary uppercase shadow-xs',
+        isSm ? 'h-6 w-6 rounded-md text-[11px]' : 'h-7 w-7 rounded-lg text-[12px]',
+      )}
+    >
+      {initial}
+    </span>
   )
 }

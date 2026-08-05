@@ -99,7 +99,7 @@ export function ProductFormPage() {
     return apiCategories.map((c) => ({
       value: String(c.id),
       label: c.categoryName,
-      image: c.image || 'https://images.unsplash.com/photo-1509042239860-f550ce710b93?w=80&h=80&fit=crop',
+      image: c.image || undefined,
     }))
   }, [apiCategories])
 
@@ -107,7 +107,7 @@ export function ProductFormPage() {
     return apiBrands.map((b) => ({
       value: String(b.id),
       label: b.brandName,
-      image: b.logo || 'https://images.unsplash.com/photo-1559056199-641a0ac8b55e?w=80&h=80&fit=crop',
+      image: b.logo || undefined,
     }))
   }, [apiBrands])
 
