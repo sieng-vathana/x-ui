@@ -1213,11 +1213,9 @@ html[data-preloader='disabled'] .app-loader-overlay {
   }
 }
 
-/* Strip all inner input focus outlines so focus styling applies exclusively to the parent container */
-input,
-input:focus,
-input:focus-visible,
-input:active {
+/* Strip inner input focus outlines strictly inside search bars (keeping standard form inputs untouched) */
+[aria-label="Search table"],
+[placeholder*="Search"] {
   outline: 0 !important;
   outline-style: none !important;
   outline-width: 0 !important;
