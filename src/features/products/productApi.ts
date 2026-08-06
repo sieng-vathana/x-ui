@@ -1,9 +1,11 @@
 import { API_BASE_URL, ApiClient } from '../../lib/api'
 import type {
   ApiEnvelope,
+  CreateProductPayload,
   PageEnvelope,
   ProductBrand,
   ProductCategory,
+  ProductItem,
   ProductTax,
   ProductUnit,
 } from './types'
@@ -20,6 +22,25 @@ function buildStoreParam(storeId?: string | number): string {
 }
 
 export const productApi = {
+  async getProducts(storeId?: string | number, page = 0, size = 100): Promise<ProductItem[]> {
+    const numStoreId = Number(storeId) || 2 // fallback storeId
+    const response = await api.request<ApiEnvelope<PageEnvelope<ProductItem>>>(
+      `/products?storeId=${numStoreId}&page=${page}&size=${size}`,
+    )
+    return response.data?.content ?? []
+  },
+
+  async createProduct(payload: CreateProductPayload): Promise<ProductItem> {
+    const response = await api.request<ApiEnvelope<ProductItem>>('/products', {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    })
+    if (!response.data) {
+      throw new Error(response.message || 'Failed to create product.')
+    }
+    return response.data
+  },
+
   async getCategories(businessId: string | number, storeId?: string | number): Promise<ProductCategory[]> {
     const storeParam = buildStoreParam(storeId)
     const response = await api.request<ApiEnvelope<PageEnvelope<ProductCategory>>>(

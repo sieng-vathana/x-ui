@@ -49,6 +49,58 @@ export interface ProductTax {
   status?: string
 }
 
+export interface ProductVariant {
+  id?: number
+  sku: string
+  barcode: string
+  variantName?: string
+  costPrice?: number
+  posPrice?: number
+  compareAtPrice?: number
+  onlinePrice?: number
+  isDefault?: boolean
+}
+
+export interface ProductItem {
+  id: number
+  storeId: number
+  productCode: string
+  productName: string
+  shortName?: string
+  currencyCode?: string
+  salesChannel?: number | string
+  thumbnail?: string
+  description?: string
+  category?: ProductCategory
+  brand?: ProductBrand
+  unit?: ProductUnit
+  tax?: ProductTax
+  isFeatured?: boolean
+  isSellable?: boolean
+  isStockable?: boolean
+  status?: number | string
+  variants?: ProductVariant[]
+}
+
+export interface CreateProductPayload {
+  storeId: number
+  productCode?: string
+  productName: string
+  shortName?: string
+  currencyCode?: string
+  salesChannel?: number
+  thumbnail?: string
+  description?: string
+  category?: { id: number }
+  brand?: { id: number }
+  unit?: { id: number }
+  tax?: { id: number }
+  isFeatured?: boolean
+  isSellable?: boolean
+  isStockable?: boolean
+  variants?: Partial<ProductVariant>[]
+}
+
 export interface PageEnvelope<T> {
   content?: T[]
   pageNumber?: number

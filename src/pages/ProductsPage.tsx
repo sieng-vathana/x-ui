@@ -17,6 +17,7 @@ import { money, products as catalog, type MockProduct } from '../data/mockup'
 import { useAdminStore } from '../hooks/useAdminStore'
 import { cn } from '../lib/cn'
 import { paths } from '../lib/paths'
+import { useProductsList } from '../features/products/useProducts'
 import { card, pageContent } from '../lib/ui'
 
 export function ProductsPage() {
@@ -25,14 +26,37 @@ export function ProductsPage() {
   const [statusFilter, setStatusFilter] = useState('All status')
   const [categoryFilter, setCategoryFilter] = useState('All categories')
 
+  const { data: apiProducts = [] } = useProductsList(storeId)
+
   const baseRows = useMemo(() => {
+    if (apiProducts.length > 0) {
+      return apiProducts.map((p): MockProduct => {
+        const defaultVar = p.variants?.find((v) => v.isDefault) || p.variants?.[0]
+        return {
+          sku: defaultVar?.sku || p.productCode || `PRD-${p.id}`,
+          name: p.productName,
+          category: p.category?.categoryName || 'General',
+          price: defaultVar?.posPrice ?? 0,
+          stock: 100,
+          status: p.isSellable !== false ? 'Active' : 'Inactive',
+          barcode: defaultVar?.barcode || '-',
+          tone: 'ice',
+        }
+      }).filter((p) => {
+        if (statusFilter !== 'All status' && p.status !== statusFilter) return false
+        if (categoryFilter !== 'All categories' && p.category !== categoryFilter)
+          return false
+        return true
+      })
+    }
+
     return catalog.filter((p) => {
       if (statusFilter !== 'All status' && p.status !== statusFilter) return false
       if (categoryFilter !== 'All categories' && p.category !== categoryFilter)
         return false
       return true
     })
-  }, [statusFilter, categoryFilter])
+  }, [apiProducts, statusFilter, categoryFilter])
 
   const columns: DataTableColumn<MockProduct>[] = useMemo(
     () => [

@@ -13,7 +13,9 @@ import {
   Topbar,
 } from '../components'
 import { useAdminStore } from '../hooks/useAdminStore'
+import { useToast } from '../context/ToastContext'
 import {
+  useCreateProduct,
   useProductBrands,
   useProductCategories,
   useProductTaxes,
@@ -94,6 +96,59 @@ export function ProductFormPage() {
   const { data: apiBrands = [], isLoading: loadingBrands } = useProductBrands(storeId)
   const { data: apiUnits = [], isLoading: loadingUnits } = useProductUnits(storeId)
   const { data: apiTaxes = [], isLoading: loadingTaxes } = useProductTaxes(storeId)
+
+  const createProductMutation = useCreateProduct()
+  const { toast } = useToast()
+
+  const handlePublish = async () => {
+    if (step < 3) {
+      setStep((s) => s + 1)
+      return
+    }
+
+    try {
+      const numStoreId = Number(storeId) || 2
+      const numSalesChannel = salesChannel === 'POS' ? 1 : salesChannel === 'ONLINE' ? 2 : 3
+      
+      await createProductMutation.mutateAsync({
+        storeId: numStoreId,
+        productCode: productCode || `PRD-${Date.now()}`,
+        productName: productName || 'Untitled Product',
+        shortName: shortName || productName,
+        currencyCode: currencyCode || 'USD',
+        salesChannel: numSalesChannel,
+        description,
+        category: categoryId ? { id: Number(categoryId) } : undefined,
+        brand: brandId ? { id: Number(brandId) } : undefined,
+        unit: unitId ? { id: Number(unitId) } : undefined,
+        tax: taxId ? { id: Number(taxId) } : undefined,
+        isFeatured,
+        isSellable,
+        isStockable,
+        variants: variants.length > 0 ? variants.map((v, index) => ({
+          sku: v.sku || `SKU-${Date.now()}-${index}`,
+          barcode: v.barcode || `BAR-${Date.now()}-${index}`,
+          variantName: v.variantName || 'Default',
+          costPrice: v.costPrice ? Number(v.costPrice) : 0,
+          posPrice: v.posPrice ? Number(v.posPrice) : 0,
+          compareAtPrice: v.compareAtPrice ? Number(v.compareAtPrice) : 0,
+          onlinePrice: v.onlinePrice ? Number(v.onlinePrice) : 0,
+          isDefault: index === 0,
+        })) : [{
+          sku: `SKU-${Date.now()}`,
+          barcode: `BAR-${Date.now()}`,
+          variantName: 'Default',
+          posPrice: 0,
+          isDefault: true,
+        }],
+      })
+      toast('Product created successfully!', 'success')
+      navigate(paths.products)
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : 'Failed to publish product.'
+      toast(msg, 'error')
+    }
+  }
 
   const categoryOptions = useMemo(() => {
     return apiCategories.map((c) => ({
@@ -470,8 +525,18 @@ export function ProductFormPage() {
           </Button>
           <div className="flex gap-2.5">
             <Button variant="soft">Save draft</Button>
-            <Button variant="primary" onClick={() => { if (step < 3) setStep((s) => s + 1); else navigate(paths.products) }}>
-              {step < 3 ? 'Continue →' : isEdit ? 'Update product' : 'Publish product'}
+            <Button
+              variant="primary"
+              disabled={createProductMutation.isPending}
+              onClick={handlePublish}
+            >
+              {createProductMutation.isPending
+                ? 'Publishing…'
+                : step < 3
+                  ? 'Continue →'
+                  : isEdit
+                    ? 'Update product'
+                    : 'Publish product'}
             </Button>
           </div>
         </footer>
