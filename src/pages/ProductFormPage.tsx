@@ -577,143 +577,133 @@ export function ProductFormPage() {
 
               {hasOptions && (
                 <div className="space-y-4 pt-3 border-t border-vpos-line">
-                  {/* Quick Preset Templates */}
-                  <div className="flex flex-wrap items-center gap-2 rounded-lg bg-vpos-subtle/50 p-2.5">
-                    <span className="text-[12px] font-bold text-vpos-primary-2">Quick Presets:</span>
-                    <button
-                      type="button"
-                      onClick={() =>
-                        setOptionGroups((prev) => [
-                          ...prev.filter((g) => g.name !== 'Size'),
-                          { id: `opt-${Date.now()}`, name: 'Size', values: ['Small (12oz)', 'Medium (16oz)', 'Large (20oz)'], inputValue: '' },
-                        ])
-                      }
-                      className="rounded-md border border-vpos-line bg-white px-2.5 py-1 text-[11px] font-bold text-vpos-text hover:border-vpos-primary hover:text-vpos-primary"
-                    >
-                      + Size (S, M, L)
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() =>
-                        setOptionGroups((prev) => [
-                          ...prev.filter((g) => g.name !== 'Temperature'),
-                          { id: `opt-${Date.now()}`, name: 'Temperature', values: ['Hot', 'Iced', 'Extra Ice'], inputValue: '' },
-                        ])
-                      }
-                      className="rounded-md border border-vpos-line bg-white px-2.5 py-1 text-[11px] font-bold text-vpos-text hover:border-vpos-primary hover:text-vpos-primary"
-                    >
-                      + Temp (Hot, Iced)
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() =>
-                        setOptionGroups((prev) => [
-                          ...prev.filter((g) => g.name !== 'Milk Type'),
-                          { id: `opt-${Date.now()}`, name: 'Milk Type', values: ['Whole Milk', 'Oat Milk', 'Almond Milk'], inputValue: '' },
-                        ])
-                      }
-                      className="rounded-md border border-vpos-line bg-white px-2.5 py-1 text-[11px] font-bold text-vpos-text hover:border-vpos-primary hover:text-vpos-primary"
-                    >
-                      + Milk (Whole, Oat, Almond)
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() =>
-                        setOptionGroups((prev) => [
-                          ...prev.filter((g) => g.name !== 'Color'),
-                          { id: `opt-${Date.now()}`, name: 'Color', values: ['Black', 'White', 'Red'], inputValue: '' },
-                        ])
-                      }
-                      className="rounded-md border border-vpos-line bg-white px-2.5 py-1 text-[11px] font-bold text-vpos-text hover:border-vpos-primary hover:text-vpos-primary"
-                    >
-                      + Color (Black, White)
-                    </button>
-                  </div>
-                  {optionGroups.map((group, idx) => (
-                    <div key={group.id} className="rounded-xl border border-vpos-line bg-vpos-subtle/30 p-4">
-                      <div className="mb-3 flex items-center justify-between gap-2">
-                        <strong className="text-[13px] text-vpos-primary">Option {idx + 1}</strong>
-                        {optionGroups.length > 1 && (
-                          <button
-                            type="button"
-                            onClick={() => removeOptionGroup(group.id)}
-                            className="border-0 bg-transparent text-[12px] font-bold text-vpos-red hover:underline"
-                          >
-                            Remove option
-                          </button>
-                        )}
-                      </div>
-                      <div className="grid grid-cols-1 gap-3 md:grid-cols-3">
-                        <Select
-                          label="Option Name"
-                          placeholder="Select or search option (e.g. Size, Color)..."
-                          value={group.name}
-                          onChange={(val) => {
-                            setOptionGroups((prev) =>
-                              prev.map((g) => {
-                                if (g.id !== group.id) return g
-                                const autoVals = DEFAULT_OPTION_VALUES[val] || []
-                                const mergedVals = Array.from(new Set([...g.values, ...autoVals]))
-                                return {
-                                  ...g,
-                                  name: val,
-                                  values: mergedVals.length > 0 ? mergedVals : g.values,
+                  {optionGroups.map((group, idx) => {
+                    const suggestedVals = group.name ? DEFAULT_OPTION_VALUES[group.name] || [] : []
+
+                    return (
+                      <div key={group.id} className="rounded-xl border border-vpos-line bg-vpos-subtle/30 p-4">
+                        <div className="mb-3 flex items-center justify-between gap-2">
+                          <strong className="text-[13px] text-vpos-primary">Option {idx + 1}</strong>
+                          {optionGroups.length > 1 && (
+                            <button
+                              type="button"
+                              onClick={() => removeOptionGroup(group.id)}
+                              className="border-0 bg-transparent text-[12px] font-bold text-vpos-red hover:underline"
+                            >
+                              Remove option
+                            </button>
+                          )}
+                        </div>
+                        <div className="grid grid-cols-1 gap-3 md:grid-cols-3">
+                          <Select
+                            label="Option Name"
+                            placeholder="Select or search option (e.g. Size, Color)..."
+                            value={group.name}
+                            onChange={(val) => {
+                              setOptionGroups((prev) =>
+                                prev.map((g) => {
+                                  if (g.id !== group.id) return g
+                                  const autoVals = DEFAULT_OPTION_VALUES[val] || []
+                                  return {
+                                    ...g,
+                                    name: val,
+                                    values: autoVals.length > 0 ? autoVals : g.values,
+                                  }
+                                }),
+                              )
+                            }}
+                            options={attributeSelectOptions}
+                            searchable
+                          />
+                          <div className="md:col-span-2">
+                            <label className="mb-2 block text-[12px] font-semibold text-vpos-dark">
+                              Option Values
+                            </label>
+                            <div className="flex items-center gap-2">
+                              <input
+                                type="text"
+                                value={group.inputValue}
+                                onChange={(e) =>
+                                  setOptionGroups((prev) =>
+                                    prev.map((g) =>
+                                      g.id === group.id ? { ...g, inputValue: e.target.value } : g,
+                                    ),
+                                  )
                                 }
-                              }),
-                            )
-                          }}
-                          options={attributeSelectOptions}
-                          searchable
-                        />
-                        <div className="md:col-span-2">
-                          <label className="mb-2 block text-[12px] font-semibold text-vpos-dark">
-                            Option Values
-                          </label>
-                          <div className="flex items-center gap-2">
-                            <input
-                              type="text"
-                              value={group.inputValue}
-                              onChange={(e) =>
-                                setOptionGroups((prev) =>
-                                  prev.map((g) =>
-                                    g.id === group.id ? { ...g, inputValue: e.target.value } : g,
-                                  ),
-                                )
-                              }
-                              onKeyDown={(e) => {
-                                if (e.key === 'Enter' || e.key === ',') {
-                                  e.preventDefault()
-                                  addOptionValue(group.id)
-                                }
-                              }}
-                              placeholder="Type value (e.g. Small) and press Enter"
-                              className="h-[39px] flex-1 rounded-[4px] border border-vpos-line bg-white px-3 text-[13px] text-vpos-text outline-none focus:border-vpos-primary"
-                            />
-                            <Button type="button" variant="secondary" onClick={() => addOptionValue(group.id)}>
-                              Add
-                            </Button>
-                          </div>
-                          <div className="mt-2.5 flex flex-wrap items-center gap-1.5">
-                            {group.values.map((val) => (
-                              <span
-                                key={val}
-                                className="inline-flex items-center gap-1.5 rounded-full bg-vpos-sand px-3 py-1 text-[12px] font-bold text-vpos-primary shadow-xs"
-                              >
-                                {val}
-                                <button
-                                  type="button"
-                                  onClick={() => removeOptionValue(group.id, val)}
-                                  className="border-0 bg-transparent text-vpos-primary hover:text-vpos-red"
+                                onKeyDown={(e) => {
+                                  if (e.key === 'Enter' || e.key === ',') {
+                                    e.preventDefault()
+                                    addOptionValue(group.id)
+                                  }
+                                }}
+                                placeholder="Type custom value and press Enter"
+                                className="h-[39px] flex-1 rounded-[4px] border border-vpos-line bg-white px-3 text-[13px] text-vpos-text outline-none focus:border-vpos-primary"
+                              />
+                              <Button type="button" variant="secondary" onClick={() => addOptionValue(group.id)}>
+                                Add
+                              </Button>
+                            </div>
+
+                            {/* Suggested Values for Selected Option Key Only */}
+                            {suggestedVals.length > 0 && (
+                              <div className="mt-2 flex flex-wrap items-center gap-1.5">
+                                <span className="text-[11px] font-bold text-vpos-muted">Suggestions for {group.name}:</span>
+                                {suggestedVals.map((sug) => {
+                                  const isSelected = group.values.includes(sug)
+                                  return (
+                                    <button
+                                      key={sug}
+                                      type="button"
+                                      onClick={() => {
+                                        if (isSelected) {
+                                          removeOptionValue(group.id, sug)
+                                        } else {
+                                          setOptionGroups((prev) =>
+                                            prev.map((g) =>
+                                              g.id === group.id
+                                                ? { ...g, values: [...g.values, sug] }
+                                                : g,
+                                            ),
+                                          )
+                                        }
+                                      }}
+                                      className={cn(
+                                        'rounded-full px-2.5 py-0.5 text-[11px] font-bold transition-colors',
+                                        isSelected
+                                          ? 'bg-vpos-primary text-white'
+                                          : 'border border-vpos-line bg-white text-vpos-muted hover:border-vpos-primary hover:text-vpos-primary',
+                                      )}
+                                    >
+                                      {isSelected ? `✓ ${sug}` : `+ ${sug}`}
+                                    </button>
+                                  )
+                                })}
+                              </div>
+                            )}
+
+                            {/* Active Selected Values Tags */}
+                            <div className="mt-2.5 flex flex-wrap items-center gap-1.5">
+                              {group.values.map((val) => (
+                                <span
+                                  key={val}
+                                  className="inline-flex items-center gap-1.5 rounded-full bg-vpos-sand px-3 py-1 text-[12px] font-bold text-vpos-primary shadow-xs"
                                 >
-                                  ×
-                                </button>
-                              </span>
-                            ))}
+                                  {val}
+                                  <button
+                                    type="button"
+                                    onClick={() => removeOptionValue(group.id, val)}
+                                    className="border-0 bg-transparent text-vpos-primary hover:text-vpos-red"
+                                  >
+                                    ×
+                                  </button>
+                                </span>
+                              ))}
+                            </div>
                           </div>
                         </div>
                       </div>
-                    </div>
-                  ))}
+                    )
+                  })}
 
                   <div className="flex items-center justify-between pt-2">
                     <Button type="button" variant="secondary" onClick={addOptionGroup}>
