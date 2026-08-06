@@ -1,4 +1,4 @@
-import { Button, Icon } from '../ui'
+import { Button, Icon } from '..'
 
 export interface SessionTimeoutModalProps {
   open: boolean
@@ -53,7 +53,7 @@ export function SessionTimeoutModal({
         </div>
 
         <div className="flex items-center justify-end gap-3 border-t border-vpos-line bg-vpos-surface px-6 py-3.5">
-          <Button variant="outline" onClick={onSignOut}>
+          <Button variant="secondary" onClick={onSignOut}>
             Sign out now
           </Button>
           <Button onClick={onContinue}>
