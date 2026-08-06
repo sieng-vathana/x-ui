@@ -197,6 +197,74 @@ export function ProductFormPage() {
   }, [apiTaxes])
 
   const [variants, setVariants] = useState<VariantInput[]>([emptyVariant(0)])
+  const [hasOptions, setHasOptions] = useState(false)
+  const [optionGroups, setOptionGroups] = useState<
+    { id: string; name: string; values: string[]; inputValue: string }[]
+  >([
+    { id: 'opt-1', name: 'Size', values: ['Small', 'Medium', 'Large'], inputValue: '' },
+  ])
+
+  const addOptionGroup = () => {
+    setOptionGroups((prev) => [
+      ...prev,
+      { id: `opt-${Date.now()}`, name: '', values: [], inputValue: '' },
+    ])
+  }
+
+  const removeOptionGroup = (id: string) => {
+    setOptionGroups((prev) => prev.filter((g) => g.id !== id))
+  }
+
+  const addOptionValue = (groupId: string) => {
+    setOptionGroups((prev) =>
+      prev.map((g) => {
+        if (g.id !== groupId) return g
+        const val = g.inputValue.trim()
+        if (!val || g.values.includes(val)) return g
+        return { ...g, values: [...g.values, val], inputValue: '' }
+      }),
+    )
+  }
+
+  const removeOptionValue = (groupId: string, valToRemove: string) => {
+    setOptionGroups((prev) =>
+      prev.map((g) => {
+        if (g.id !== groupId) return g
+        return { ...g, values: g.values.filter((v) => v !== valToRemove) }
+      }),
+    )
+  }
+
+  const generateCombinations = () => {
+    const validGroups = optionGroups.filter((g) => g.name.trim() && g.values.length > 0)
+    if (validGroups.length === 0) return
+
+    const valueArrays = validGroups.map((g) => g.values)
+    const cartesian = valueArrays.reduce<string[][]>(
+      (acc, curr) => acc.flatMap((d) => curr.map((e) => [...d, e])),
+      [[]],
+    )
+
+    const prefix = productCode ? productCode.trim().toUpperCase() : 'PRD'
+    const newVariants: VariantInput[] = cartesian.map((combo, idx) => {
+      const comboName = combo.join(' / ')
+      const comboCode = combo.map((c) => c.toUpperCase().replace(/\s+/g, '')).join('-')
+      return {
+        key: `gen-${Date.now()}-${idx}`,
+        sku: `${prefix}-${comboCode}`,
+        barcode: `${Math.floor(100000000000 + Math.random() * 900000000000)}`,
+        variantName: comboName,
+        costPrice: '',
+        posPrice: '',
+        compareAtPrice: '',
+        onlinePrice: '',
+        stockAlertQty: '5',
+        supplierId: '',
+      }
+    })
+
+    setVariants(newVariants)
+  }
   const [images, setImages] = useState<ProductImage[]>([])
   const [cropTarget, setCropTarget] = useState<ProductImage | null>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
@@ -464,6 +532,116 @@ export function ProductFormPage() {
 
         {step === 2 && (
           <section className="grid content-start gap-[18px]">
+            {/* Key-Value Product Options Matrix Builder */}
+            <article className={cn(card, 'p-[22px]')}>
+              <div className="mb-4 flex items-center justify-between gap-3">
+                <div>
+                  <h3 className="m-0 text-[15px] font-bold">Product Options (e.g. Size, Color)</h3>
+                  <p className="mt-1 mb-0 text-[12px] text-vpos-muted">
+                    Define option names (e.g. Size, Color) and option values to automatically generate variant combinations.
+                  </p>
+                </div>
+                <Toggle
+                  checked={hasOptions}
+                  onChange={(val) => {
+                    setHasOptions(val)
+                    if (val && optionGroups.length === 0) {
+                      addOptionGroup()
+                    }
+                  }}
+                  label="Has options"
+                />
+              </div>
+
+              {hasOptions && (
+                <div className="space-y-4 pt-3 border-t border-vpos-line">
+                  {optionGroups.map((group, idx) => (
+                    <div key={group.id} className="rounded-xl border border-vpos-line bg-vpos-subtle/30 p-4">
+                      <div className="mb-3 flex items-center justify-between gap-2">
+                        <strong className="text-[13px] text-vpos-primary">Option {idx + 1}</strong>
+                        {optionGroups.length > 1 && (
+                          <button
+                            type="button"
+                            onClick={() => removeOptionGroup(group.id)}
+                            className="border-0 bg-transparent text-[12px] font-bold text-vpos-red hover:underline"
+                          >
+                            Remove option
+                          </button>
+                        )}
+                      </div>
+                      <div className="grid grid-cols-1 gap-3 md:grid-cols-3">
+                        <FormField
+                          label="Option Name"
+                          placeholder="e.g. Size, Color, Flavor"
+                          value={group.name}
+                          onChange={(e) =>
+                            setOptionGroups((prev) =>
+                              prev.map((g) => (g.id === group.id ? { ...g, name: e.target.value } : g)),
+                            )
+                          }
+                        />
+                        <div className="md:col-span-2">
+                          <label className="mb-2 block text-[12px] font-semibold text-vpos-dark">
+                            Option Values
+                          </label>
+                          <div className="flex items-center gap-2">
+                            <input
+                              type="text"
+                              value={group.inputValue}
+                              onChange={(e) =>
+                                setOptionGroups((prev) =>
+                                  prev.map((g) =>
+                                    g.id === group.id ? { ...g, inputValue: e.target.value } : g,
+                                  ),
+                                )
+                              }
+                              onKeyDown={(e) => {
+                                if (e.key === 'Enter' || e.key === ',') {
+                                  e.preventDefault()
+                                  addOptionValue(group.id)
+                                }
+                              }}
+                              placeholder="Type value (e.g. Small) and press Enter"
+                              className="h-[39px] flex-1 rounded-[4px] border border-vpos-line bg-white px-3 text-[13px] text-vpos-text outline-none focus:border-vpos-primary"
+                            />
+                            <Button type="button" variant="secondary" onClick={() => addOptionValue(group.id)}>
+                              Add
+                            </Button>
+                          </div>
+                          <div className="mt-2.5 flex flex-wrap items-center gap-1.5">
+                            {group.values.map((val) => (
+                              <span
+                                key={val}
+                                className="inline-flex items-center gap-1.5 rounded-full bg-vpos-sand px-3 py-1 text-[12px] font-bold text-vpos-primary shadow-xs"
+                              >
+                                {val}
+                                <button
+                                  type="button"
+                                  onClick={() => removeOptionValue(group.id, val)}
+                                  className="border-0 bg-transparent text-vpos-primary hover:text-vpos-red"
+                                >
+                                  ×
+                                </button>
+                              </span>
+                            ))}
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+
+                  <div className="flex items-center justify-between pt-2">
+                    <Button type="button" variant="secondary" onClick={addOptionGroup}>
+                      <Icon name="add-line" /> Add another option
+                    </Button>
+                    <Button type="button" variant="primary" onClick={generateCombinations}>
+                      <Icon name="refresh-line" /> Generate {optionGroups.reduce((acc, g) => acc * (g.values.length || 1), 1)} Variants
+                    </Button>
+                  </div>
+                </div>
+              )}
+            </article>
+
             <article className={cn(card, 'p-[22px]')}>
               <div className="mb-4 flex items-center justify-between gap-3">
                 <div>
