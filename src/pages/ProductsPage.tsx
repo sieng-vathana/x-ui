@@ -17,7 +17,7 @@ import { money } from '../data/mockup'
 import { useAdminStore } from '../hooks/useAdminStore'
 import { cn } from '../lib/cn'
 import { paths } from '../lib/paths'
-import { useProductsList } from '../features/products/useProducts'
+import { useProductCategories, useProductsList } from '../features/products/useProducts'
 import { card, pageContent } from '../lib/ui'
 
 export function ProductsPage() {
@@ -27,6 +27,14 @@ export function ProductsPage() {
   const [categoryFilter, setCategoryFilter] = useState('All categories')
 
   const { data: apiProducts = [] } = useProductsList(storeId)
+  const { data: apiCategories = [] } = useProductCategories(storeId)
+
+  const categoryFilterOptions = useMemo(() => {
+    return [
+      { value: 'All categories', label: 'All categories' },
+      ...apiCategories.map((c) => ({ value: c.categoryName, label: c.categoryName })),
+    ]
+  }, [apiCategories])
 
   const baseRows = useMemo(() => {
     return apiProducts
@@ -231,13 +239,7 @@ export function ProductsPage() {
                 placeholder="All categories"
                 value={categoryFilter === 'All categories' ? '' : categoryFilter}
                 onChange={(v) => setCategoryFilter(v || 'All categories')}
-                options={[
-                  { value: 'Coffee', label: 'Coffee' },
-                  { value: 'Tea', label: 'Tea' },
-                  { value: 'Bakery', label: 'Bakery' },
-                  { value: 'Meals', label: 'Meals' },
-                  { value: 'Cold drinks', label: 'Cold drinks' },
-                ]}
+                options={categoryFilterOptions}
               />
               <Select
                 variant="toolbar"
