@@ -97,4 +97,21 @@ export const productApi = {
     )
     return response.data ?? []
   },
+
+  async uploadFile(file: File): Promise<{ id: number; url: string }> {
+    const formData = new FormData()
+    formData.append('file', file)
+    const response = await api.request<ApiEnvelope<{ id: number; url?: string; relativePath?: string }>>(
+      '/files',
+      {
+        method: 'POST',
+        body: formData,
+      },
+    )
+    if (!response.data) {
+      throw new Error(response.message || 'Failed to upload image')
+    }
+    const imageUrl = `/api/v1/files/${response.data.id}/content`
+    return { id: response.data.id, url: imageUrl }
+  },
 }

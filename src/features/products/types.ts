@@ -126,6 +126,7 @@ export interface CreateProductPayload {
   isSellable?: boolean
   isStockable?: boolean
   variants?: Partial<ProductVariant>[]
+  images?: { imageUrl: string }[]
 }
 
 export interface PageEnvelope<T> {

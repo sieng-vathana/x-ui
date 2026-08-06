@@ -23,6 +23,7 @@ import {
   useProductTaxes,
   useProductUnits,
 } from '../features/products/useProducts'
+import { productApi } from '../features/products/productApi'
 import { cn } from '../lib/cn'
 import { paths } from '../lib/paths'
 import {
@@ -147,6 +148,18 @@ export function ProductFormPage() {
       const numStoreId = Number(storeId) || 2
       const numSalesChannel = salesChannel === 'POS' ? 1 : salesChannel === 'ONLINE' ? 2 : 3
       
+      let uploadedThumbnail: string | undefined = undefined
+      let uploadedImages: { imageUrl: string }[] | undefined = undefined
+
+      if (images.length > 0) {
+        toast('Uploading product images...', 'info')
+        const uploadPromises = images.map((img) => productApi.uploadFile(img.file))
+        const uploadedResults = await Promise.all(uploadPromises)
+        const urls = uploadedResults.map((r) => r.url)
+        uploadedThumbnail = urls[0]
+        uploadedImages = urls.map((url) => ({ imageUrl: url }))
+      }
+
       await createProductMutation.mutateAsync({
         storeId: numStoreId,
         productCode: productCode || `PRD-${Date.now()}`,
@@ -154,6 +167,8 @@ export function ProductFormPage() {
         shortName: shortName || productName,
         currencyCode: currencyCode || 'USD',
         salesChannel: numSalesChannel,
+        thumbnail: uploadedThumbnail,
+        images: uploadedImages,
         description,
         category: categoryId ? { id: Number(categoryId) } : undefined,
         brand: brandId ? { id: Number(brandId) } : undefined,
@@ -166,6 +181,7 @@ export function ProductFormPage() {
           sku: v.sku || `SKU-${Date.now()}-${index}`,
           barcode: v.barcode || `BAR-${Date.now()}-${index}`,
           variantName: v.variantName || 'Default',
+          image: uploadedThumbnail,
           costPrice: v.costPrice ? Number(v.costPrice) : 0,
           posPrice: v.posPrice ? Number(v.posPrice) : 0,
           compareAtPrice: v.compareAtPrice ? Number(v.compareAtPrice) : 0,
@@ -176,6 +192,7 @@ export function ProductFormPage() {
           sku: `SKU-${Date.now()}`,
           barcode: `BAR-${Date.now()}`,
           variantName: 'Default',
+          image: uploadedThumbnail,
           posPrice: 0,
           isDefault: true,
         }],
