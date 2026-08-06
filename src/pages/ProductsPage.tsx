@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
+import { createPortal } from 'react-dom'
 import { useNavigate } from 'react-router-dom'
 import {
   Breadcrumb,
@@ -31,38 +32,69 @@ function ProductActionsMenu({
   onDelete: () => void
 }) {
   const [open, setOpen] = useState(false)
+  const buttonRef = useRef<HTMLButtonElement>(null)
   const menuRef = useRef<HTMLDivElement>(null)
+  const [coords, setCoords] = useState<{ top: number; left: number } | null>(null)
+
+  const handleToggle = (e: React.MouseEvent) => {
+    e.stopPropagation()
+    if (!open && buttonRef.current) {
+      const rect = buttonRef.current.getBoundingClientRect()
+      setCoords({
+        top: rect.bottom + 6,
+        left: Math.max(16, rect.right - 176),
+      })
+      setOpen(true)
+    } else {
+      setOpen(false)
+    }
+  }
 
   useEffect(() => {
     if (!open) return
     const handleClickOutside = (e: MouseEvent) => {
-      if (menuRef.current && !menuRef.current.contains(e.target as Node)) {
+      if (
+        menuRef.current &&
+        !menuRef.current.contains(e.target as Node) &&
+        buttonRef.current &&
+        !buttonRef.current.contains(e.target as Node)
+      ) {
         setOpen(false)
       }
     }
+    const handleScrollOrResize = () => setOpen(false)
+
     document.addEventListener('mousedown', handleClickOutside)
-    return () => document.removeEventListener('mousedown', handleClickOutside)
+    window.addEventListener('scroll', handleScrollOrResize, true)
+    window.addEventListener('resize', handleScrollOrResize)
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside)
+      window.removeEventListener('scroll', handleScrollOrResize, true)
+      window.removeEventListener('resize', handleScrollOrResize)
+    }
   }, [open])
 
   return (
-    <div className="relative inline-block text-left" ref={menuRef}>
+    <div className="relative inline-block text-left">
       <button
+        ref={buttonRef}
         type="button"
-        className="flex h-8 w-8 items-center justify-center rounded-lg border-0 bg-transparent text-[19px] text-vpos-muted transition-colors hover:bg-vpos-subtle hover:text-vpos-text cursor-pointer"
-        onClick={(e) => {
-          e.stopPropagation()
-          setOpen((prev) => !prev)
-        }}
+        className="flex h-8 w-8 items-center justify-center rounded-lg border-0 bg-transparent text-[19px] text-vpos-muted transition-all duration-150 hover:bg-vpos-subtle hover:text-vpos-text active:scale-95 cursor-pointer"
+        onClick={handleToggle}
         aria-label={`Actions for ${product.name}`}
       >
         <Icon name="more-2-fill" />
       </button>
 
-      {open && (
-        <div className="absolute right-0 z-50 mt-1 w-44 rounded-xl border border-vpos-line bg-vpos-card p-1.5 shadow-xl animate-in fade-in zoom-in-95">
+      {open && coords && createPortal(
+        <div
+          ref={menuRef}
+          style={{ top: `${coords.top}px`, left: `${coords.left}px` }}
+          className="fixed z-[99999] w-44 rounded-xl border border-vpos-line/80 bg-white/95 backdrop-blur-md p-1.5 shadow-[0_12px_32px_rgba(0,0,0,0.12)] transition-all duration-150 ease-out animate-in fade-in zoom-in-95"
+        >
           <button
             type="button"
-            className="flex w-full items-center gap-2.5 rounded-lg px-3 py-2 text-[13px] font-medium text-vpos-text transition-colors hover:bg-vpos-subtle cursor-pointer border-0 bg-transparent"
+            className="flex w-full items-center gap-2.5 rounded-lg px-3 py-2 text-[13px] font-medium text-vpos-text transition-all duration-150 hover:bg-vpos-subtle active:scale-[0.98] cursor-pointer border-0 bg-transparent"
             onClick={() => {
               setOpen(false)
               onEdit()
@@ -73,7 +105,7 @@ function ProductActionsMenu({
           </button>
           <button
             type="button"
-            className="flex w-full items-center gap-2.5 rounded-lg px-3 py-2 text-[13px] font-medium text-vpos-text transition-colors hover:bg-vpos-subtle cursor-pointer border-0 bg-transparent"
+            className="flex w-full items-center gap-2.5 rounded-lg px-3 py-2 text-[13px] font-medium text-vpos-text transition-all duration-150 hover:bg-vpos-subtle active:scale-[0.98] cursor-pointer border-0 bg-transparent"
             onClick={() => {
               setOpen(false)
               onEdit()
@@ -82,10 +114,10 @@ function ProductActionsMenu({
             <Icon name="eye-line" className="text-[16px] text-vpos-muted" />
             View details
           </button>
-          <div className="my-1 h-px bg-vpos-line" />
+          <div className="my-1 h-px bg-vpos-line/60" />
           <button
             type="button"
-            className="flex w-full items-center gap-2.5 rounded-lg px-3 py-2 text-[13px] font-medium text-vpos-red transition-colors hover:bg-vpos-red-bg cursor-pointer border-0 bg-transparent"
+            className="flex w-full items-center gap-2.5 rounded-lg px-3 py-2 text-[13px] font-medium text-vpos-red transition-all duration-150 hover:bg-vpos-red-bg active:scale-[0.98] cursor-pointer border-0 bg-transparent"
             onClick={() => {
               setOpen(false)
               onDelete()
@@ -94,7 +126,8 @@ function ProductActionsMenu({
             <Icon name="delete-bin-line" className="text-[16px] text-vpos-red" />
             Delete product
           </button>
-        </div>
+        </div>,
+        document.body,
       )}
     </div>
   )
