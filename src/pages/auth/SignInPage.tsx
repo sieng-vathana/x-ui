@@ -17,6 +17,8 @@ export function SignInPage() {
   const [error, setError] = useState('')
   const [submitting, setSubmitting] = useState(false)
 
+  const isSessionExpired = new URLSearchParams(location.search).get('reason') === 'session_expired'
+
   if (isAuthenticated) return <Navigate to="/" replace />
 
   const submit = async (event: FormEvent<HTMLFormElement>) => {
@@ -39,6 +41,12 @@ export function SignInPage() {
   return (
     <AuthShell eyebrow="WORKSPACE ACCESS" title="Open your register" description="Sign in with the username created for your V-POS workspace.">
       <form onSubmit={submit} noValidate className="space-y-5">
+        {isSessionExpired ? (
+          <div role="alert" className="m-0 flex items-center gap-3 rounded-lg border border-vpos-gold/30 bg-vpos-sand/60 px-3.5 py-3 text-[13px] font-medium text-vpos-dark">
+            <Icon name="time-line" className="text-[18px] text-vpos-primary shrink-0" />
+            <span>Your session expired after 30 minutes of inactivity. Please sign in again.</span>
+          </div>
+        ) : null}
         <Field label="Username" autoComplete="username" value={username} onChange={setUsername} placeholder="e.g. vathana.admin" required />
         <div>
           <div className="mb-2 flex items-center justify-between gap-3">

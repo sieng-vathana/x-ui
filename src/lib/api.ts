@@ -23,10 +23,11 @@ export function isPlatformApiRequest(input: RequestInfo | URL) {
   return targetUrl.origin === apiUrl.origin && (targetUrl.pathname === apiUrl.pathname || targetUrl.pathname.startsWith(`${apiUrl.pathname}/`))
 }
 
+let refreshPromise: Promise<boolean> | null = null
+
 /**
- * Transport boundary for future backend endpoints. Feature modules depend on
- * this contract instead of calling fetch directly, making the local demo
- * adapter straightforward to replace with the real API later.
+ * Transport boundary for backend endpoints.
+ * Includes automatic single-flight silent token refresh on HTTP 401 status.
  */
 export class ApiClient {
   private readonly options: ApiClientOptions
@@ -34,9 +35,32 @@ export class ApiClient {
     this.options = options
   }
 
+  private async refreshSession(): Promise<boolean> {
+    if (!refreshPromise) {
+      const baseUrl = this.options.baseUrl ?? API_BASE_URL
+      refreshPromise = fetch(`${baseUrl}/auth/refresh`, {
+        method: 'POST',
+        credentials: 'include',
+        headers: {
+          Accept: 'application/json',
+          'X-Client-Type': 'web',
+        },
+      })
+        .then((res) => res.ok)
+        .catch(() => false)
+        .finally(() => {
+          refreshPromise = null
+        })
+    }
+    return refreshPromise
+  }
+
   async request<T>(path: string, init: RequestInit = {}): Promise<T> {
     const token = this.options.getToken?.()
-    const response = await fetch(`${this.options.baseUrl ?? ''}${path}`, {
+    const url = `${this.options.baseUrl ?? ''}${path}`
+    const isAuthRequest = path.startsWith('/auth/login') || path.startsWith('/auth/refresh') || path.startsWith('/auth/register')
+
+    const response = await fetch(url, {
       ...init,
       credentials: init.credentials ?? 'include',
       headers: {
@@ -47,9 +71,21 @@ export class ApiClient {
       },
     })
 
+    if (response.status === 401 && !isAuthRequest) {
+      const refreshed = await this.refreshSession()
+      if (refreshed) {
+        // Retry the original request after successful token rotation
+        return this.request<T>(path, init)
+      } else {
+        // Session expired (refresh_token invalid or expired) -> notify app
+        window.dispatchEvent(new CustomEvent('vpos:session-expired'))
+        throw new ApiError('Your session has expired. Please sign in again.', 401)
+      }
+    }
+
     if (!response.ok) {
-      const payload = await response.json().catch(() => null) as { message?: string } | null
-      const detail = payload?.message ?? await response.text().catch(() => '')
+      const payload = (await response.json().catch(() => null)) as { message?: string } | null
+      const detail = payload?.message ?? (await response.text().catch(() => ''))
       throw new ApiError(detail || 'The request could not be completed.', response.status)
     }
 

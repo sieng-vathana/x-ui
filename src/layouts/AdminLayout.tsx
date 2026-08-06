@@ -1,8 +1,11 @@
-import { useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import { Outlet } from 'react-router-dom'
 import { Sidebar } from '../components/layout/Sidebar'
 import { SidebarSettingsDrawer } from '../components/layout/SidebarSettingsDrawer'
 import { useSidebarLayout, type SidebarLayoutState } from '../hooks/useSidebarLayout'
+import { useSessionTimeout } from '../hooks/useSessionTimeout'
+import { SessionTimeoutModal } from '../components/auth/SessionTimeoutModal'
+import { authApi } from '../features/auth/authApi'
 import { cn } from '../lib/cn'
 import { Icon } from '../components/ui/Icon'
 
@@ -14,6 +17,26 @@ export function AdminLayout() {
   const contentOffset = isHorizontal || sidebar.config.visibility === 'hidden' || sidebar.isMobile
     ? 0
     : sidebar.sidebarWidth + (isDetached ? 32 : 0)
+
+  const handleTimeout = useCallback(async () => {
+    await authApi.signOut()
+    window.location.href = '/signin?reason=session_expired'
+  }, [])
+
+  const { showWarning, secondsRemaining, resetTimer } = useSessionTimeout({
+    idleTimeoutMs: 30 * 60 * 1000, // 30 minutes idle timeout
+    warningWindowMs: 2 * 60 * 1000, // 2 minutes warning
+    onTimeout: handleTimeout,
+  })
+
+  useEffect(() => {
+    const handleExpiredEvent = async () => {
+      await authApi.signOut()
+      window.location.href = '/signin?reason=session_expired'
+    }
+    window.addEventListener('vpos:session-expired', handleExpiredEvent)
+    return () => window.removeEventListener('vpos:session-expired', handleExpiredEvent)
+  }, [])
 
   return (
     <div
@@ -44,6 +67,12 @@ export function AdminLayout() {
         />
       </div>
       <SidebarSettingsDrawer state={sidebar} />
+      <SessionTimeoutModal
+        open={showWarning}
+        secondsRemaining={secondsRemaining}
+        onContinue={resetTimer}
+        onSignOut={handleTimeout}
+      />
       <button
         type="button"
         data-theme-customizer-trigger
