@@ -734,7 +734,14 @@ export function ProductFormPage() {
                 {variants.map((v, idx) => (
                   <div key={v.key} className="rounded-xl border border-vpos-line bg-vpos-subtle/30 p-4">
                     <div className="mb-3 flex items-center justify-between gap-2">
-                      <strong className="text-[13px] text-vpos-primary-2">Variant {idx + 1}</strong>
+                      <div className="flex items-center gap-2">
+                        <strong className="text-[13px] font-bold text-vpos-primary-2">Variant {idx + 1}</strong>
+                        {v.variantName ? (
+                          <span className="rounded-full bg-vpos-sand px-2.5 py-0.5 text-[11px] font-extrabold text-vpos-primary shadow-xs">
+                            {v.variantName}
+                          </span>
+                        ) : null}
+                      </div>
                       {variants.length > 1 ? (
                         <button type="button" onClick={() => removeVariant(v.key)} className="border-0 bg-transparent text-[13px] font-bold text-vpos-red hover:underline">
                           Remove
@@ -744,7 +751,6 @@ export function ProductFormPage() {
                     <div className={formGrid}>
                       <FormField label="SKU" required value={v.sku} onChange={(e) => updateVariant(v.key, 'sku', e.target.value.toUpperCase())} placeholder="e.g. ICE-AMER-M" />
                       <FormField label="Barcode" required value={v.barcode} onChange={(e) => updateVariant(v.key, 'barcode', e.target.value)} placeholder="e.g. 885001020001" />
-                      <FormField label="Variant name" value={v.variantName} onChange={(e) => updateVariant(v.key, 'variantName', e.target.value)} placeholder="e.g. Medium" />
                       <Select label="Supplier" placeholder="Select a supplier" value={v.supplierId} onChange={(val) => updateVariant(v.key, 'supplierId', val)} options={supplierOptions} searchable />
                     </div>
 
