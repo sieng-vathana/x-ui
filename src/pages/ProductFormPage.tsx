@@ -39,11 +39,6 @@ interface ProductImage {
 }
 
 
-const mockSuppliers = [
-  { id: 1, name: 'Coffee Supply Co.' },
-  { id: 2, name: 'Bake House Ltd.' },
-]
-
 interface VariantInput {
   key: string
   sku: string
@@ -106,10 +101,7 @@ export function ProductFormPage() {
         label: s.supplierName,
       }))
     }
-    return mockSuppliers.map((s) => ({
-      value: String(s.id),
-      label: s.name,
-    }))
+    return [{ value: '1', label: 'General' }]
   }, [apiSuppliers])
 
   const createProductMutation = useCreateProduct()
