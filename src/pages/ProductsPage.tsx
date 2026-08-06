@@ -13,7 +13,7 @@ import {
   type DataTableColumn,
 } from '../components'
 import { ProductsSubnav } from '../components/products/ProductsSubnav'
-import { money, products as catalog, type MockProduct } from '../data/mockup'
+import { money, type MockProduct } from '../data/mockup'
 import { useAdminStore } from '../hooks/useAdminStore'
 import { cn } from '../lib/cn'
 import { paths } from '../lib/paths'
@@ -29,8 +29,8 @@ export function ProductsPage() {
   const { data: apiProducts = [] } = useProductsList(storeId)
 
   const baseRows = useMemo(() => {
-    if (apiProducts.length > 0) {
-      return apiProducts.map((p): MockProduct => {
+    return apiProducts
+      .map((p): MockProduct => {
         const defaultVar = p.variants?.find((v) => v.isDefault) || p.variants?.[0]
         return {
           sku: defaultVar?.sku || p.productCode || `PRD-${p.id}`,
@@ -42,20 +42,13 @@ export function ProductsPage() {
           barcode: defaultVar?.barcode || '-',
           tone: 'ice',
         }
-      }).filter((p) => {
+      })
+      .filter((p) => {
         if (statusFilter !== 'All status' && p.status !== statusFilter) return false
         if (categoryFilter !== 'All categories' && p.category !== categoryFilter)
           return false
         return true
       })
-    }
-
-    return catalog.filter((p) => {
-      if (statusFilter !== 'All status' && p.status !== statusFilter) return false
-      if (categoryFilter !== 'All categories' && p.category !== categoryFilter)
-        return false
-      return true
-    })
   }, [apiProducts, statusFilter, categoryFilter])
 
   const columns: DataTableColumn<MockProduct>[] = useMemo(
@@ -163,25 +156,25 @@ export function ProductsPage() {
             [
               'shopping-bag-3-line',
               'Total products',
-              String(catalog.length),
+              String(apiProducts.length),
               'bg-vpos-sand text-vpos-primary',
             ],
             [
               'checkbox-circle-line',
               'Active',
-              String(catalog.filter((p) => p.status === 'Active').length),
+              String(apiProducts.filter((p) => p.isSellable !== false).length),
               'bg-vpos-green-bg text-vpos-green',
             ],
             [
               'error-warning-line',
               'Low stock',
-              String(catalog.filter((p) => p.status === 'Low stock').length),
+              '0',
               'bg-vpos-orange-bg text-vpos-orange',
             ],
             [
               'forbid-line',
               'Inactive',
-              String(catalog.filter((p) => p.status === 'Inactive').length),
+              String(apiProducts.filter((p) => p.isSellable === false).length),
               'bg-vpos-subtle text-vpos-muted',
             ],
           ].map(([icon, label, value, tone]) => (
