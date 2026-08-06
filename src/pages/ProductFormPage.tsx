@@ -1,4 +1,4 @@
-import { useCallback, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import {
   Breadcrumb,
@@ -16,12 +16,14 @@ import { useAdminStore } from '../hooks/useAdminStore'
 import { useToast } from '../context/ToastContext'
 import {
   useCreateProduct,
+  useProduct,
   useProductAttributes,
   useProductBrands,
   useProductCategories,
   useProductSuppliers,
   useProductTaxes,
   useProductUnits,
+  useUpdateProduct,
 } from '../features/products/useProducts'
 import { productApi } from '../features/products/productApi'
 import { cn } from '../lib/cn'
@@ -73,6 +75,9 @@ export function ProductFormPage() {
   const navigate = useNavigate()
   const { sku } = useParams()
   const isEdit = Boolean(sku)
+  const { data: existingProduct } = useProduct(sku)
+  const createProductMutation = useCreateProduct()
+  const updateProductMutation = useUpdateProduct()
   const { storeId, setStoreId, sidebarWidth } = useAdminStore()
 
   const [step, setStep] = useState(1)
@@ -89,6 +94,46 @@ export function ProductFormPage() {
   const [isFeatured, setIsFeatured] = useState(false)
   const [isSellable, setIsSellable] = useState(true)
   const [isStockable, setIsStockable] = useState(true)
+
+  useEffect(() => {
+    if (!existingProduct) return
+    setProductName(existingProduct.productName || '')
+    setProductCode(existingProduct.productCode || '')
+    setShortName(existingProduct.shortName || '')
+    setCurrencyCode(existingProduct.currencyCode || 'USD')
+    if (existingProduct.salesChannel === 1 || existingProduct.salesChannel === '1' || existingProduct.salesChannel === 'POS') {
+      setSalesChannel('POS')
+    } else if (existingProduct.salesChannel === 2 || existingProduct.salesChannel === '2' || existingProduct.salesChannel === 'ONLINE') {
+      setSalesChannel('ONLINE')
+    } else {
+      setSalesChannel('BOTH')
+    }
+    setDescription(existingProduct.description || '')
+    if (existingProduct.category?.id) setCategoryId(String(existingProduct.category.id))
+    if (existingProduct.brand?.id) setBrandId(String(existingProduct.brand.id))
+    if (existingProduct.unit?.id) setUnitId(String(existingProduct.unit.id))
+    if (existingProduct.tax?.id) setTaxId(String(existingProduct.tax.id))
+    if (existingProduct.isFeatured != null) setIsFeatured(existingProduct.isFeatured)
+    if (existingProduct.isSellable != null) setIsSellable(existingProduct.isSellable)
+    if (existingProduct.isStockable != null) setIsStockable(existingProduct.isStockable)
+
+    if (existingProduct.variants && existingProduct.variants.length > 0) {
+      setVariants(
+        existingProduct.variants.map((v, idx) => ({
+          key: String(v.id || idx),
+          sku: v.sku || '',
+          barcode: v.barcode || '',
+          variantName: v.variantName || '',
+          costPrice: v.costPrice != null ? String(v.costPrice) : '',
+          posPrice: v.posPrice != null ? String(v.posPrice) : '',
+          compareAtPrice: v.compareAtPrice != null ? String(v.compareAtPrice) : '',
+          onlinePrice: v.onlinePrice != null ? String(v.onlinePrice) : '',
+          stockAlertQty: '5',
+          supplierId: v.supplier?.id ? String(v.supplier.id) : '1',
+        })),
+      )
+    }
+  }, [existingProduct])
 
   const { data: apiCategories = [], isLoading: loadingCategories } = useProductCategories(storeId)
   const { data: apiBrands = [], isLoading: loadingBrands } = useProductBrands(storeId)
@@ -135,7 +180,6 @@ export function ProductFormPage() {
     return [{ value: '1', label: 'General' }]
   }, [apiSuppliers])
 
-  const createProductMutation = useCreateProduct()
   const { toast } = useToast()
 
   const handlePublish = async () => {
@@ -160,15 +204,15 @@ export function ProductFormPage() {
         uploadedImages = urls.map((url) => ({ imageUrl: url }))
       }
 
-      await createProductMutation.mutateAsync({
+      const payload = {
         storeId: numStoreId,
         productCode: productCode || `PRD-${Date.now()}`,
         productName: productName || 'Untitled Product',
         shortName: shortName || productName,
         currencyCode: currencyCode || 'USD',
         salesChannel: numSalesChannel,
-        thumbnail: uploadedThumbnail,
-        images: uploadedImages,
+        thumbnail: uploadedThumbnail || existingProduct?.thumbnail,
+        images: uploadedImages || (existingProduct?.images as any),
         description,
         category: categoryId ? { id: Number(categoryId) } : undefined,
         brand: brandId ? { id: Number(brandId) } : undefined,
@@ -178,10 +222,11 @@ export function ProductFormPage() {
         isSellable,
         isStockable,
         variants: variants.length > 0 ? variants.map((v, index) => ({
+          id: existingProduct?.variants?.[index]?.id,
           sku: v.sku || `SKU-${Date.now()}-${index}`,
           barcode: v.barcode || `BAR-${Date.now()}-${index}`,
           variantName: v.variantName || 'Default',
-          image: uploadedThumbnail,
+          image: uploadedThumbnail || existingProduct?.thumbnail,
           costPrice: v.costPrice ? Number(v.costPrice) : 0,
           posPrice: v.posPrice ? Number(v.posPrice) : 0,
           compareAtPrice: v.compareAtPrice ? Number(v.compareAtPrice) : 0,
@@ -192,12 +237,22 @@ export function ProductFormPage() {
           sku: `SKU-${Date.now()}`,
           barcode: `BAR-${Date.now()}`,
           variantName: 'Default',
-          image: uploadedThumbnail,
+          image: uploadedThumbnail || existingProduct?.thumbnail,
           posPrice: 0,
           isDefault: true,
         }],
-      })
-      toast('Product created successfully!', 'success')
+      }
+
+      if (isEdit && existingProduct) {
+        await updateProductMutation.mutateAsync({
+          id: existingProduct.id,
+          payload,
+        })
+        toast('Product updated successfully!', 'success')
+      } else {
+        await createProductMutation.mutateAsync(payload)
+        toast('Product created successfully!', 'success')
+      }
       navigate(paths.products)
     } catch (err) {
       const msg = err instanceof Error ? err.message : 'Failed to publish product.'
@@ -819,11 +874,13 @@ export function ProductFormPage() {
             <Button variant="soft">Save draft</Button>
             <Button
               variant="primary"
-              disabled={createProductMutation.isPending}
+              disabled={createProductMutation.isPending || updateProductMutation.isPending}
               onClick={handlePublish}
             >
-              {createProductMutation.isPending
-                ? 'Publishing…'
+              {createProductMutation.isPending || updateProductMutation.isPending
+                ? isEdit
+                  ? 'Updating…'
+                  : 'Publishing…'
                 : step < 3
                   ? 'Continue →'
                   : isEdit

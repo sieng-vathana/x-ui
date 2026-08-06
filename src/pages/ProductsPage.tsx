@@ -128,7 +128,7 @@ export function ProductsPage() {
           <button
             type="button"
             className="border-0 bg-transparent text-[19px] text-vpos-muted hover:text-vpos-text"
-            onClick={() => navigate(paths.productEdit(p.sku))}
+            onClick={() => navigate(paths.productEdit(String(p.id || p.sku)))}
             aria-label={`Edit ${p.name}`}
           >
             <Icon name="more-2-fill" />

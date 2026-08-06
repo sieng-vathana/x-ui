@@ -122,3 +122,32 @@ export function useProductAttributes() {
     },
   })
 }
+
+export function useProductAttributeValues(attributeId?: number) {
+  return useQuery({
+    queryKey: ['product-attribute-values', { attributeId }],
+    queryFn: () => productApi.getAttributeValues(attributeId!),
+    enabled: Boolean(attributeId && attributeId > 0),
+    staleTime: 5 * 60 * 1000,
+  })
+}
+
+export function useProduct(idOrSku?: string | number) {
+  return useQuery({
+    queryKey: ['product', { idOrSku }],
+    queryFn: () => productApi.getProductById(idOrSku!),
+    enabled: Boolean(idOrSku),
+  })
+}
+
+export function useUpdateProduct() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: ({ id, payload }: { id: string | number; payload: CreateProductPayload }) =>
+      productApi.updateProduct(id, payload),
+    onSuccess: (_, variables) => {
+      queryClient.invalidateQueries({ queryKey: ['products'] })
+      queryClient.invalidateQueries({ queryKey: ['product', { idOrSku: variables.id }] })
+    },
+  })
+}

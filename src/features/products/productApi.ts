@@ -114,4 +114,23 @@ export const productApi = {
     const imageUrl = `/api/v1/files/${response.data.id}/content`
     return { id: response.data.id, url: imageUrl }
   },
+
+  async getProductById(idOrSku: string | number): Promise<ProductItem> {
+    const response = await api.request<ApiEnvelope<ProductItem>>(`/products/${idOrSku}`)
+    if (!response.data) {
+      throw new Error(response.message || 'Product not found.')
+    }
+    return response.data
+  },
+
+  async updateProduct(idOrSku: string | number, payload: CreateProductPayload): Promise<ProductItem> {
+    const response = await api.request<ApiEnvelope<ProductItem>>(`/products/${idOrSku}`, {
+      method: 'PUT',
+      body: JSON.stringify(payload),
+    })
+    if (!response.data) {
+      throw new Error(response.message || 'Failed to update product.')
+    }
+    return response.data
+  },
 }
