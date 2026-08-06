@@ -190,13 +190,13 @@ export function DataTable<T>({
           {(searchable || toolbar) && (
             <div className="flex flex-col gap-2.5 sm:flex-row sm:items-center sm:justify-between">
               {searchable ? (
-                <div className="relative flex h-[39px] w-full items-center gap-2 rounded-[6px] border border-vpos-line bg-white px-3 transition-colors focus-within:border-vpos-primary focus-within:ring-2 focus-within:ring-vpos-primary/10 sm:max-w-[280px] md:max-w-[340px]">
+                <label className="relative flex h-[39px] w-full items-center gap-2.5 overflow-hidden rounded-lg border border-vpos-line bg-white px-3.5 transition-[border-color,box-shadow] focus-within:border-vpos-primary focus-within:shadow-[0_0_0_3px_rgba(22,112,91,0.14)] sm:max-w-[320px]">
                   <Icon name="search-line" className="shrink-0 text-[18px] text-vpos-muted" />
                   <input
                     value={search}
                     onChange={(e) => setSearch(e.target.value)}
                     placeholder={searchPlaceholder}
-                    className="h-full w-full min-w-0 border-0 bg-transparent text-[13px] text-vpos-text outline-none placeholder:text-vpos-muted selection:bg-vpos-sand"
+                    className="h-full w-full min-w-0 border-none bg-transparent p-0 text-[13px] text-vpos-text outline-none focus:outline-none focus:ring-0 focus-visible:outline-none focus-visible:ring-0 placeholder:text-vpos-muted selection:bg-vpos-sand"
                     aria-label="Search table"
                   />
                   {search ? (
@@ -204,12 +204,12 @@ export function DataTable<T>({
                       type="button"
                       aria-label="Clear search"
                       onClick={() => setSearch('')}
-                      className="grid h-6 w-6 shrink-0 place-items-center rounded border-0 bg-transparent text-vpos-muted hover:bg-vpos-subtle hover:text-vpos-text"
+                      className="grid h-5 w-5 shrink-0 place-items-center rounded-full border-0 bg-vpos-subtle p-0 text-vpos-muted transition-colors hover:bg-vpos-line hover:text-vpos-text"
                     >
-                      <Icon name="close-line" className="text-[14px]" />
+                      <Icon name="close-line" className="text-[12px]" />
                     </button>
                   ) : null}
-                </div>
+                </label>
               ) : null}
               {toolbar ? (
                 <div className="flex flex-wrap items-center gap-2 sm:shrink-0">

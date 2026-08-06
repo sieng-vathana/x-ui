@@ -8,7 +8,7 @@ export const pageHeading =
 export const filterBar =
   'mb-5 flex flex-col gap-2.5 rounded-[4px] border border-vpos-line bg-vpos-surface p-4 shadow-vpos sm:flex-row sm:flex-wrap sm:items-center'
 export const searchField =
-  'flex h-[39px] min-w-[220px] flex-[360px] items-center gap-2 rounded-[4px] border border-vpos-line bg-vpos-surface px-3.5 transition-colors focus-within:border-vpos-primary focus-within:bg-vpos-surface focus-within:shadow-[0_0_0_2px_rgb(104_124_254_/_0.12)]'
+  'relative flex h-[39px] min-w-[200px] items-center gap-2.5 overflow-hidden rounded-lg border border-vpos-line bg-white px-3.5 transition-[border-color,box-shadow] focus-within:border-vpos-primary focus-within:shadow-[0_0_0_3px_rgba(22,112,91,0.14)]'
 export const selectClass =
   'h-[39px] min-w-[140px] rounded-[4px] border border-vpos-line bg-vpos-surface px-3.5 text-[13px] text-vpos-text outline-none transition-colors focus:border-vpos-primary focus:shadow-[0_0_0_2px_rgb(104_124_254_/_0.12)]'
 export const thClass =

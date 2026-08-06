@@ -192,12 +192,12 @@ export function StoresPage() {
 
         <section className={filterBar}>
           <label className={searchField}>
-            <Icon name="search-line" className="text-vpos-muted" />
+            <Icon name="search-line" className="shrink-0 text-vpos-muted" />
             <input
               value={query}
               onChange={(e) => setQuery(e.target.value)}
               placeholder="Search store, city, or phone…"
-              className="w-full border-0 bg-transparent text-[14px] outline-none"
+              className="h-full w-full min-w-0 border-none bg-transparent p-0 text-[13px] text-vpos-text outline-none focus:outline-none focus:ring-0 focus-visible:outline-none focus-visible:ring-0 placeholder:text-vpos-muted"
             />
           </label>
           <Select
