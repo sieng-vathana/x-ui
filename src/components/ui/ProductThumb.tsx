@@ -1,5 +1,6 @@
 import type { HTMLAttributes } from 'react'
 import { cn } from '../../lib/cn'
+import { resolveImageUrl } from '../../lib/api'
 import type { ProductTone } from '../../data/mockup'
 
 export interface ProductThumbProps extends HTMLAttributes<HTMLSpanElement> {
@@ -25,10 +26,11 @@ export function ProductThumb({
   className,
   ...rest
 }: ProductThumbProps) {
-  if (src) {
+  const fullSrc = resolveImageUrl(src)
+  if (fullSrc) {
     return (
       <img
-        src={src}
+        src={fullSrc}
         alt=""
         className={cn(
           'shrink-0 object-cover border border-vpos-line',

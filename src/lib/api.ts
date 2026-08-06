@@ -23,6 +23,17 @@ export function isPlatformApiRequest(input: RequestInfo | URL) {
   return targetUrl.origin === apiUrl.origin && (targetUrl.pathname === apiUrl.pathname || targetUrl.pathname.startsWith(`${apiUrl.pathname}/`))
 }
 
+export function resolveImageUrl(url?: string): string | undefined {
+  if (!url) return undefined
+  if (url.startsWith('http://') || url.startsWith('https://') || url.startsWith('data:') || url.startsWith('blob:')) {
+    return url
+  }
+  if (url.startsWith('/')) {
+    return `${API_GATEWAY_URL}${url}`
+  }
+  return `${API_GATEWAY_URL}/${url}`
+}
+
 let refreshPromise: Promise<boolean> | null = null
 
 /**

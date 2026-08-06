@@ -111,7 +111,7 @@ export const productApi = {
     if (!response.data) {
       throw new Error(response.message || 'Failed to upload image')
     }
-    const imageUrl = `/api/v1/files/${response.data.id}/content`
+    const imageUrl = response.data.url || `/api/v1/files/${response.data.id}/content`
     return { id: response.data.id, url: imageUrl }
   },
 
