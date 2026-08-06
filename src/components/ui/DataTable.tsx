@@ -197,6 +197,7 @@ export function DataTable<T>({
                     onChange={(e) => setSearch(e.target.value)}
                     placeholder={searchPlaceholder}
                     className="h-full w-full min-w-0 border-none bg-transparent p-0 text-[13px] text-vpos-text outline-none focus:outline-none focus:ring-0 focus-visible:outline-none focus-visible:ring-0 placeholder:text-vpos-muted selection:bg-vpos-sand"
+                    style={{ outline: 'none', boxShadow: 'none' }}
                     aria-label="Search table"
                   />
                   {search ? (
