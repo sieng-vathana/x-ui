@@ -1212,3 +1212,17 @@ html[data-preloader='disabled'] .app-loader-overlay {
     animation-duration: 1ms !important;
   }
 }
+
+/* Strip all inner input focus outlines so focus styling applies exclusively to the parent container */
+input,
+input:focus,
+input:focus-visible,
+input:active {
+  outline: 0 !important;
+  outline-style: none !important;
+  outline-width: 0 !important;
+  box-shadow: none !important;
+  -webkit-box-shadow: none !important;
+  border: none !important;
+  border-color: transparent !important;
+}
