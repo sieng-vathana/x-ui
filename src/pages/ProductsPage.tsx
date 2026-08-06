@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import {
   Breadcrumb,
@@ -15,16 +15,111 @@ import {
 import { ProductsSubnav } from '../components/products/ProductsSubnav'
 import { money } from '../data/mockup'
 import { useAdminStore } from '../hooks/useAdminStore'
+import { useToast } from '../context/ToastContext'
 import { cn } from '../lib/cn'
 import { paths } from '../lib/paths'
-import { useProductCategories, useProductsList } from '../features/products/useProducts'
+import { useDeleteProduct, useProductCategories, useProductsList } from '../features/products/useProducts'
 import { card, pageContent } from '../lib/ui'
+
+function ProductActionsMenu({
+  product,
+  onEdit,
+  onDelete,
+}: {
+  product: any
+  onEdit: () => void
+  onDelete: () => void
+}) {
+  const [open, setOpen] = useState(false)
+  const menuRef = useRef<HTMLDivElement>(null)
+
+  useEffect(() => {
+    if (!open) return
+    const handleClickOutside = (e: MouseEvent) => {
+      if (menuRef.current && !menuRef.current.contains(e.target as Node)) {
+        setOpen(false)
+      }
+    }
+    document.addEventListener('mousedown', handleClickOutside)
+    return () => document.removeEventListener('mousedown', handleClickOutside)
+  }, [open])
+
+  return (
+    <div className="relative inline-block text-left" ref={menuRef}>
+      <button
+        type="button"
+        className="flex h-8 w-8 items-center justify-center rounded-lg border-0 bg-transparent text-[19px] text-vpos-muted transition-colors hover:bg-vpos-subtle hover:text-vpos-text cursor-pointer"
+        onClick={(e) => {
+          e.stopPropagation()
+          setOpen((prev) => !prev)
+        }}
+        aria-label={`Actions for ${product.name}`}
+      >
+        <Icon name="more-2-fill" />
+      </button>
+
+      {open && (
+        <div className="absolute right-0 z-50 mt-1 w-44 rounded-xl border border-vpos-line bg-vpos-card p-1.5 shadow-xl animate-in fade-in zoom-in-95">
+          <button
+            type="button"
+            className="flex w-full items-center gap-2.5 rounded-lg px-3 py-2 text-[13px] font-medium text-vpos-text transition-colors hover:bg-vpos-subtle cursor-pointer border-0 bg-transparent"
+            onClick={() => {
+              setOpen(false)
+              onEdit()
+            }}
+          >
+            <Icon name="edit-line" className="text-[16px] text-vpos-muted" />
+            Edit product
+          </button>
+          <button
+            type="button"
+            className="flex w-full items-center gap-2.5 rounded-lg px-3 py-2 text-[13px] font-medium text-vpos-text transition-colors hover:bg-vpos-subtle cursor-pointer border-0 bg-transparent"
+            onClick={() => {
+              setOpen(false)
+              onEdit()
+            }}
+          >
+            <Icon name="eye-line" className="text-[16px] text-vpos-muted" />
+            View details
+          </button>
+          <div className="my-1 h-px bg-vpos-line" />
+          <button
+            type="button"
+            className="flex w-full items-center gap-2.5 rounded-lg px-3 py-2 text-[13px] font-medium text-vpos-red transition-colors hover:bg-vpos-red-bg cursor-pointer border-0 bg-transparent"
+            onClick={() => {
+              setOpen(false)
+              onDelete()
+            }}
+          >
+            <Icon name="delete-bin-line" className="text-[16px] text-vpos-red" />
+            Delete product
+          </button>
+        </div>
+      )}
+    </div>
+  )
+}
 
 export function ProductsPage() {
   const navigate = useNavigate()
   const { storeId, setStoreId } = useAdminStore()
   const [statusFilter, setStatusFilter] = useState('All status')
   const [categoryFilter, setCategoryFilter] = useState('All categories')
+
+  const deleteProductMutation = useDeleteProduct()
+  const { toast } = useToast()
+
+  const handleDeleteProduct = async (id: number | string, name: string) => {
+    if (window.confirm(`Are you sure you want to delete "${name}"?`)) {
+      try {
+        await deleteProductMutation.mutateAsync(id)
+        toast(`Product "${name}" deleted successfully!`, 'success')
+      } catch (err) {
+        const msg = err instanceof Error ? err.message : 'Failed to delete product'
+        toast(msg, 'error')
+      }
+    }
+  }
 
   const { data: apiProducts = [] } = useProductsList(storeId)
   const { data: apiCategories = [] } = useProductCategories(storeId)
@@ -134,14 +229,11 @@ export function ProductsPage() {
         id: 'actions',
         header: 'Actions',
         cell: (p) => (
-          <button
-            type="button"
-            className="border-0 bg-transparent text-[19px] text-vpos-muted hover:text-vpos-text"
-            onClick={() => navigate(paths.productEdit(String(p.id)))}
-            aria-label={`Edit ${p.name}`}
-          >
-            <Icon name="more-2-fill" />
-          </button>
+          <ProductActionsMenu
+            product={p}
+            onEdit={() => navigate(paths.productEdit(String(p.id)))}
+            onDelete={() => handleDeleteProduct(p.id, p.name)}
+          />
         ),
       },
     ],

@@ -146,8 +146,18 @@ export function useUpdateProduct() {
     mutationFn: ({ id, payload }: { id: string | number; payload: CreateProductPayload }) =>
       productApi.updateProduct(id, payload),
     onSuccess: (_, variables) => {
-      queryClient.invalidateQueries({ queryKey: ['products'] })
+      queryClient.invalidateQueries({ queryKey: ['products-list'] })
       queryClient.invalidateQueries({ queryKey: ['product', { idOrSku: variables.id }] })
+    },
+  })
+}
+
+export function useDeleteProduct() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: (idOrSku: string | number) => productApi.deleteProduct(idOrSku),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['products-list'] })
     },
   })
 }

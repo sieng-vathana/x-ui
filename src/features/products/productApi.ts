@@ -136,4 +136,10 @@ export const productApi = {
     }
     return response.data
   },
+
+  async deleteProduct(idOrSku: string | number): Promise<void> {
+    await api.request<ApiEnvelope<void>>(`/products/${idOrSku}`, {
+      method: 'DELETE',
+    })
+  },
 }
