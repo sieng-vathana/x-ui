@@ -34,6 +34,7 @@ export function ProductsPage() {
         const defaultVar = p.variants?.find((v) => v.isDefault) || p.variants?.[0]
         const img = p.thumbnail || defaultVar?.image || p.images?.[0]?.imageUrl
         return {
+          id: p.id,
           sku: defaultVar?.sku || p.productCode || `PRD-${p.id}`,
           name: p.productName,
           category: p.category?.categoryName || 'General',
@@ -128,7 +129,7 @@ export function ProductsPage() {
           <button
             type="button"
             className="border-0 bg-transparent text-[19px] text-vpos-muted hover:text-vpos-text"
-            onClick={() => navigate(paths.productEdit(String(p.id || p.sku)))}
+            onClick={() => navigate(paths.productEdit(String(p.id)))}
             aria-label={`Edit ${p.name}`}
           >
             <Icon name="more-2-fill" />
