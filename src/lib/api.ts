@@ -60,12 +60,14 @@ export class ApiClient {
     const url = `${this.options.baseUrl ?? ''}${path}`
     const isAuthRequest = path.startsWith('/auth/login') || path.startsWith('/auth/refresh') || path.startsWith('/auth/register')
 
+    const isFormData = typeof FormData !== 'undefined' && init.body instanceof FormData
+
     const response = await fetch(url, {
       ...init,
       credentials: init.credentials ?? 'include',
       headers: {
         Accept: 'application/json',
-        ...(init.body ? { 'Content-Type': 'application/json' } : {}),
+        ...(init.body && !isFormData ? { 'Content-Type': 'application/json' } : {}),
         ...(token ? { Authorization: `Bearer ${token}` } : {}),
         ...init.headers,
       },
