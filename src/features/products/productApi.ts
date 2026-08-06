@@ -111,8 +111,11 @@ export const productApi = {
     if (!response.data) {
       throw new Error(response.message || 'Failed to upload image')
     }
-    const imageUrl = response.data.url || `/api/v1/files/${response.data.id}/content`
-    return { id: response.data.id, url: imageUrl }
+    const s3Url = response.data.url
+    if (!s3Url) {
+      throw new Error('Storage service did not return an S3 URL')
+    }
+    return { id: response.data.id, url: s3Url }
   },
 
   async getProductById(idOrSku: string | number): Promise<ProductItem> {
