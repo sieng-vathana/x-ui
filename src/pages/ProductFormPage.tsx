@@ -16,6 +16,7 @@ import { useAdminStore } from '../hooks/useAdminStore'
 import { useToast } from '../context/ToastContext'
 import {
   useCreateProduct,
+  useProductAttributes,
   useProductBrands,
   useProductCategories,
   useProductSuppliers,
@@ -93,6 +94,35 @@ export function ProductFormPage() {
   const { data: apiUnits = [], isLoading: loadingUnits } = useProductUnits(storeId)
   const { data: apiTaxes = [], isLoading: loadingTaxes } = useProductTaxes(storeId)
   const { data: apiSuppliers = [] } = useProductSuppliers(storeId)
+  const { data: apiAttributes = [] } = useProductAttributes()
+
+  const attributeSelectOptions = useMemo(() => {
+    const defaultAttrs = [
+      { value: 'Size', label: 'Size' },
+      { value: 'Temperature', label: 'Temperature' },
+      { value: 'Milk Type', label: 'Milk Type' },
+      { value: 'Color', label: 'Color' },
+      { value: 'Flavor', label: 'Flavor' },
+    ]
+    if (apiAttributes.length > 0) {
+      const liveOpts = apiAttributes.map((a) => ({ value: a.attributeName, label: a.attributeName }))
+      const names = new Set(liveOpts.map((o) => o.value))
+      const merged = [...liveOpts]
+      for (const def of defaultAttrs) {
+        if (!names.has(def.value)) merged.push(def)
+      }
+      return merged
+    }
+    return defaultAttrs
+  }, [apiAttributes])
+
+  const DEFAULT_OPTION_VALUES: Record<string, string[]> = {
+    Size: ['Small (12oz)', 'Medium (16oz)', 'Large (20oz)'],
+    Temperature: ['Hot', 'Iced', 'Extra Ice'],
+    'Milk Type': ['Whole Milk', 'Oat Milk', 'Almond Milk'],
+    Color: ['Black', 'White', 'Red', 'Blue'],
+    Flavor: ['Vanilla', 'Caramel', 'Hazelnut'],
+  }
 
   const supplierOptions = useMemo(() => {
     if (apiSuppliers.length > 0) {
@@ -614,15 +644,26 @@ export function ProductFormPage() {
                         )}
                       </div>
                       <div className="grid grid-cols-1 gap-3 md:grid-cols-3">
-                        <FormField
+                        <Select
                           label="Option Name"
-                          placeholder="e.g. Size, Color, Flavor"
+                          placeholder="Select or search option (e.g. Size, Color)..."
                           value={group.name}
-                          onChange={(e) =>
+                          onChange={(val) => {
                             setOptionGroups((prev) =>
-                              prev.map((g) => (g.id === group.id ? { ...g, name: e.target.value } : g)),
+                              prev.map((g) => {
+                                if (g.id !== group.id) return g
+                                const autoVals = DEFAULT_OPTION_VALUES[val] || []
+                                const mergedVals = Array.from(new Set([...g.values, ...autoVals]))
+                                return {
+                                  ...g,
+                                  name: val,
+                                  values: mergedVals.length > 0 ? mergedVals : g.values,
+                                }
+                              }),
                             )
-                          }
+                          }}
+                          options={attributeSelectOptions}
+                          searchable
                         />
                         <div className="md:col-span-2">
                           <label className="mb-2 block text-[12px] font-semibold text-vpos-dark">
