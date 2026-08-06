@@ -5,6 +5,7 @@ import { AdminLayout } from './layouts/AdminLayout'
 import { DashboardPage } from './pages/DashboardPage'
 import { PlaceholderPage } from './pages/PlaceholderPage'
 import { PosPage } from './pages/PosPage'
+import { ProductDetailPage } from './pages/ProductDetailPage'
 import { ProductFormPage } from './pages/ProductFormPage'
 import { ProductsPage } from './pages/ProductsPage'
 import { LowStockPage } from './pages/products/LowStockPage'
@@ -80,6 +81,7 @@ export default function App() {
                 <Route path="products/stock-movement" element={<StockMovementPage />} />
                 <Route path="products/low-stock" element={<LowStockPage />} />
                 <Route path="products/new" element={<ProductFormPage />} />
+                <Route path="products/:id" element={<ProductDetailPage />} />
                 <Route path="products/:sku/edit" element={<ProductFormPage />} />
                 <Route path="inventory" element={<Navigate to="/products/low-stock" replace />} />
                 <Route path="stores" element={<StoresPage />} />

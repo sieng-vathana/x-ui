@@ -25,10 +25,12 @@ import { card, pageContent } from '../lib/ui'
 function ProductActionsMenu({
   product,
   onEdit,
+  onView,
   onDelete,
 }: {
   product: any
   onEdit: () => void
+  onView: () => void
   onDelete: () => void
 }) {
   const [open, setOpen] = useState(false)
@@ -108,7 +110,7 @@ function ProductActionsMenu({
             className="flex w-full items-center gap-2.5 rounded-lg px-3 py-2 text-[13px] font-medium text-vpos-text transition-all duration-150 hover:bg-vpos-subtle active:scale-[0.98] cursor-pointer border-0 bg-transparent"
             onClick={() => {
               setOpen(false)
-              onEdit()
+              onView()
             }}
           >
             <Icon name="eye-line" className="text-[16px] text-vpos-muted" />
@@ -198,10 +200,13 @@ export function ProductsPage() {
         header: 'Product',
         searchable: (p) => `${p.name} ${p.category}`,
         cell: (p) => (
-          <div className="flex items-center gap-[11px]">
+          <div
+            className="flex items-center gap-[11px] cursor-pointer group"
+            onClick={() => navigate(paths.productDetail(String(p.id)))}
+          >
             <ProductThumb src={p.image} tone={p.tone} />
             <span>
-              <strong className="block text-[13px]">{p.name}</strong>
+              <strong className="block text-[13px] group-hover:text-vpos-primary transition-colors">{p.name}</strong>
               <small className="mt-1 block text-[11px] text-vpos-muted">
                 {p.category}
               </small>
@@ -265,6 +270,7 @@ export function ProductsPage() {
           <ProductActionsMenu
             product={p}
             onEdit={() => navigate(paths.productEdit(String(p.id)))}
+            onView={() => navigate(paths.productDetail(String(p.id)))}
             onDelete={() => handleDeleteProduct(p.id, p.name)}
           />
         ),
