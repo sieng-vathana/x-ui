@@ -3,6 +3,8 @@ import type {
   ApiEnvelope,
   CreateProductPayload,
   PageEnvelope,
+  ProductAttribute,
+  ProductAttributeValue,
   ProductBrand,
   ProductCategory,
   ProductItem,
@@ -80,5 +82,19 @@ export const productApi = {
       `/products/suppliers?businessId=${businessId}${storeParam}&size=100`,
     )
     return response.data?.content ?? []
+  },
+
+  async getAttributes(businessId: string | number): Promise<ProductAttribute[]> {
+    const response = await api.request<ApiEnvelope<ProductAttribute[]>>(
+      `/products/attributes?businessId=${businessId}`,
+    )
+    return response.data ?? []
+  },
+
+  async getAttributeValues(attributeId: number): Promise<ProductAttributeValue[]> {
+    const response = await api.request<ApiEnvelope<ProductAttributeValue[]>>(
+      `/products/attributes/${attributeId}/values`,
+    )
+    return response.data ?? []
   },
 }

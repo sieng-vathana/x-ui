@@ -106,3 +106,19 @@ export function useProductSuppliers(storeId?: string | number) {
     },
   })
 }
+
+export function useProductAttributes() {
+  const { user } = useAuth()
+  const businessId = user?.business?.id
+
+  return useQuery({
+    queryKey: ['product-attributes', { businessId }],
+    queryFn: () => productApi.getAttributes(businessId!),
+    enabled: Boolean(businessId),
+    staleTime: 5 * 60 * 1000,
+    retry: (failureCount, error) => {
+      if (error instanceof ApiError && (error.status === 401 || error.status === 403)) return false
+      return failureCount < 1
+    },
+  })
+}

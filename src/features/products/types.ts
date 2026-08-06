@@ -61,6 +61,18 @@ export interface ProductSupplier {
   status?: string
 }
 
+export interface ProductAttribute {
+  id: number
+  businessId: number
+  attributeName: string
+}
+
+export interface ProductAttributeValue {
+  id: number
+  attribute?: ProductAttribute
+  value: string
+}
+
 export interface ProductVariant {
   id?: number
   sku: string

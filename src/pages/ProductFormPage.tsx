@@ -555,6 +555,58 @@ export function ProductFormPage() {
 
               {hasOptions && (
                 <div className="space-y-4 pt-3 border-t border-vpos-line">
+                  {/* Quick Preset Templates */}
+                  <div className="flex flex-wrap items-center gap-2 rounded-lg bg-vpos-subtle/50 p-2.5">
+                    <span className="text-[12px] font-bold text-vpos-primary-2">Quick Presets:</span>
+                    <button
+                      type="button"
+                      onClick={() =>
+                        setOptionGroups((prev) => [
+                          ...prev.filter((g) => g.name !== 'Size'),
+                          { id: `opt-${Date.now()}`, name: 'Size', values: ['Small (12oz)', 'Medium (16oz)', 'Large (20oz)'], inputValue: '' },
+                        ])
+                      }
+                      className="rounded-md border border-vpos-line bg-white px-2.5 py-1 text-[11px] font-bold text-vpos-text hover:border-vpos-primary hover:text-vpos-primary"
+                    >
+                      + Size (S, M, L)
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() =>
+                        setOptionGroups((prev) => [
+                          ...prev.filter((g) => g.name !== 'Temperature'),
+                          { id: `opt-${Date.now()}`, name: 'Temperature', values: ['Hot', 'Iced', 'Extra Ice'], inputValue: '' },
+                        ])
+                      }
+                      className="rounded-md border border-vpos-line bg-white px-2.5 py-1 text-[11px] font-bold text-vpos-text hover:border-vpos-primary hover:text-vpos-primary"
+                    >
+                      + Temp (Hot, Iced)
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() =>
+                        setOptionGroups((prev) => [
+                          ...prev.filter((g) => g.name !== 'Milk Type'),
+                          { id: `opt-${Date.now()}`, name: 'Milk Type', values: ['Whole Milk', 'Oat Milk', 'Almond Milk'], inputValue: '' },
+                        ])
+                      }
+                      className="rounded-md border border-vpos-line bg-white px-2.5 py-1 text-[11px] font-bold text-vpos-text hover:border-vpos-primary hover:text-vpos-primary"
+                    >
+                      + Milk (Whole, Oat, Almond)
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() =>
+                        setOptionGroups((prev) => [
+                          ...prev.filter((g) => g.name !== 'Color'),
+                          { id: `opt-${Date.now()}`, name: 'Color', values: ['Black', 'White', 'Red'], inputValue: '' },
+                        ])
+                      }
+                      className="rounded-md border border-vpos-line bg-white px-2.5 py-1 text-[11px] font-bold text-vpos-text hover:border-vpos-primary hover:text-vpos-primary"
+                    >
+                      + Color (Black, White)
+                    </button>
+                  </div>
                   {optionGroups.map((group, idx) => (
                     <div key={group.id} className="rounded-xl border border-vpos-line bg-vpos-subtle/30 p-4">
                       <div className="mb-3 flex items-center justify-between gap-2">
