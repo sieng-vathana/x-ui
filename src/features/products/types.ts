@@ -49,6 +49,18 @@ export interface ProductTax {
   status?: string
 }
 
+export interface ProductSupplier {
+  id: number
+  businessId: number
+  storeIds?: number[]
+  supplierCode?: string
+  supplierName: string
+  phone?: string
+  email?: string
+  address?: string
+  status?: string
+}
+
 export interface ProductVariant {
   id?: number
   sku: string
@@ -58,6 +70,7 @@ export interface ProductVariant {
   posPrice?: number
   compareAtPrice?: number
   onlinePrice?: number
+  supplier?: { id: number } | ProductSupplier
   isDefault?: boolean
 }
 

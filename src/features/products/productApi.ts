@@ -6,6 +6,7 @@ import type {
   ProductBrand,
   ProductCategory,
   ProductItem,
+  ProductSupplier,
   ProductTax,
   ProductUnit,
 } from './types'
@@ -69,6 +70,14 @@ export const productApi = {
     const storeParam = buildStoreParam(storeId)
     const response = await api.request<ApiEnvelope<PageEnvelope<ProductTax>>>(
       `/products/taxes?businessId=${businessId}${storeParam}&size=100`,
+    )
+    return response.data?.content ?? []
+  },
+
+  async getSuppliers(businessId: string | number, storeId?: string | number): Promise<ProductSupplier[]> {
+    const storeParam = buildStoreParam(storeId)
+    const response = await api.request<ApiEnvelope<PageEnvelope<ProductSupplier>>>(
+      `/products/suppliers?businessId=${businessId}${storeParam}&size=100`,
     )
     return response.data?.content ?? []
   },

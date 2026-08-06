@@ -18,6 +18,7 @@ import {
   useCreateProduct,
   useProductBrands,
   useProductCategories,
+  useProductSuppliers,
   useProductTaxes,
   useProductUnits,
 } from '../features/products/useProducts'
@@ -96,6 +97,20 @@ export function ProductFormPage() {
   const { data: apiBrands = [], isLoading: loadingBrands } = useProductBrands(storeId)
   const { data: apiUnits = [], isLoading: loadingUnits } = useProductUnits(storeId)
   const { data: apiTaxes = [], isLoading: loadingTaxes } = useProductTaxes(storeId)
+  const { data: apiSuppliers = [] } = useProductSuppliers(storeId)
+
+  const supplierOptions = useMemo(() => {
+    if (apiSuppliers.length > 0) {
+      return apiSuppliers.map((s) => ({
+        value: String(s.id),
+        label: s.supplierName,
+      }))
+    }
+    return mockSuppliers.map((s) => ({
+      value: String(s.id),
+      label: s.name,
+    }))
+  }, [apiSuppliers])
 
   const createProductMutation = useCreateProduct()
   const { toast } = useToast()
@@ -133,6 +148,7 @@ export function ProductFormPage() {
           posPrice: v.posPrice ? Number(v.posPrice) : 0,
           compareAtPrice: v.compareAtPrice ? Number(v.compareAtPrice) : 0,
           onlinePrice: v.onlinePrice ? Number(v.onlinePrice) : 0,
+          supplier: v.supplierId ? { id: Number(v.supplierId) } : undefined,
           isDefault: index === 0,
         })) : [{
           sku: `SKU-${Date.now()}`,
@@ -476,7 +492,7 @@ export function ProductFormPage() {
                       <FormField label="SKU" required value={v.sku} onChange={(e) => updateVariant(v.key, 'sku', e.target.value.toUpperCase())} placeholder="e.g. ICE-AMER-M" />
                       <FormField label="Barcode" required value={v.barcode} onChange={(e) => updateVariant(v.key, 'barcode', e.target.value)} placeholder="e.g. 885001020001" />
                       <FormField label="Variant name" value={v.variantName} onChange={(e) => updateVariant(v.key, 'variantName', e.target.value)} placeholder="e.g. Medium" />
-                      <Select label="Supplier" placeholder="Select a supplier" value={v.supplierId} onChange={(val) => updateVariant(v.key, 'supplierId', val)} options={mockSuppliers.map((s) => ({ value: String(s.id), label: s.name }))} searchable />
+                      <Select label="Supplier" placeholder="Select a supplier" value={v.supplierId} onChange={(val) => updateVariant(v.key, 'supplierId', val)} options={supplierOptions} searchable />
                     </div>
 
                     <div className="mt-4">
