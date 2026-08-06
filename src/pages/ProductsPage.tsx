@@ -13,7 +13,7 @@ import {
   type DataTableColumn,
 } from '../components'
 import { ProductsSubnav } from '../components/products/ProductsSubnav'
-import { money, type MockProduct } from '../data/mockup'
+import { money } from '../data/mockup'
 import { useAdminStore } from '../hooks/useAdminStore'
 import { cn } from '../lib/cn'
 import { paths } from '../lib/paths'
@@ -30,13 +30,16 @@ export function ProductsPage() {
 
   const baseRows = useMemo(() => {
     return apiProducts
-      .map((p): MockProduct => {
+      .map((p) => {
         const defaultVar = p.variants?.find((v) => v.isDefault) || p.variants?.[0]
+        const img = p.thumbnail || defaultVar?.image || p.images?.[0]?.imageUrl
         return {
           sku: defaultVar?.sku || p.productCode || `PRD-${p.id}`,
           name: p.productName,
           category: p.category?.categoryName || 'General',
-          price: defaultVar?.posPrice ?? 0,
+          image: img,
+          posPrice: defaultVar?.posPrice ?? 0,
+          onlinePrice: defaultVar?.onlinePrice,
           stock: 100,
           status: p.isSellable !== false ? 'Active' : 'Inactive',
           barcode: defaultVar?.barcode || '-',
@@ -51,7 +54,7 @@ export function ProductsPage() {
       })
   }, [apiProducts, statusFilter, categoryFilter])
 
-  const columns: DataTableColumn<MockProduct>[] = useMemo(
+  const columns: DataTableColumn<any>[] = useMemo(
     () => [
       {
         id: 'product',
@@ -59,7 +62,7 @@ export function ProductsPage() {
         searchable: (p) => `${p.name} ${p.category}`,
         cell: (p) => (
           <div className="flex items-center gap-[11px]">
-            <ProductThumb tone={p.tone} />
+            <ProductThumb src={p.image} tone={p.tone} />
             <span>
               <strong className="block text-[13px]">{p.name}</strong>
               <small className="mt-1 block text-[11px] text-vpos-muted">
@@ -88,9 +91,18 @@ export function ProductsPage() {
         cell: (p) => p.category,
       },
       {
-        id: 'price',
-        header: 'Price',
-        cell: (p) => money(p.price),
+        id: 'posPrice',
+        header: 'POS Price',
+        cell: (p) => <span className="font-bold text-vpos-primary-2">{money(p.posPrice)}</span>,
+      },
+      {
+        id: 'onlinePrice',
+        header: 'Online Price',
+        cell: (p) => (
+          <span className="text-vpos-muted">
+            {p.onlinePrice != null && p.onlinePrice > 0 ? money(p.onlinePrice) : '—'}
+          </span>
+        ),
       },
       {
         id: 'stock',

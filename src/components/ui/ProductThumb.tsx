@@ -3,6 +3,7 @@ import { cn } from '../../lib/cn'
 import type { ProductTone } from '../../data/mockup'
 
 export interface ProductThumbProps extends HTMLAttributes<HTMLSpanElement> {
+  src?: string
   tone?: ProductTone | string
   large?: boolean
 }
@@ -18,11 +19,26 @@ const toneBg: Record<string, string> = {
 }
 
 export function ProductThumb({
+  src,
   tone = 'sand',
   large = false,
   className,
   ...rest
 }: ProductThumbProps) {
+  if (src) {
+    return (
+      <img
+        src={src}
+        alt=""
+        className={cn(
+          'shrink-0 object-cover border border-vpos-line',
+          large ? 'h-[122px] w-full rounded-[10px]' : 'h-[42px] w-[42px] rounded-[9px]',
+          className,
+        )}
+      />
+    )
+  }
+
   return (
     <span
       className={cn(

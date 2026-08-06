@@ -78,6 +78,7 @@ export interface ProductVariant {
   sku: string
   barcode: string
   variantName?: string
+  image?: string
   costPrice?: number
   posPrice?: number
   compareAtPrice?: number
@@ -105,6 +106,7 @@ export interface ProductItem {
   isStockable?: boolean
   status?: number | string
   variants?: ProductVariant[]
+  images?: { imageUrl?: string }[]
 }
 
 export interface CreateProductPayload {
