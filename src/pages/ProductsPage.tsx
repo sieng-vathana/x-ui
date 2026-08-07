@@ -170,10 +170,11 @@ export function ProductsPage() {
           sku: defaultVar?.sku || p.productCode || `PRD-${p.id}`,
           name: p.productName,
           category: p.category?.categoryName || 'General',
+          unit: p.unit?.unitName || p.unit?.unitCode || 'Pcs',
           image: img,
           posPrice: defaultVar?.posPrice ?? 0,
           onlinePrice: defaultVar?.onlinePrice,
-          stock: defaultVar?.stockAlertQty != null ? defaultVar.stockAlertQty : '—',
+          stock: defaultVar?.stockAlertQty != null ? defaultVar.stockAlertQty : 0,
           status: p.isSellable !== false ? 'Active' : 'Inactive',
           barcode: defaultVar?.barcode || '-',
           tone: 'ice',
@@ -227,6 +228,16 @@ export function ProductsPage() {
         cell: (p) => p.category,
       },
       {
+        id: 'unit',
+        header: 'Unit',
+        hideOnMobile: true,
+        cell: (p) => (
+          <span className="inline-block rounded-md bg-vpos-subtle px-2 py-0.5 text-[12px] font-medium text-vpos-text">
+            {p.unit}
+          </span>
+        ),
+      },
+      {
         id: 'posPrice',
         header: 'POS Price',
         cell: (p) => <span className="font-bold text-vpos-primary-2">{money(p.posPrice)}</span>,
@@ -247,7 +258,7 @@ export function ProductsPage() {
           <span
             className={cn(p.stock === 0 && 'font-extrabold text-vpos-red')}
           >
-            {p.stock}
+            {p.stock} {p.unit}
           </span>
         ),
       },

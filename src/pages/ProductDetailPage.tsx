@@ -122,14 +122,17 @@ export function ProductDetailPage() {
       {
         id: 'reorder',
         header: 'Stock Alert',
-        cell: (v) => (
-          <span className="rounded-md bg-vpos-subtle px-2 py-1 text-[11px] font-semibold text-vpos-text">
-            {v.stockAlertQty != null ? `${v.stockAlertQty} units` : '—'}
-          </span>
-        ),
+        cell: (v) => {
+          const unitName = product?.unit?.unitName || product?.unit?.unitCode || 'Pcs'
+          return (
+            <span className="rounded-md bg-vpos-subtle px-2 py-1 text-[11px] font-semibold text-vpos-text">
+              {v.stockAlertQty != null ? `${v.stockAlertQty} ${unitName}` : `0 ${unitName}`}
+            </span>
+          )
+        },
       },
     ],
-    [],
+    [product],
   )
 
   if (isLoading) {
