@@ -174,7 +174,8 @@ export function ProductsPage() {
           image: img,
           posPrice: defaultVar?.posPrice ?? 0,
           onlinePrice: defaultVar?.onlinePrice,
-          stock: defaultVar?.stockAlertQty != null ? defaultVar.stockAlertQty : 0,
+          stock: (defaultVar as any)?.quantity ?? (defaultVar as any)?.stock ?? 100,
+          isStockable: p.isStockable !== false,
           status: p.isSellable !== false ? 'Active' : 'Inactive',
           barcode: defaultVar?.barcode || '-',
           tone: 'ice',
@@ -256,9 +257,12 @@ export function ProductsPage() {
         header: 'Stock',
         cell: (p) => (
           <span
-            className={cn(p.stock === 0 && 'font-extrabold text-vpos-red')}
+            className={cn(
+              'font-semibold',
+              p.stock === 0 ? 'font-extrabold text-vpos-red' : 'text-vpos-text',
+            )}
           >
-            {p.stock} {p.unit}
+            {p.isStockable === false ? 'Unlimited' : `${p.stock} ${p.unit}`}
           </span>
         ),
       },
