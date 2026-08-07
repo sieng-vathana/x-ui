@@ -234,7 +234,7 @@ export function ProductFormPage() {
           posPrice: v.posPrice ? Number(v.posPrice) : 0,
           compareAtPrice: v.compareAtPrice ? Number(v.compareAtPrice) : 0,
           onlinePrice: v.onlinePrice ? Number(v.onlinePrice) : 0,
-          stockAlertQty: v.stockAlertQty ? Number(v.stockAlertQty) : 5,
+          stockAlertQty: v.initialStock ? Number(v.initialStock) : (v.stockAlertQty ? Number(v.stockAlertQty) : 5),
           stockQuantity: v.initialStock ? Number(v.initialStock) : 100,
           quantity: v.initialStock ? Number(v.initialStock) : 100,
           supplier: v.supplierId ? { id: Number(v.supplierId) } : undefined,
