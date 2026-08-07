@@ -174,7 +174,7 @@ export function ProductsPage() {
           image: img,
           posPrice: defaultVar?.posPrice ?? 0,
           onlinePrice: defaultVar?.onlinePrice,
-          stock: (defaultVar as any)?.quantity ?? (defaultVar as any)?.stock ?? 100,
+          stock: (defaultVar as any)?.quantity ?? (defaultVar as any)?.stock ?? 0,
           isStockable: p.isStockable !== false,
           status: p.isSellable !== false ? 'Active' : 'Inactive',
           barcode: defaultVar?.barcode || '-',
