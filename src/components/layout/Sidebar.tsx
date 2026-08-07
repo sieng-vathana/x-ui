@@ -49,7 +49,8 @@ const staticItems = [
 
 const managementItems = [
   { key: 'stores', icon: 'building-2-line', label: 'Store management', linked: true },
-  { key: 'settings', icon: 'settings-3-line', label: 'Settings', linked: true }, { key: 'users', icon: 'group-line', label: 'Users & Roles' },
+  { key: 'settings', icon: 'settings-3-line', label: 'Settings', linked: true },
+  { key: 'users', icon: 'group-line', label: 'Users & Roles', linked: true },
 ]
 
 function themeClasses(style: SidebarLayoutState['config']['color']) {
