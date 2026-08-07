@@ -115,6 +115,24 @@ export function ProductDetailPage() {
         ),
       },
       {
+        id: 'stockQuantity',
+        header: 'Stock Quantity',
+        cell: (v) => {
+          const unitName = product?.unit?.unitName || product?.unit?.unitCode || 'Pcs'
+          const qty = (v as any).quantity ?? (v as any).stockQuantity ?? (v as any).stock ?? v.stockAlertQty ?? 0
+          return (
+            <span
+              className={cn(
+                'font-bold',
+                qty === 0 ? 'text-vpos-red' : 'text-vpos-text',
+              )}
+            >
+              {product?.isStockable === false ? 'Unlimited' : `${qty} ${unitName}`}
+            </span>
+          )
+        },
+      },
+      {
         id: 'supplier',
         header: 'Supplier',
         cell: (v) => (v.supplier as any)?.supplierName || 'General',

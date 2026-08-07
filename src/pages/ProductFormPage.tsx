@@ -68,7 +68,7 @@ function emptyVariant(id: number): VariantInput {
     compareAtPrice: '',
     onlinePrice: '',
     stockAlertQty: '5',
-    initialStock: '100',
+    initialStock: '',
     supplierId: '',
   }
 }
@@ -131,7 +131,7 @@ export function ProductFormPage() {
           compareAtPrice: v.compareAtPrice != null ? String(v.compareAtPrice) : '',
           onlinePrice: v.onlinePrice != null ? String(v.onlinePrice) : '',
           stockAlertQty: v.stockAlertQty != null ? String(v.stockAlertQty) : '5',
-          initialStock: (v as any).quantity != null ? String((v as any).quantity) : (v as any).stockQuantity != null ? String((v as any).stockQuantity) : '100',
+          initialStock: v.stockAlertQty != null ? String(v.stockAlertQty) : ((v as any).quantity != null ? String((v as any).quantity) : ''),
           supplierId: v.supplier?.id ? String(v.supplier.id) : '1',
         })),
       )
@@ -234,9 +234,9 @@ export function ProductFormPage() {
           posPrice: v.posPrice ? Number(v.posPrice) : 0,
           compareAtPrice: v.compareAtPrice ? Number(v.compareAtPrice) : 0,
           onlinePrice: v.onlinePrice ? Number(v.onlinePrice) : 0,
-          stockAlertQty: v.initialStock ? Number(v.initialStock) : (v.stockAlertQty ? Number(v.stockAlertQty) : 5),
-          stockQuantity: v.initialStock ? Number(v.initialStock) : 100,
-          quantity: v.initialStock ? Number(v.initialStock) : 100,
+          stockAlertQty: v.initialStock !== '' ? Number(v.initialStock) : (v.stockAlertQty !== '' ? Number(v.stockAlertQty) : 0),
+          stockQuantity: v.initialStock !== '' ? Number(v.initialStock) : 0,
+          quantity: v.initialStock !== '' ? Number(v.initialStock) : 0,
           supplier: v.supplierId ? { id: Number(v.supplierId) } : undefined,
           isDefault: index === 0,
         })) : [{
@@ -359,7 +359,7 @@ export function ProductFormPage() {
         compareAtPrice: '',
         onlinePrice: '',
         stockAlertQty: '5',
-        initialStock: '100',
+        initialStock: '',
         supplierId: '',
       }
     })

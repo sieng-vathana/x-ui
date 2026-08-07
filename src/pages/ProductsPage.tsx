@@ -165,6 +165,11 @@ export function ProductsPage() {
       .map((p) => {
         const defaultVar = p.variants?.find((v) => v.isDefault) || p.variants?.[0]
         const img = p.thumbnail || defaultVar?.image || p.images?.[0]?.imageUrl
+        const totalStock = p.variants && p.variants.length > 0
+          ? p.variants.reduce((sum, v) => sum + ((v as any).quantity ?? (v as any).stockQuantity ?? (v as any).stock ?? v.stockAlertQty ?? 0), 0)
+          : 0
+        const variantCount = p.variants?.length || 1
+
         return {
           id: p.id,
           sku: defaultVar?.sku || p.productCode || `PRD-${p.id}`,
@@ -174,7 +179,8 @@ export function ProductsPage() {
           image: img,
           posPrice: defaultVar?.posPrice ?? 0,
           onlinePrice: defaultVar?.onlinePrice,
-          stock: (defaultVar as any)?.quantity ?? (defaultVar as any)?.stockQuantity ?? (defaultVar as any)?.stock ?? defaultVar?.stockAlertQty ?? 0,
+          stock: totalStock,
+          variantCount,
           isStockable: p.isStockable !== false,
           status: p.isSellable !== false ? 'Active' : 'Inactive',
           barcode: defaultVar?.barcode || '-',
@@ -256,14 +262,21 @@ export function ProductsPage() {
         id: 'stock',
         header: 'Stock',
         cell: (p) => (
-          <span
-            className={cn(
-              'font-semibold',
-              p.stock === 0 ? 'font-extrabold text-vpos-red' : 'text-vpos-text',
-            )}
-          >
-            {p.isStockable === false ? 'Unlimited' : `${p.stock} ${p.unit}`}
-          </span>
+          <div>
+            <span
+              className={cn(
+                'font-semibold block text-[13px]',
+                p.stock === 0 ? 'font-extrabold text-vpos-red' : 'text-vpos-text',
+              )}
+            >
+              {p.isStockable === false ? 'Unlimited' : `${p.stock} ${p.unit}`}
+            </span>
+            {p.variantCount > 1 ? (
+              <small className="block text-[11px] font-semibold text-vpos-primary">
+                {p.variantCount} variants
+              </small>
+            ) : null}
+          </div>
         ),
       },
       {
