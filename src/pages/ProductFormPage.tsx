@@ -37,7 +37,7 @@ import {
 
 interface ProductImage {
   id: string
-  file: File
+  file?: File
   previewUrl: string
   isPrimary: boolean
 }
@@ -119,6 +119,29 @@ export function ProductFormPage() {
     if (existingProduct.isSellable != null) setIsSellable(existingProduct.isSellable)
     if (existingProduct.isStockable != null) setIsStockable(existingProduct.isStockable)
 
+    const loadedImages: ProductImage[] = []
+    if (existingProduct.images && existingProduct.images.length > 0) {
+      existingProduct.images.forEach((img: any, idx: number) => {
+        const url = typeof img === 'string' ? img : (img.imageUrl || img.url)
+        if (url && typeof url === 'string') {
+          loadedImages.push({
+            id: String(img.id || `img-${idx}`),
+            previewUrl: url,
+            isPrimary: idx === 0 || url === existingProduct.thumbnail,
+          })
+        }
+      })
+    } else if (existingProduct.thumbnail) {
+      loadedImages.push({
+        id: 'thumb-0',
+        previewUrl: existingProduct.thumbnail,
+        isPrimary: true,
+      })
+    }
+    if (loadedImages.length > 0) {
+      setImages(loadedImages)
+    }
+
     if (existingProduct.variants && existingProduct.variants.length > 0) {
       setVariants(
         existingProduct.variants.map((v, idx) => ({
@@ -199,12 +222,21 @@ export function ProductFormPage() {
       let uploadedImages: { imageUrl: string }[] | undefined = undefined
 
       if (images.length > 0) {
-        toast('Uploading product images...', 'info')
-        const uploadPromises = images.map((img) => productApi.uploadFile(img.file))
-        const uploadedResults = await Promise.all(uploadPromises)
-        const urls = uploadedResults.map((r) => r.url)
-        uploadedThumbnail = urls[0]
-        uploadedImages = urls.map((url) => ({ imageUrl: url }))
+        toast('Processing product images...', 'info')
+        const finalImageUrls: string[] = []
+        for (const img of images) {
+          if (img.file) {
+            const res = await productApi.uploadFile(img.file)
+            finalImageUrls.push(res.url)
+          } else if (img.previewUrl) {
+            finalImageUrls.push(img.previewUrl)
+          }
+        }
+        if (finalImageUrls.length > 0) {
+          const primaryImg = images.find((i) => i.isPrimary)
+          uploadedThumbnail = primaryImg?.previewUrl || finalImageUrls[0]
+          uploadedImages = finalImageUrls.map((url) => ({ imageUrl: url }))
+        }
       }
 
       const payload = {
@@ -421,7 +453,8 @@ export function ProductFormPage() {
   const handleCrop = useCallback((blob: Blob) => {
     if (!cropTarget) return
     const croppedUrl = URL.createObjectURL(blob)
-    const croppedFile = new File([blob], cropTarget.file.name, { type: 'image/jpeg' })
+    const fileName = cropTarget.file?.name || 'cropped-image.jpg'
+    const croppedFile = new File([blob], fileName, { type: 'image/jpeg' })
     setImages((prev) =>
       prev.map((img) =>
         img.id === cropTarget.id
