@@ -53,7 +53,6 @@ interface VariantInput {
   compareAtPrice: string
   onlinePrice: string
   stockAlertQty: string
-  initialStock: string
   supplierId: string
 }
 
@@ -67,8 +66,7 @@ function emptyVariant(id: number): VariantInput {
     posPrice: '',
     compareAtPrice: '',
     onlinePrice: '',
-    stockAlertQty: '5',
-    initialStock: '',
+    stockAlertQty: '',
     supplierId: '',
   }
 }
@@ -130,8 +128,7 @@ export function ProductFormPage() {
           posPrice: v.posPrice != null ? String(v.posPrice) : '',
           compareAtPrice: v.compareAtPrice != null ? String(v.compareAtPrice) : '',
           onlinePrice: v.onlinePrice != null ? String(v.onlinePrice) : '',
-          stockAlertQty: v.stockAlertQty != null ? String(v.stockAlertQty) : '5',
-          initialStock: (v as any).quantity != null ? String((v as any).quantity) : ((v as any).stockQuantity != null ? String((v as any).stockQuantity) : ''),
+          stockAlertQty: v.stockAlertQty != null ? String(v.stockAlertQty) : '',
           supplierId: v.supplier?.id ? String(v.supplier.id) : '1',
         })),
       )
@@ -234,9 +231,7 @@ export function ProductFormPage() {
           posPrice: v.posPrice ? Number(v.posPrice) : 0,
           compareAtPrice: v.compareAtPrice ? Number(v.compareAtPrice) : 0,
           onlinePrice: v.onlinePrice ? Number(v.onlinePrice) : 0,
-          stockAlertQty: v.stockAlertQty !== '' ? Number(v.stockAlertQty) : 5,
-          stockQuantity: v.initialStock !== '' ? Number(v.initialStock) : 0,
-          quantity: v.initialStock !== '' ? Number(v.initialStock) : 0,
+          stockAlertQty: v.stockAlertQty !== '' ? Number(v.stockAlertQty) : 0,
           supplier: v.supplierId ? { id: Number(v.supplierId) } : undefined,
           isDefault: index === 0,
         })) : [{
@@ -358,8 +353,7 @@ export function ProductFormPage() {
         posPrice: '',
         compareAtPrice: '',
         onlinePrice: '',
-        stockAlertQty: '5',
-        initialStock: '',
+        stockAlertQty: '',
         supplierId: '',
       }
     })
@@ -840,8 +834,7 @@ export function ProductFormPage() {
                         <FormField label="POS selling price" required type="number" step="0.01" value={v.posPrice} onChange={(e) => updateVariant(v.key, 'posPrice', e.target.value)} placeholder="0.00" />
                         <FormField label="Compare-at price" type="number" step="0.01" value={v.compareAtPrice} onChange={(e) => updateVariant(v.key, 'compareAtPrice', e.target.value)} placeholder="Original price (shown crossed out)" />
                         <FormField label="Online price" type="number" step="0.01" value={v.onlinePrice} onChange={(e) => updateVariant(v.key, 'onlinePrice', e.target.value)} placeholder="0.00" />
-                        <FormField label="Initial stock quantity" type="number" value={v.initialStock} onChange={(e) => updateVariant(v.key, 'initialStock', e.target.value)} placeholder="100" />
-                        <FormField label="Stock alert at" type="number" value={v.stockAlertQty} onChange={(e) => updateVariant(v.key, 'stockAlertQty', e.target.value)} placeholder="5" />
+                        <FormField label="Stock quantity" type="number" value={v.stockAlertQty} onChange={(e) => updateVariant(v.key, 'stockAlertQty', e.target.value)} placeholder="0" />
                       </div>
                     </div>
                   </div>
