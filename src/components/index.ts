@@ -70,3 +70,8 @@ export {
 } from './pos/ShortcutsModal'
 export { StoreFormModal } from './stores/StoreFormModal'
 export { CropModal } from './ui/CropModal'
+export {
+  ConfirmModal,
+  type ConfirmModalProps,
+  type ConfirmVariant,
+} from './ui/ConfirmModal'

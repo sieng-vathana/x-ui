@@ -3,6 +3,7 @@ import { useNavigate, useParams } from 'react-router-dom'
 import {
   Breadcrumb,
   Button,
+  ConfirmModal,
   DataTable,
   Icon,
   MetricCard,
@@ -31,6 +32,7 @@ export function ProductDetailPage() {
   const deleteMutation = useDeleteProduct()
 
   const [activeImageIndex, setActiveImageIndex] = useState(0)
+  const [confirmDeleteOpen, setConfirmDeleteOpen] = useState(false)
 
   const imagesList = useMemo(() => {
     if (!product) return []
@@ -53,18 +55,8 @@ export function ProductDetailPage() {
     return list
   }, [product])
 
-  const handleDelete = async () => {
-    if (!product) return
-    if (window.confirm(`Are you sure you want to delete "${product.productName}"?`)) {
-      try {
-        await deleteMutation.mutateAsync(product.id)
-        toast('Product deleted successfully', 'success')
-        navigate(paths.products)
-      } catch (err) {
-        const msg = err instanceof Error ? err.message : 'Failed to delete product'
-        toast(msg, 'error')
-      }
-    }
+  const handleDelete = () => {
+    setConfirmDeleteOpen(true)
   }
 
   const defaultVariant = product?.variants?.find((v) => v.isDefault) || product?.variants?.[0]
@@ -392,6 +384,30 @@ export function ProductDetailPage() {
           />
         </section>
       </main>
+
+      <ConfirmModal
+        open={confirmDeleteOpen}
+        onClose={() => setConfirmDeleteOpen(false)}
+        onConfirm={async () => {
+          if (!product) return
+          try {
+            await deleteMutation.mutateAsync(product.id)
+            toast(`Product "${product.productName}" deleted successfully!`, 'success')
+            setConfirmDeleteOpen(false)
+            navigate(paths.products)
+          } catch (err) {
+            const msg = err instanceof Error ? err.message : 'Failed to delete product'
+            toast(msg, 'error')
+          }
+        }}
+        title="Delete Product"
+        description={`Are you sure you want to delete "${product?.productName}"? This action cannot be undone.`}
+        confirmText="Delete Product"
+        cancelText="Cancel"
+        variant="danger"
+        icon="delete-bin-line"
+        isLoading={deleteMutation.isPending}
+      />
     </>
   )
 }

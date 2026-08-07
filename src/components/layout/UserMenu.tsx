@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { cn } from '../../lib/cn'
 import { Icon } from '../ui/Icon'
+import { ConfirmModal } from '../ui/ConfirmModal'
 import { useAuth } from '../../context/AuthContext'
 
 export interface UserMenuProps {
@@ -26,6 +27,8 @@ export function UserMenu({
   const navigate = useNavigate()
   const { signOut } = useAuth()
   const [open, setOpen] = useState(false)
+  const [confirmLogoutOpen, setConfirmLogoutOpen] = useState(false)
+  const [isSigningOut, setIsSigningOut] = useState(false)
   const rootRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
@@ -44,45 +47,79 @@ export function UserMenu({
     }
   }, [open])
 
-  return (
-    <div ref={rootRef} className={cn('relative', className)}>
-      <button
-        type="button"
-        onClick={() => setOpen((v) => !v)}
-        aria-label={userName}
-        aria-expanded={open}
-        aria-haspopup="menu"
-        className={cn(
-          'grid h-[38px] w-[38px] place-items-center rounded-[4px] bg-vpos-primary text-[13px] font-semibold text-white transition ring-offset-2',
-          open && 'ring-2 ring-vpos-primary/30',
-        )}
-      >
-        {initials(userName)}
-      </button>
+  const handleConfirmSignOut = async () => {
+    setIsSigningOut(true)
+    try {
+      await signOut()
+      setConfirmLogoutOpen(false)
+      navigate('/sign-in', { replace: true })
+    } finally {
+      setIsSigningOut(false)
+    }
+  }
 
-      {open ? (
-        <div
-          role="menu"
-          className="popover-in absolute top-[calc(100%+10px)] right-0 z-[300] w-[240px] overflow-hidden rounded-[4px] border border-vpos-line bg-white py-2 shadow-vpos"
+  return (
+    <>
+      <div ref={rootRef} className={cn('relative', className)}>
+        <button
+          type="button"
+          onClick={() => setOpen((v) => !v)}
+          aria-label={userName}
+          aria-expanded={open}
+          aria-haspopup="menu"
+          className={cn(
+            'grid h-[38px] w-[38px] place-items-center rounded-[4px] bg-vpos-primary text-[13px] font-semibold text-white transition ring-offset-2',
+            open && 'ring-2 ring-vpos-primary/30',
+          )}
         >
-          <div className="border-b border-vpos-line px-4 py-3">
-            <p className="m-0 truncate text-[15px] font-semibold text-vpos-dark">
-              {userName}
-            </p>
-            <p className="mt-0.5 mb-0 text-[12px] font-semibold text-vpos-primary-2">
-              {role}
-            </p>
+          {initials(userName)}
+        </button>
+
+        {open ? (
+          <div
+            role="menu"
+            className="popover-in absolute top-[calc(100%+10px)] right-0 z-[300] w-[240px] overflow-hidden rounded-[4px] border border-vpos-line bg-white py-2 shadow-vpos"
+          >
+            <div className="border-b border-vpos-line px-4 py-3">
+              <p className="m-0 truncate text-[15px] font-semibold text-vpos-dark">
+                {userName}
+              </p>
+              <p className="mt-0.5 mb-0 text-[12px] font-semibold text-vpos-primary-2">
+                {role}
+              </p>
+            </div>
+            <div className="py-1">
+              <MenuItem icon="user-settings-line" label="My profile" onClick={() => { setOpen(false); navigate('/settings') }} />
+              <MenuItem icon="settings-3-line" label="Account settings" onClick={() => { setOpen(false); navigate('/settings') }} />
+            </div>
+            <div className="border-t border-vpos-line py-1">
+              <MenuItem
+                icon="logout-box-r-line"
+                label="Sign out"
+                danger
+                onClick={() => {
+                  setOpen(false)
+                  setConfirmLogoutOpen(true)
+                }}
+              />
+            </div>
           </div>
-          <div className="py-1">
-            <MenuItem icon="user-settings-line" label="My profile" onClick={() => { setOpen(false); navigate('/settings') }} />
-            <MenuItem icon="settings-3-line" label="Account settings" onClick={() => { setOpen(false); navigate('/settings') }} />
-          </div>
-          <div className="border-t border-vpos-line py-1">
-            <MenuItem icon="logout-box-r-line" label="Sign out" danger onClick={() => { void signOut(); navigate('/sign-in', { replace: true }) }} />
-          </div>
-        </div>
-      ) : null}
-    </div>
+        ) : null}
+      </div>
+
+      <ConfirmModal
+        open={confirmLogoutOpen}
+        onClose={() => setConfirmLogoutOpen(false)}
+        onConfirm={handleConfirmSignOut}
+        title="Confirm Sign Out"
+        description="Are you sure you want to sign out of your account? You will need to sign in again to access the store dashboard."
+        confirmText="Sign Out"
+        cancelText="Cancel"
+        variant="danger"
+        icon="logout-box-r-line"
+        isLoading={isSigningOut}
+      />
+    </>
   )
 }
 
