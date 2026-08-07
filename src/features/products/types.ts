@@ -84,6 +84,7 @@ export interface ProductVariant {
   compareAtPrice?: number
   onlinePrice?: number
   supplier?: { id: number } | ProductSupplier
+  stockAlertQty?: number
   isDefault?: boolean
 }
 

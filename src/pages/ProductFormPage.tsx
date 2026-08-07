@@ -128,7 +128,7 @@ export function ProductFormPage() {
           posPrice: v.posPrice != null ? String(v.posPrice) : '',
           compareAtPrice: v.compareAtPrice != null ? String(v.compareAtPrice) : '',
           onlinePrice: v.onlinePrice != null ? String(v.onlinePrice) : '',
-          stockAlertQty: '5',
+          stockAlertQty: v.stockAlertQty != null ? String(v.stockAlertQty) : '5',
           supplierId: v.supplier?.id ? String(v.supplier.id) : '1',
         })),
       )
