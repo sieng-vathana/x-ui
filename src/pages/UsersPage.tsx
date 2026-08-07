@@ -1,0 +1,337 @@
+import { useMemo, useState } from 'react'
+import {
+  useUsers,
+  useUserRoles,
+  useCreateUser,
+  useUpdateUser,
+  useDeleteUser,
+} from '../features/users/useUsers'
+import type { User } from '../features/users/types'
+import { DataTable, type DataTableColumn } from '../components/ui/DataTable'
+import { Button } from '../components/ui/Button'
+import { Icon } from '../components/ui/Icon'
+import { Select } from '../components/ui/Select'
+import { UserModal } from '../components/ui/UserModal'
+import { ConfirmModal } from '../components/ui/ConfirmModal'
+import { useToast } from '../context/ToastContext'
+import { cn } from '../lib/cn'
+
+function roleTone(role?: string): string {
+  switch (role?.toUpperCase()) {
+    case 'OWNER':
+    case 'ADMIN':
+      return 'bg-purple-100 text-purple-800 border-purple-200'
+    case 'MANAGER':
+    case 'STORE_MANAGER':
+      return 'bg-blue-100 text-blue-800 border-blue-200'
+    case 'CASHIER':
+      return 'bg-amber-100 text-amber-800 border-amber-200'
+    case 'INVENTORY_MANAGER':
+      return 'bg-teal-100 text-teal-800 border-teal-200'
+    default:
+      return 'bg-gray-100 text-gray-800 border-gray-200'
+  }
+}
+
+export function UsersPage() {
+  const { toast } = useToast()
+  const { data: users = [] } = useUsers()
+  const { data: roles = [] } = useUserRoles()
+
+  const createUserMutation = useCreateUser()
+  const updateUserMutation = useUpdateUser()
+  const deleteUserMutation = useDeleteUser()
+
+  const [search, setSearch] = useState('')
+  const [roleFilter, setRoleFilter] = useState('All roles')
+  const [statusFilter, setStatusFilter] = useState('All status')
+
+  const [modalOpen, setModalOpen] = useState(false)
+  const [editingUser, setEditingUser] = useState<User | null>(null)
+  const [deletingUser, setDeletingUser] = useState<User | null>(null)
+
+  // Metrics
+  const totalUsers = users.length
+  const activeUsers = users.filter((u) => u.status === 1).length
+  const managersCashiers = users.filter((u) => {
+    const r = (u.role || u.roles?.[0] || '').toUpperCase()
+    return r === 'MANAGER' || r === 'CASHIER'
+  }).length
+  const inactiveUsers = users.filter((u) => u.status === 0 || u.status === 2).length
+
+  // Filtered rows
+  const filteredUsers = useMemo(() => {
+    return users.filter((u) => {
+      if (
+        roleFilter !== 'All roles' &&
+        (u.role || u.roles?.[0] || '').toUpperCase() !== roleFilter.toUpperCase()
+      ) {
+        return false
+      }
+      if (statusFilter === 'Active' && u.status !== 1) return false
+      if (statusFilter === 'Inactive' && u.status === 1) return false
+
+      if (search) {
+        const q = search.toLowerCase()
+        const matchName = u.fullName?.toLowerCase().includes(q)
+        const matchUser = u.username?.toLowerCase().includes(q)
+        const matchEmail = u.email?.toLowerCase().includes(q)
+        const matchPhone = u.phone?.toLowerCase().includes(q)
+        return matchName || matchUser || matchEmail || matchPhone
+      }
+      return true
+    })
+  }, [users, roleFilter, statusFilter, search])
+
+  const handleOpenCreate = () => {
+    setEditingUser(null)
+    setModalOpen(true)
+  }
+
+  const handleOpenEdit = (user: User) => {
+    setEditingUser(user)
+    setModalOpen(true)
+  }
+
+  const handleSaveUser = async (payload: any) => {
+    try {
+      if (editingUser) {
+        await updateUserMutation.mutateAsync({ id: editingUser.id, payload })
+        toast('User updated successfully!', 'success')
+      } else {
+        await createUserMutation.mutateAsync(payload)
+        toast('User account created successfully!', 'success')
+      }
+      setModalOpen(false)
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : 'Failed to save user.'
+      toast(msg, 'error')
+    }
+  }
+
+  const handleDeleteUser = async () => {
+    if (!deletingUser) return
+    try {
+      await deleteUserMutation.mutateAsync(deletingUser.id)
+      toast(`User ${deletingUser.fullName || deletingUser.username} deleted successfully.`, 'success')
+      setDeletingUser(null)
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : 'Failed to delete user.'
+      toast(msg, 'error')
+    }
+  }
+
+  const columns: DataTableColumn<User>[] = useMemo(
+    () => [
+      {
+        id: 'user',
+        header: 'User Profile',
+        cell: (u) => {
+          const initials = (u.fullName || u.username || 'U')
+            .split(' ')
+            .map((n) => n[0])
+            .join('')
+            .toUpperCase()
+            .slice(0, 2)
+          return (
+            <div className="flex items-center gap-3">
+              <div className="grid h-10 w-10 shrink-0 place-items-center rounded-full bg-vpos-primary/10 text-[13px] font-extrabold text-vpos-primary">
+                {initials}
+              </div>
+              <div>
+                <strong className="block text-[13px] font-bold text-vpos-dark">
+                  {u.fullName || u.username}
+                </strong>
+                <span className="block text-[11px] text-vpos-muted">
+                  {u.email || u.phone || `@${u.username}`}
+                </span>
+              </div>
+            </div>
+          )
+        },
+      },
+      {
+        id: 'username',
+        header: 'Username',
+        cell: (u) => <code className="rounded bg-vpos-subtle px-2 py-1 text-[12px] font-semibold text-vpos-text">@{u.username}</code>,
+      },
+      {
+        id: 'role',
+        header: 'Role',
+        cell: (u) => {
+          const r = u.role || u.roles?.[0] || 'STAFF'
+          return (
+            <span
+              className={cn(
+                'inline-block rounded-md border px-2.5 py-0.5 text-[11px] font-extrabold shadow-2xs',
+                roleTone(r),
+              )}
+            >
+              {r}
+            </span>
+          )
+        },
+      },
+      {
+        id: 'status',
+        header: 'Status',
+        cell: (u) => (
+          <span
+            className={cn(
+              'inline-flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-[11px] font-extrabold',
+              u.status === 1
+                ? 'bg-vpos-green-bg text-vpos-green'
+                : 'bg-vpos-red-bg text-vpos-red',
+            )}
+          >
+            ● {u.status === 1 ? 'Active' : 'Inactive'}
+          </span>
+        ),
+      },
+      {
+        id: 'actions',
+        header: 'Actions',
+        align: 'right',
+        cell: (u) => (
+          <div className="flex items-center justify-end gap-1">
+            <button
+              type="button"
+              onClick={() => handleOpenEdit(u)}
+              className="grid h-8 w-8 place-items-center rounded-lg border border-vpos-line bg-white text-vpos-text transition hover:bg-vpos-subtle"
+              title="Edit User"
+            >
+              <Icon name="pencil-line" className="text-[14px]" />
+            </button>
+            <button
+              type="button"
+              onClick={() => setDeletingUser(u)}
+              className="grid h-8 w-8 place-items-center rounded-lg border border-vpos-line bg-white text-vpos-red transition hover:bg-vpos-red-bg"
+              title="Delete User"
+            >
+              <Icon name="delete-bin-line" className="text-[14px]" />
+            </button>
+          </div>
+        ),
+      },
+    ],
+    [],
+  )
+
+  return (
+    <div className="p-6 space-y-6">
+      {/* Header */}
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+        <div>
+          <h1 className="text-[22px] font-bold text-vpos-dark">User Management</h1>
+          <p className="mt-1 text-[13px] text-vpos-muted">
+            Manage staff accounts, store access permissions, and role authorizations.
+          </p>
+        </div>
+        <Button variant="primary" onClick={handleOpenCreate}>
+          <Icon name="add-line" /> Add Staff User
+        </Button>
+      </div>
+
+      {/* Summary Cards */}
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+        <div className="rounded-xl border border-vpos-line bg-white p-4 shadow-2xs">
+          <div className="flex items-center justify-between">
+            <span className="text-[12px] font-extrabold text-vpos-muted uppercase tracking-wider">Total Users</span>
+            <div className="grid h-9 w-9 place-items-center rounded-lg bg-vpos-primary/10 text-vpos-primary">
+              <Icon name="user-3-line" />
+            </div>
+          </div>
+          <div className="mt-3 text-[24px] font-extrabold text-vpos-dark">{totalUsers}</div>
+        </div>
+
+        <div className="rounded-xl border border-vpos-line bg-white p-4 shadow-2xs">
+          <div className="flex items-center justify-between">
+            <span className="text-[12px] font-extrabold text-vpos-muted uppercase tracking-wider">Active Staff</span>
+            <div className="grid h-9 w-9 place-items-center rounded-lg bg-vpos-green-bg text-vpos-green">
+              <Icon name="user-check-line" />
+            </div>
+          </div>
+          <div className="mt-3 text-[24px] font-extrabold text-vpos-dark">{activeUsers}</div>
+        </div>
+
+        <div className="rounded-xl border border-vpos-line bg-white p-4 shadow-2xs">
+          <div className="flex items-center justify-between">
+            <span className="text-[12px] font-extrabold text-vpos-muted uppercase tracking-wider">Managers & Cashiers</span>
+            <div className="grid h-9 w-9 place-items-center rounded-lg bg-blue-50 text-blue-600">
+              <Icon name="shield-user-line" />
+            </div>
+          </div>
+          <div className="mt-3 text-[24px] font-extrabold text-vpos-dark">{managersCashiers}</div>
+        </div>
+
+        <div className="rounded-xl border border-vpos-line bg-white p-4 shadow-2xs">
+          <div className="flex items-center justify-between">
+            <span className="text-[12px] font-extrabold text-vpos-muted uppercase tracking-wider">Inactive</span>
+            <div className="grid h-9 w-9 place-items-center rounded-lg bg-vpos-red-bg text-vpos-red">
+              <Icon name="user-unfollow-line" />
+            </div>
+          </div>
+          <div className="mt-3 text-[24px] font-extrabold text-vpos-dark">{inactiveUsers}</div>
+        </div>
+      </div>
+
+      {/* Data Table */}
+      <DataTable<User>
+        rowKey={(u) => String(u.id)}
+        columns={columns}
+        data={filteredUsers}
+        searchPlaceholder="Search staff by name, username, email..."
+        search={search}
+        onSearchChange={setSearch}
+        toolbar={
+          <div className="flex items-center gap-2">
+            <Select
+              value={roleFilter}
+              onChange={setRoleFilter}
+              options={[
+                { value: 'All roles', label: 'All roles' },
+                { value: 'OWNER', label: 'Owner' },
+                { value: 'MANAGER', label: 'Manager' },
+                { value: 'CASHIER', label: 'Cashier' },
+                { value: 'INVENTORY_MANAGER', label: 'Inventory Staff' },
+              ]}
+              className="w-36"
+            />
+            <Select
+              value={statusFilter}
+              onChange={setStatusFilter}
+              options={[
+                { value: 'All status', label: 'All status' },
+                { value: 'Active', label: 'Active' },
+                { value: 'Inactive', label: 'Inactive' },
+              ]}
+              className="w-32"
+            />
+          </div>
+        }
+      />
+
+      {/* User Modal (Create/Edit) */}
+      <UserModal
+        open={modalOpen}
+        onClose={() => setModalOpen(false)}
+        user={editingUser}
+        roles={roles}
+        isLoading={createUserMutation.isPending || updateUserMutation.isPending}
+        onSave={handleSaveUser}
+      />
+
+      {/* Delete Confirmation Modal */}
+      <ConfirmModal
+        open={Boolean(deletingUser)}
+        onClose={() => setDeletingUser(null)}
+        onConfirm={handleDeleteUser}
+        title={`Delete User Account`}
+        description={`Are you sure you want to delete ${deletingUser?.fullName || deletingUser?.username}? This staff member will lose access to the system immediately.`}
+        confirmText="Delete User"
+        variant="danger"
+        isLoading={deleteUserMutation.isPending}
+      />
+    </div>
+  )
+}

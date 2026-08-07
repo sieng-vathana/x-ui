@@ -29,6 +29,7 @@ import { useAppLoading } from './hooks/useAppLoading'
 import { BusinessProfilePage } from './pages/BusinessProfilePage'
 import { SignInPage } from './pages/auth/SignInPage'
 import { BusinessRegistrationPage } from './pages/auth/BusinessRegistrationPage'
+import { UsersPage } from './pages/UsersPage'
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -104,12 +105,7 @@ export default function App() {
                   element={<PlaceholderPage title="Reports" description="Business reports." />}
                 />
                 <Route path="settings" element={<BusinessProfilePage />} />
-                <Route
-                  path="users"
-                  element={
-                    <PlaceholderPage title="Users & Roles" description="Team access and permissions." />
-                  }
-                />
+                <Route path="users" element={<UsersPage />} />
               </Route>
             </Route>
 
