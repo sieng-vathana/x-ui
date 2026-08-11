@@ -41,8 +41,7 @@ export function RolePermissionsModal({
       onClose={onClose}
       title={role ? `${role.roleName} permissions` : 'Role permissions'}
       description={role?.description || 'Review which system actions this role can and cannot perform.'}
-      size="lg"
-      panelClassName="max-w-3xl"
+      size="xl"
       footer={
         <Button variant="secondary" onClick={onClose}>
           Close

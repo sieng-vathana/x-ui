@@ -10,7 +10,7 @@ import { usePresence } from '../../hooks/usePresence'
 import { Icon } from './Icon'
 
 export type ModalTone = 'light' | 'dark'
-export type ModalSize = 'sm' | 'md' | 'lg' | 'shortcut'
+export type ModalSize = 'sm' | 'md' | 'lg' | 'xl' | 'shortcut'
 
 export interface ModalProps {
   open: boolean
@@ -38,6 +38,7 @@ const sizeClass: Record<ModalSize, string> = {
   sm: 'max-w-sm',
   md: 'max-w-md',
   lg: 'max-w-lg',
+  xl: 'max-w-5xl',
   shortcut: 'max-w-[452px]',
 }
 
@@ -137,6 +138,7 @@ export function Modal({
             : 'rounded-[6px] border border-vpos-line bg-white shadow-vpos',
           size === 'shortcut' &&
             'h-[min(662px,calc(100vh-2rem))] max-h-[min(662px,calc(100vh-2rem))]',
+          size === 'xl' && 'h-[min(88vh,900px)]',
           panelClassName,
         )}
         onClick={(e) => e.stopPropagation()}
@@ -195,7 +197,11 @@ export function Modal({
         <div
           className={cn(
             'min-h-0 flex-1 overflow-y-auto px-5',
-            isDark ? 'pt-[30px] pb-4' : 'max-h-[min(70vh,520px)] py-4',
+            isDark
+              ? 'pt-[30px] pb-4'
+              : size === 'xl'
+                ? 'max-h-none py-5 sm:px-6'
+                : 'max-h-[min(70vh,520px)] py-4',
           )}
         >
           {children}
