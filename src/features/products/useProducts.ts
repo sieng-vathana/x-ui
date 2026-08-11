@@ -4,10 +4,16 @@ import { ApiError } from '../../lib/api'
 import { productApi } from './productApi'
 import type { CreateProductPayload } from './types'
 
+function normalizeStoreId(storeId?: string | number): number | undefined {
+  const numericId = Number(storeId)
+  return Number.isInteger(numericId) && numericId > 0 ? numericId : undefined
+}
+
 export function useProductsList(storeId?: string | number) {
   return useQuery({
-    queryKey: ['products-list', { storeId }],
-    queryFn: () => productApi.getProducts(storeId),
+    queryKey: ['products-list', { storeId: normalizeStoreId(storeId) }],
+    queryFn: () => productApi.getProducts(normalizeStoreId(storeId)),
+    enabled: Boolean(normalizeStoreId(storeId)),
     staleTime: 60 * 1000,
     retry: (failureCount, error) => {
       if (error instanceof ApiError && (error.status === 401 || error.status === 403)) return false
@@ -30,11 +36,12 @@ export function useCreateProduct() {
 export function useProductCategories(storeId?: string | number) {
   const { user } = useAuth()
   const businessId = user?.business?.id
+  const normalizedStoreId = normalizeStoreId(storeId)
 
   return useQuery({
-    queryKey: ['product-categories', { businessId, storeId }],
-    queryFn: () => productApi.getCategories(businessId!, storeId),
-    enabled: Boolean(businessId),
+    queryKey: ['product-categories', { businessId, storeId: normalizedStoreId }],
+    queryFn: () => productApi.getCategories(businessId!, normalizedStoreId),
+    enabled: Boolean(businessId && normalizedStoreId),
     staleTime: 5 * 60 * 1000,
     retry: (failureCount, error) => {
       if (error instanceof ApiError && (error.status === 401 || error.status === 403)) return false
@@ -46,11 +53,12 @@ export function useProductCategories(storeId?: string | number) {
 export function useProductUnits(storeId?: string | number) {
   const { user } = useAuth()
   const businessId = user?.business?.id
+  const normalizedStoreId = normalizeStoreId(storeId)
 
   return useQuery({
-    queryKey: ['product-units', { businessId, storeId }],
-    queryFn: () => productApi.getUnits(businessId!, storeId),
-    enabled: Boolean(businessId),
+    queryKey: ['product-units', { businessId, storeId: normalizedStoreId }],
+    queryFn: () => productApi.getUnits(businessId!, normalizedStoreId),
+    enabled: Boolean(businessId && normalizedStoreId),
     staleTime: 5 * 60 * 1000,
     retry: (failureCount, error) => {
       if (error instanceof ApiError && (error.status === 401 || error.status === 403)) return false
@@ -62,11 +70,12 @@ export function useProductUnits(storeId?: string | number) {
 export function useProductBrands(storeId?: string | number) {
   const { user } = useAuth()
   const businessId = user?.business?.id
+  const normalizedStoreId = normalizeStoreId(storeId)
 
   return useQuery({
-    queryKey: ['product-brands', { businessId, storeId }],
-    queryFn: () => productApi.getBrands(businessId!, storeId),
-    enabled: Boolean(businessId),
+    queryKey: ['product-brands', { businessId, storeId: normalizedStoreId }],
+    queryFn: () => productApi.getBrands(businessId!, normalizedStoreId),
+    enabled: Boolean(businessId && normalizedStoreId),
     staleTime: 5 * 60 * 1000,
     retry: (failureCount, error) => {
       if (error instanceof ApiError && (error.status === 401 || error.status === 403)) return false
@@ -78,11 +87,12 @@ export function useProductBrands(storeId?: string | number) {
 export function useProductTaxes(storeId?: string | number) {
   const { user } = useAuth()
   const businessId = user?.business?.id
+  const normalizedStoreId = normalizeStoreId(storeId)
 
   return useQuery({
-    queryKey: ['product-taxes', { businessId, storeId }],
-    queryFn: () => productApi.getTaxes(businessId!, storeId),
-    enabled: Boolean(businessId),
+    queryKey: ['product-taxes', { businessId, storeId: normalizedStoreId }],
+    queryFn: () => productApi.getTaxes(businessId!, normalizedStoreId),
+    enabled: Boolean(businessId && normalizedStoreId),
     staleTime: 5 * 60 * 1000,
     retry: (failureCount, error) => {
       if (error instanceof ApiError && (error.status === 401 || error.status === 403)) return false
@@ -94,11 +104,12 @@ export function useProductTaxes(storeId?: string | number) {
 export function useProductSuppliers(storeId?: string | number) {
   const { user } = useAuth()
   const businessId = user?.business?.id
+  const normalizedStoreId = normalizeStoreId(storeId)
 
   return useQuery({
-    queryKey: ['product-suppliers', { businessId, storeId }],
-    queryFn: () => productApi.getSuppliers(businessId!, storeId),
-    enabled: Boolean(businessId),
+    queryKey: ['product-suppliers', { businessId, storeId: normalizedStoreId }],
+    queryFn: () => productApi.getSuppliers(businessId!, normalizedStoreId),
+    enabled: Boolean(businessId && normalizedStoreId),
     staleTime: 5 * 60 * 1000,
     retry: (failureCount, error) => {
       if (error instanceof ApiError && (error.status === 401 || error.status === 403)) return false

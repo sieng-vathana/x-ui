@@ -26,7 +26,10 @@ function buildStoreParam(storeId?: string | number): string {
 
 export const productApi = {
   async getProducts(storeId?: string | number, page = 0, size = 100): Promise<ProductItem[]> {
-    const numStoreId = Number(storeId) || 2 // fallback storeId
+    const numStoreId = Number(storeId)
+    if (!Number.isInteger(numStoreId) || numStoreId <= 0) {
+      throw new Error('A valid store must be selected before loading products.')
+    }
     const response = await api.request<ApiEnvelope<PageEnvelope<ProductItem>>>(
       `/products?storeId=${numStoreId}&page=${page}&size=${size}`,
     )

@@ -215,7 +215,11 @@ export function ProductFormPage() {
     }
 
     try {
-      const numStoreId = Number(storeId) || 2
+      const numStoreId = Number(storeId)
+      if (!Number.isInteger(numStoreId) || numStoreId <= 0) {
+        toast('Select a store before publishing the product.', 'warning')
+        return
+      }
       const numSalesChannel = salesChannel === 'POS' ? 1 : salesChannel === 'ONLINE' ? 2 : 3
       
       let uploadedThumbnail: string | undefined = undefined

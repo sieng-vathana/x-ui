@@ -6,17 +6,42 @@ import { useSidebarLayout, type SidebarLayoutState } from '../hooks/useSidebarLa
 import { useSessionTimeout } from '../hooks/useSessionTimeout'
 import { SessionTimeoutModal } from '../components/auth/SessionTimeoutModal'
 import { authApi } from '../features/auth/authApi'
+import { useStores } from '../features/stores/useStores'
 import { cn } from '../lib/cn'
 import { Icon } from '../components/ui/Icon'
+import { readStoredValue, writeStoredValue } from '../lib/storage'
+
+const ACTIVE_STORE_STORAGE_KEY = 'vpos.active-store-id'
 
 export function AdminLayout() {
-  const [storeId, setStoreId] = useState('main')
+  const { data: stores = [] } = useStores()
+  const [storeId, setStoreIdState] = useState(() => readStoredValue(ACTIVE_STORE_STORAGE_KEY, ''))
   const sidebar = useSidebarLayout()
   const isHorizontal = !sidebar.isMobile && sidebar.config.layout === 'horizontal'
   const isDetached = !sidebar.isMobile && (sidebar.config.view === 'detached' || sidebar.config.layout === 'semi-box')
   const contentOffset = isHorizontal || sidebar.config.visibility === 'hidden' || sidebar.isMobile
     ? 0
     : sidebar.sidebarWidth + (isDetached ? 32 : 0)
+
+  useEffect(() => {
+    if (stores.length === 0) return
+
+    const storedStore = stores.find((store) => store.id === storeId)
+    const nextStoreId = storedStore?.id ?? stores[0].id
+    if (nextStoreId !== storeId) {
+      setStoreIdState(nextStoreId)
+    }
+    writeStoredValue(ACTIVE_STORE_STORAGE_KEY, nextStoreId)
+  }, [stores, storeId])
+
+  const setStoreId = useCallback((id: string) => {
+    const numericId = Number(id)
+    if (!Number.isInteger(numericId) || numericId <= 0) return
+
+    const nextStoreId = String(numericId)
+    setStoreIdState(nextStoreId)
+    writeStoredValue(ACTIVE_STORE_STORAGE_KEY, nextStoreId)
+  }, [])
 
   const handleTimeout = useCallback(async () => {
     await authApi.signOut()
