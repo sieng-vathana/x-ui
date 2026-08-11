@@ -3,6 +3,7 @@ import { cn } from '../../lib/cn'
 
 export type ButtonVariant =
   | 'primary'
+  | 'danger'
   | 'dark'
   | 'secondary'
   | 'soft'
@@ -18,6 +19,8 @@ export interface ButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
 const variants: Record<ButtonVariant, string> = {
   primary:
     'min-h-[39px] rounded-[4px] border border-transparent bg-vpos-primary px-4 text-[14px] font-semibold text-white hover:bg-vpos-primary-2 active:bg-vpos-primary-2 disabled:opacity-50',
+  danger:
+    'min-h-[39px] rounded-[4px] border border-transparent bg-vpos-red px-4 text-[14px] font-semibold text-white hover:bg-vpos-red/90 active:bg-vpos-red/90 disabled:opacity-50',
   dark: 'min-h-[39px] rounded-[4px] border border-transparent bg-vpos-dark px-4 text-[14px] font-semibold text-white hover:bg-vpos-black disabled:opacity-50',
   secondary:
     'min-h-[39px] rounded-[4px] border border-vpos-line bg-white px-4 text-[14px] font-semibold text-vpos-text hover:border-vpos-primary hover:bg-vpos-subtle disabled:opacity-50',

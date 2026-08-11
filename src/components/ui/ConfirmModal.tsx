@@ -32,8 +32,7 @@ const variantStyles: Record<
   danger: {
     iconBg: 'bg-vpos-red-bg',
     iconText: 'text-vpos-red',
-    buttonVariant: 'soft',
-    buttonClass: 'bg-vpos-red text-white hover:bg-red-700',
+    buttonVariant: 'danger',
   },
   warning: {
     iconBg: 'bg-amber-100',
