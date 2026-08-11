@@ -15,7 +15,12 @@ const STORE_MARKER = L.divIcon({
 })
 
 function isCoordinatePair(latitude: string, longitude: string) {
-  return Number.isFinite(Number(latitude)) && Number.isFinite(Number(longitude))
+  if (!latitude.trim() || !longitude.trim()) return false
+  const lat = Number(latitude)
+  const lng = Number(longitude)
+  return Number.isFinite(lat) && Number.isFinite(lng)
+    && lat >= -90 && lat <= 90
+    && lng >= -180 && lng <= 180
 }
 
 /**
