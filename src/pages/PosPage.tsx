@@ -14,6 +14,7 @@ import {
   DiscountModal,
   type LineDiscount,
 } from '../components/pos/DiscountModal'
+import { PosActivityModal } from '../components/pos/PosActivityModal'
 import { ShortcutsModal } from '../components/pos/ShortcutsModal'
 import { useAuth } from '../context/AuthContext'
 import { useToast } from '../context/ToastContext'
@@ -89,10 +90,22 @@ export function PosPage() {
   const [cart, setCart] = useState<Record<string, CartEntry>>({})
   const [discountTargetId, setDiscountTargetId] = useState<string | null>(null)
   const [shortcutsOpen, setShortcutsOpen] = useState(false)
+  const [activityMode, setActivityMode] = useState<'hold' | 'recent' | null>(null)
   const [isFullscreen, setIsFullscreen] = useState(false)
   const catRef = useRef<HTMLDivElement>(null)
   const searchRef = useRef<HTMLInputElement>(null)
   const rootRef = useRef<HTMLDivElement>(null)
+
+  const handleActivityAction = useCallback((action: 'resume' | 'discard' | 'receipt' | 'reorder', id: string) => {
+    const messages = {
+      resume: `${id} is ready to resume. Live hold storage will replace this demo action.`,
+      discard: `${id} was marked for removal in the demo list.`,
+      receipt: `Receipt preview for ${id} will be connected to the order service later.`,
+      reorder: `Reorder for ${id} will be connected to the order service later.`,
+    } as const
+    toast(messages[action], action === 'discard' ? 'warning' : 'info')
+    if (action === 'resume' || action === 'receipt' || action === 'reorder') setActivityMode(null)
+  }, [toast])
 
   const products = useMemo<PosProduct[]>(() => {
     return (productsQuery.data ?? []).flatMap((product) => {
@@ -237,7 +250,7 @@ export function PosPage() {
         }
         if (key === 'h' || key === 'o') {
           e.preventDefault()
-          // Hold list / Order list — UI hooks
+          setActivityMode(key === 'h' ? 'hold' : 'recent')
           return
         }
       }
@@ -247,6 +260,11 @@ export function PosPage() {
         if (shortcutsOpen) {
           e.preventDefault()
           setShortcutsOpen(false)
+          return
+        }
+        if (activityMode) {
+          e.preventDefault()
+          setActivityMode(null)
           return
         }
         if (document.fullscreenElement) {
@@ -261,7 +279,7 @@ export function PosPage() {
     }
     window.addEventListener('keydown', onKey)
     return () => window.removeEventListener('keydown', onKey)
-  }, [toggleFullscreen, shortcutsOpen])
+  }, [activityMode, shortcutsOpen, toggleFullscreen])
 
   const filtered = useMemo(() => {
     let list = products.filter((p) => {
@@ -487,10 +505,22 @@ export function PosPage() {
                 F11
               </kbd>
             </Button>
-            <Button variant="secondary" className="min-h-[38px]">
+            <Button
+              variant="secondary"
+              className="min-h-[38px]"
+              onClick={() => setActivityMode('recent')}
+              aria-haspopup="dialog"
+              aria-expanded={activityMode === 'recent'}
+            >
               <Icon name="history-line" /> Recent
             </Button>
-            <Button variant="secondary" className="min-h-[38px]">
+            <Button
+              variant="secondary"
+              className="min-h-[38px]"
+              onClick={() => setActivityMode('hold')}
+              aria-haspopup="dialog"
+              aria-expanded={activityMode === 'hold'}
+            >
               <Icon name="pause-circle-line" /> Hold list
             </Button>
           </div>
@@ -978,6 +1008,12 @@ export function PosPage() {
         open={shortcutsOpen}
         onClose={() => setShortcutsOpen(false)}
         contained
+      />
+
+      <PosActivityModal
+        mode={activityMode}
+        onClose={() => setActivityMode(null)}
+        onAction={handleActivityAction}
       />
     </div>
   )
