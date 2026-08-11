@@ -30,6 +30,7 @@ import { BusinessProfilePage } from './pages/BusinessProfilePage'
 import { SignInPage } from './pages/auth/SignInPage'
 import { BusinessRegistrationPage } from './pages/auth/BusinessRegistrationPage'
 import { UsersPage } from './pages/UsersPage'
+import { RoleManagementPage } from './pages/RoleManagementPage'
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -62,9 +63,23 @@ export default function App() {
             <Route element={<RequireAuth />}>
               {/* Admin shell — POS uses same sidebar + top bar + brand colors */}
               <Route element={<AdminLayout />}>
-                <Route index element={<DashboardPage />} />
-                <Route path="pos" element={<PosPage />} />
-                <Route path="products" element={<ProductsPage />} />
+                <Route element={<RequirePermission permission="x-bff:read" />}>
+                  <Route index element={<DashboardPage />} />
+                </Route>
+                <Route element={<RequirePermission permission="x-order:create" />}>
+                  <Route path="pos" element={<PosPage />} />
+                </Route>
+                <Route element={<RequirePermission permission="x-product:read" />}>
+                  <Route path="products" element={<ProductsPage />} />
+                  <Route path="products/options" element={<ProductOptionsPage />} />
+                  <Route path="products/variants" element={<Navigate to="/products/options" replace />} />
+                  <Route path="products/stock-movement" element={<StockMovementPage />} />
+                  <Route path="products/low-stock" element={<LowStockPage />} />
+                  <Route path="products/new" element={<ProductFormPage />} />
+                  <Route path="products/:id" element={<ProductDetailPage />} />
+                  <Route path="products/:sku/edit" element={<ProductFormPage />} />
+                  <Route path="inventory" element={<Navigate to="/products/low-stock" replace />} />
+                </Route>
                 <Route element={<RequirePermission permission="x-product:unit" />}>
                   <Route
                     path="products/units"
@@ -77,35 +92,33 @@ export default function App() {
                     element={<ProductCategoriesPage />}
                   />
                 </Route>
-                <Route path="products/options" element={<ProductOptionsPage />} />
-                <Route path="products/variants" element={<Navigate to="/products/options" replace />} />
-                <Route path="products/stock-movement" element={<StockMovementPage />} />
-                <Route path="products/low-stock" element={<LowStockPage />} />
-                <Route path="products/new" element={<ProductFormPage />} />
-                <Route path="products/:id" element={<ProductDetailPage />} />
-                <Route path="products/:sku/edit" element={<ProductFormPage />} />
-                <Route path="inventory" element={<Navigate to="/products/low-stock" replace />} />
-                <Route path="stores" element={<StoresPage />} />
-                <Route
-                  path="sales"
-                  element={<PlaceholderPage title="Sales" description="Sales history and invoices." />}
-                />
-                <Route path="purchases" element={<PurchaseOrdersPage />} />
-                <Route path="purchases/orders/new" element={<PurchaseOrderDetailPage />} />
-                <Route path="purchases/orders/:id" element={<PurchaseOrderDetailPage />} />
-                <Route path="purchases/receive" element={<ReceiveGoodsPage />} />
-                <Route path="purchases/suppliers" element={<SuppliersPage />} />
-                <Route path="purchases/returns" element={<SupplierReturnsPage />} />
-                <Route
-                  path="customers"
-                  element={<PlaceholderPage title="Customers" description="Customer directory." />}
-                />
-                <Route
-                  path="reports"
-                  element={<PlaceholderPage title="Reports" description="Business reports." />}
-                />
-                <Route path="settings" element={<BusinessProfilePage />} />
-                <Route path="users" element={<UsersPage />} />
+                <Route element={<RequirePermission permission="x-store:read" />}>
+                  <Route path="stores" element={<StoresPage />} />
+                </Route>
+                <Route element={<RequirePermission permission="x-order:read" />}>
+                  <Route path="sales" element={<PlaceholderPage title="Sales" description="Sales history and invoices." />} />
+                </Route>
+                <Route element={<RequirePermission permission="x-inventory:read" />}>
+                  <Route path="purchases" element={<PurchaseOrdersPage />} />
+                  <Route path="purchases/orders/new" element={<PurchaseOrderDetailPage />} />
+                  <Route path="purchases/orders/:id" element={<PurchaseOrderDetailPage />} />
+                  <Route path="purchases/receive" element={<ReceiveGoodsPage />} />
+                  <Route path="purchases/suppliers" element={<SuppliersPage />} />
+                  <Route path="purchases/returns" element={<SupplierReturnsPage />} />
+                </Route>
+                <Route element={<RequirePermission permission="x-customer:read" />}>
+                  <Route path="customers" element={<PlaceholderPage title="Customers" description="Customer directory." />} />
+                </Route>
+                <Route element={<RequirePermission permission="x-report:read" />}>
+                  <Route path="reports" element={<PlaceholderPage title="Reports" description="Business reports." />} />
+                </Route>
+                <Route element={<RequirePermission permission="x-business:read" />}>
+                  <Route path="settings" element={<BusinessProfilePage />} />
+                </Route>
+                <Route element={<RequirePermission permission="x-user:read" />}>
+                  <Route path="users" element={<UsersPage />} />
+                  <Route path="roles" element={<RoleManagementPage />} />
+                </Route>
               </Route>
             </Route>
 

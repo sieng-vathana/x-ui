@@ -4,14 +4,17 @@ import { Button } from './Button'
 import { FormField } from './FormField'
 import { Select } from './Select'
 import type { User, UserRole, CreateUserPayload, UpdateUserPayload } from '../../features/users/types'
+import type { StoreOption } from '../pos/StoreSwitcher'
 
 export interface UserModalProps {
   open: boolean
   onClose: () => void
   user?: User | null
   roles?: UserRole[]
+  stores?: StoreOption[]
+  businessId: number
   isLoading?: boolean
-  onSave: (payload: any) => Promise<void>
+  onSave: (payload: CreateUserPayload | UpdateUserPayload) => Promise<void>
 }
 
 export function UserModal({
@@ -19,6 +22,8 @@ export function UserModal({
   onClose,
   user,
   roles = [],
+  stores = [],
+  businessId,
   isLoading = false,
   onSave,
 }: UserModalProps) {
@@ -29,7 +34,8 @@ export function UserModal({
   const [email, setEmail] = useState('')
   const [phone, setPhone] = useState('')
   const [password, setPassword] = useState('')
-  const [roleCode, setRoleCode] = useState('MANAGER')
+  const [roleId, setRoleId] = useState('')
+  const [storeIds, setStoreIds] = useState<number[]>([])
   const [status, setStatus] = useState(1) // 1 = Active, 0 = Inactive
 
   useEffect(() => {
@@ -39,7 +45,8 @@ export function UserModal({
       setEmail(user.email || '')
       setPhone(user.phone || '')
       setPassword('')
-      setRoleCode(user.role || user.roles?.[0] || 'MANAGER')
+      setRoleId(String(user.memberships?.[0]?.roleId ?? ''))
+      setStoreIds(user.memberships?.map((membership) => membership.storeId) ?? [])
       setStatus(user.status ?? 1)
     } else {
       setFullName('')
@@ -47,41 +54,43 @@ export function UserModal({
       setEmail('')
       setPhone('')
       setPassword('')
-      setRoleCode('MANAGER')
+      setRoleId('')
+      setStoreIds(stores.length === 1 ? [Number(stores[0].id)] : [])
       setStatus(1)
     }
-  }, [user, open])
+  }, [user, open, stores])
 
-  const roleOptions = roles.length > 0
-    ? roles.map((r) => ({ value: r.roleCode, label: `${r.roleName} (${r.roleCode})` }))
-    : [
-        { value: 'OWNER', label: 'Owner (Full Access)' },
-        { value: 'MANAGER', label: 'Store Manager' },
-        { value: 'CASHIER', label: 'Cashier' },
-        { value: 'INVENTORY_MANAGER', label: 'Inventory Manager' },
-      ]
+  const roleOptions = roles
+    .filter((role) => role.roleCode.toUpperCase() !== 'OWNER')
+    .map((role) => ({ value: String(role.id), label: `${role.roleName} (${role.roleCode})` }))
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
+    const selectedRoleId = Number(roleId)
+    if (!selectedRoleId || storeIds.length === 0) return
     if (isEdit) {
       const payload: UpdateUserPayload = {
+        businessId,
+        roleId: selectedRoleId,
+        storeIds,
         fullName,
         email,
         phone,
         status,
-        role: roleCode,
         ...(password ? { password } : {}),
       }
       await onSave(payload)
     } else {
       const payload: CreateUserPayload = {
+        businessId,
+        roleId: selectedRoleId,
+        storeIds,
         fullName,
         username,
-        password: password || 'ChangeMe123!',
+        password,
         email,
         phone,
         status,
-        role: roleCode,
       }
       await onSave(payload)
     }
@@ -116,9 +125,11 @@ export function UserModal({
 
           <Select
             label="Role"
-            value={roleCode}
-            onChange={setRoleCode}
+            value={roleId}
+            onChange={setRoleId}
             options={roleOptions}
+            placeholder={roleOptions.length ? 'Select a role' : 'Create a custom role first'}
+            required
           />
         </div>
 
@@ -147,6 +158,33 @@ export function UserModal({
           onChange={(e) => setPassword(e.target.value)}
           placeholder={isEdit ? '••••••••' : 'Min 8 characters'}
         />
+
+        <fieldset>
+          <legend className="mb-2 block text-[12px] font-semibold tracking-[.02em] text-vpos-dark">
+            Store access <b className="text-vpos-red">*</b>
+          </legend>
+          <div className="grid max-h-44 grid-cols-1 gap-2 overflow-y-auto rounded-[4px] border border-vpos-line bg-vpos-subtle p-2 sm:grid-cols-2">
+            {stores.length ? stores.map((store) => {
+              const storeId = Number(store.id)
+              const checked = storeIds.includes(storeId)
+              return (
+                <label key={store.id} className="flex cursor-pointer items-center gap-3 rounded-[4px] border border-vpos-line bg-white px-3 py-2.5 text-[13px] font-semibold text-vpos-text hover:border-vpos-primary/50">
+                  <input
+                    type="checkbox"
+                    checked={checked}
+                    onChange={() => setStoreIds((current) => checked
+                      ? current.filter((id) => id !== storeId)
+                      : [...current, storeId])}
+                    className="h-4 w-4 accent-vpos-primary"
+                  />
+                  <span className="min-w-0 truncate">{store.name}</span>
+                </label>
+              )
+            }) : (
+              <p className="col-span-full px-2 py-4 text-center text-[12px] text-vpos-muted">No stores are available.</p>
+            )}
+          </div>
+        </fieldset>
 
         <div>
           <label className="mb-1.5 block text-[12px] font-extrabold tracking-[.02em] text-vpos-primary-2">
@@ -182,7 +220,11 @@ export function UserModal({
           <Button type="button" variant="secondary" onClick={onClose}>
             Cancel
           </Button>
-          <Button type="submit" variant="primary" disabled={isLoading}>
+          <Button
+            type="submit"
+            variant="primary"
+            disabled={isLoading || !roleId || storeIds.length === 0 || (!isEdit && password.length < 8)}
+          >
             {isLoading ? 'Saving...' : isEdit ? 'Save Changes' : 'Create User'}
           </Button>
         </div>

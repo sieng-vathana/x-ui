@@ -21,12 +21,19 @@ const navMeta: Record<string, { hint: string }> = {
   sales: { hint: 'Orders and invoices' }, purchases: { hint: 'Supplier orders & receipts' },
   customers: { hint: 'Customer directory' }, reports: { hint: 'Analytics & exports' },
   settings: { hint: 'Store configuration' }, users: { hint: 'Team access & roles' },
+  roles: { hint: 'Custom roles & action permissions' },
 }
 
 const keyToPath: Record<string, string> = {
   dashboard: paths.dashboard, pos: paths.pos, products: paths.products, stores: paths.stores,
   sales: paths.sales, purchases: paths.purchases, customers: paths.customers, reports: paths.reports,
-  settings: paths.settings, users: paths.users,
+  settings: paths.settings, users: paths.users, roles: paths.roles,
+}
+
+const navigationPermissions: Record<string, string> = {
+  dashboard: 'x-bff:read', pos: 'x-order:create', products: 'x-product:read', stores: 'x-store:read',
+  sales: 'x-order:read', purchases: 'x-inventory:read', customers: 'x-customer:read',
+  reports: 'x-report:read', settings: 'x-business:read', users: 'x-user:read', roles: 'x-user:read',
 }
 
 const productSubItems: Array<{ to: string; label: string; end?: boolean; permission?: string }> = [
@@ -50,7 +57,8 @@ const staticItems = [
 const managementItems = [
   { key: 'stores', icon: 'building-2-line', label: 'Store management', linked: true },
   { key: 'settings', icon: 'settings-3-line', label: 'Settings', linked: true },
-  { key: 'users', icon: 'group-line', label: 'Users & Roles', linked: true },
+  { key: 'users', icon: 'group-line', label: 'User management', linked: true },
+  { key: 'roles', icon: 'shield-keyhole-line', label: 'Role management', linked: true },
 ]
 
 function themeClasses(style: SidebarLayoutState['config']['color']) {
@@ -140,6 +148,7 @@ export function Sidebar({ state }: SidebarProps) {
   const visibleProductSubItems = productSubItems.filter(
     (item) => !item.permission || user?.permissions.includes(item.permission),
   )
+  const canVisit = (key: string) => !navigationPermissions[key] || user?.permissions.includes(navigationPermissions[key])
   const onNavigate = () => { if (isMobile) setMobileOpen(false) }
 
   const backgroundImages: Record<string, string> = { 'img-1': sidebarGrid, 'img-2': sidebarOrbit, 'img-3': sidebarLines, 'img-4': sidebarDots }
@@ -152,26 +161,30 @@ export function Sidebar({ state }: SidebarProps) {
   return <aside aria-label="Primary navigation" data-sidebar-theme={config.color} onMouseEnter={() => hoverView && setHovered(true)} onMouseLeave={() => hoverView && setHovered(false)} className={cn('z-40 flex flex-col transition-[width,transform,opacity] duration-200 ease-out', isMobile ? 'fixed top-0 bottom-0 left-0 shadow-2xl' : config.position === 'fixed' ? 'fixed top-0 bottom-0 left-0' : 'absolute top-0 bottom-0 left-0', detached && (config.layout === 'semi-box' ? 'top-6 bottom-6 left-6 rounded-lg shadow-[0_12px_30px_rgba(8,31,56,.16)]' : 'top-24 bottom-4 left-12 rounded-xl shadow-[0_12px_30px_rgba(8,31,56,.16)]'), theme.shell)} style={{ width, transform: isMobile && !mobileOpen ? 'translateX(-100%)' : undefined, ...imageStyle }}>
     <SidebarBrand iconOnly={iconOnly} compact={effectiveSize === 'compact'} theme={theme} />
     <nav className={cn('flex flex-1 flex-col', iconOnly ? 'items-center gap-1.5 overflow-visible py-3' : effectiveSize === 'compact' ? 'gap-1 overflow-y-auto overflow-x-hidden px-2 py-3' : 'gap-1 overflow-y-auto overflow-x-hidden px-3 py-3')}>
-      {navPrimary.filter((item) => item.key !== 'products').map((item) => <NavItem key={item.key} to={keyToPath[item.key] ?? paths.home} icon={item.icon} label={item.label} end={item.key === 'dashboard'} iconOnly={iconOnly} hint={navMeta[item.key]?.hint} theme={theme} onNavigate={onNavigate} hovered={state.hoveredMenuItem === item.label} onHover={state.setHoveredMenuItem} />)}
-      <MenuGroup id="products" icon="shopping-bag-3-line" label="Products" items={visibleProductSubItems} active={inProducts} state={state} iconOnly={iconOnly} theme={theme} onNavigate={onNavigate} />
-      <StaticNavItem icon="line-chart-line" label="Sales" iconOnly={iconOnly} hint={navMeta.sales?.hint} theme={theme} hovered={state.hoveredMenuItem === 'Sales'} onHover={state.setHoveredMenuItem} />
-      <MenuGroup id="purchases" icon="truck-line" label="Purchases" items={purchaseSubItems} active={inPurchases} state={state} iconOnly={iconOnly} theme={theme} onNavigate={onNavigate} />
-      {staticItems.filter((item) => item.key !== 'sales').map((item) => <StaticNavItem key={item.key} icon={item.icon} label={item.label} iconOnly={iconOnly} hint={navMeta[item.key]?.hint} theme={theme} hovered={state.hoveredMenuItem === item.label} onHover={state.setHoveredMenuItem} />)}
+      {navPrimary.filter((item) => item.key !== 'products' && canVisit(item.key)).map((item) => <NavItem key={item.key} to={keyToPath[item.key] ?? paths.home} icon={item.icon} label={item.label} end={item.key === 'dashboard'} iconOnly={iconOnly} hint={navMeta[item.key]?.hint} theme={theme} onNavigate={onNavigate} hovered={state.hoveredMenuItem === item.label} onHover={state.setHoveredMenuItem} />)}
+      {canVisit('products') ? <MenuGroup id="products" icon="shopping-bag-3-line" label="Products" items={visibleProductSubItems} active={inProducts} state={state} iconOnly={iconOnly} theme={theme} onNavigate={onNavigate} /> : null}
+      {canVisit('sales') ? <NavItem to={paths.sales} icon="line-chart-line" label="Sales" iconOnly={iconOnly} hint={navMeta.sales?.hint} theme={theme} onNavigate={onNavigate} hovered={state.hoveredMenuItem === 'Sales'} onHover={state.setHoveredMenuItem} /> : null}
+      {canVisit('purchases') ? <MenuGroup id="purchases" icon="truck-line" label="Purchases" items={purchaseSubItems} active={inPurchases} state={state} iconOnly={iconOnly} theme={theme} onNavigate={onNavigate} /> : null}
+      {staticItems.filter((item) => item.key !== 'sales' && canVisit(item.key)).map((item) => <NavItem key={item.key} to={keyToPath[item.key]} icon={item.icon} label={item.label} iconOnly={iconOnly} hint={navMeta[item.key]?.hint} theme={theme} onNavigate={onNavigate} hovered={state.hoveredMenuItem === item.label} onHover={state.setHoveredMenuItem} />)}
       <div className={cn('my-2 h-px shrink-0', iconOnly ? 'w-8' : 'mx-1 w-auto', theme.divider)} />
       {!iconOnly ? <p className={cn('mb-1 px-3 text-[11px] font-semibold tracking-[1.2px]', theme.title)}>MANAGEMENT</p> : null}
-      {managementItems.map((item) => item.linked ? <NavItem key={item.key} to={keyToPath[item.key] ?? paths.home} icon={item.icon} label={item.label} iconOnly={iconOnly} hint={navMeta[item.key]?.hint} theme={theme} onNavigate={onNavigate} hovered={state.hoveredMenuItem === item.label} onHover={state.setHoveredMenuItem} /> : <StaticNavItem key={item.key} icon={item.icon} label={item.label} iconOnly={iconOnly} hint={navMeta[item.key]?.hint} theme={theme} hovered={state.hoveredMenuItem === item.label} onHover={state.setHoveredMenuItem} />)}
+      {managementItems.filter((item) => canVisit(item.key)).map((item) => item.linked ? <NavItem key={item.key} to={keyToPath[item.key] ?? paths.home} icon={item.icon} label={item.label} iconOnly={iconOnly} hint={navMeta[item.key]?.hint} theme={theme} onNavigate={onNavigate} hovered={state.hoveredMenuItem === item.label} onHover={state.setHoveredMenuItem} /> : <StaticNavItem key={item.key} icon={item.icon} label={item.label} iconOnly={iconOnly} hint={navMeta[item.key]?.hint} theme={theme} hovered={state.hoveredMenuItem === item.label} onHover={state.setHoveredMenuItem} />)}
     </nav>
   </aside>
 }
 
 function HorizontalMenu() {
   const location = useLocation()
-  const items = [...navPrimary.filter(item => item.key !== 'products'), { key: 'products', label: 'Products', icon: 'shopping-bag-3-line' }, { key: 'purchases', label: 'Purchases', icon: 'truck-line' }, ...staticItems]
+  const { user } = useAuth()
+  const items = [...navPrimary.filter(item => item.key !== 'products'), { key: 'products', label: 'Products', icon: 'shopping-bag-3-line' }, { key: 'purchases', label: 'Purchases', icon: 'truck-line' }, ...staticItems, ...managementItems]
+    .filter((item) => !navigationPermissions[item.key] || user?.permissions.includes(navigationPermissions[item.key]))
   return <nav aria-label="Horizontal navigation" className="fixed top-[70px] right-0 left-0 z-30 flex h-12 items-center gap-1 overflow-x-auto border-b border-vpos-line bg-white px-6 shadow-sm">{items.map(item => <NavLink key={item.key} to={keyToPath[item.key] ?? paths.products} className={({ isActive }) => cn('inline-flex h-8 items-center gap-1.5 rounded-[4px] px-3 text-[14px] font-medium no-underline', isActive || (item.key === 'products' && location.pathname.startsWith('/products')) ? 'bg-vpos-sand text-vpos-primary' : 'text-vpos-muted hover:bg-vpos-subtle')}><Icon name={item.icon} />{item.label}</NavLink>)}</nav>
 }
 
 function TwoColumnMenu({ state, theme }: { state: SidebarLayoutState; theme: ReturnType<typeof themeClasses> }) {
+  const { user } = useAuth()
   const sections = [{ id: 'overview', label: 'Overview', icon: 'dashboard-line', items: navPrimary.slice(0, 2) }, { id: 'catalog', label: 'Products', icon: 'shopping-bag-3-line', items: [{ key: 'products', label: 'Products', icon: 'shopping-bag-3-line' }] }, { id: 'purchases', label: 'Purchases', icon: 'truck-line', items: [{ key: 'purchases', label: 'Purchases', icon: 'truck-line' }] }, { id: 'management', label: 'Management', icon: 'settings-3-line', items: managementItems }]
   const selected = sections.find(section => section.id === state.twoColumnSection) ?? sections[0]
-  return <aside aria-label="Two column navigation" className={cn('fixed top-0 bottom-0 left-0 z-40 flex overflow-hidden shadow-sm', theme.shell)} style={{ width: state.twoColumnOpen ? 290 : 70 }}><div className="flex w-[70px] shrink-0 flex-col items-center gap-3 py-5">{sections.map(section => <button key={section.id} type="button" title={section.label} aria-label={section.label} aria-pressed={selected.id === section.id} onClick={() => { state.setTwoColumnSection(section.id); state.setTwoColumnOpen(true) }} className={cn('grid h-10 w-10 place-items-center rounded-md border-0 bg-transparent text-[20px]', selected.id === section.id ? theme.active : theme.item)}><Icon name={section.icon} /></button>)}</div>{state.twoColumnOpen ? <div className="flex w-[220px] flex-col border-l border-white/10"><div className="flex h-20 items-center px-5 text-[16px] font-bold">{selected.label}<button type="button" onClick={() => state.setTwoColumnOpen(false)} className="ml-auto border-0 bg-transparent text-inherit" aria-label="Collapse secondary navigation"><Icon name="arrow-left-s-line" /></button></div><nav className="flex-1 overflow-y-auto px-3 py-3">{selected.items.map(item => <NavItem key={item.key} to={keyToPath[item.key] ?? paths.dashboard} icon={item.icon} label={item.label} iconOnly={false} hint={navMeta[item.key]?.hint} theme={theme} onNavigate={() => undefined} />)}</nav></div> : null}</aside>
+  const visibleItems = selected.items.filter((item) => !navigationPermissions[item.key] || user?.permissions.includes(navigationPermissions[item.key]))
+  return <aside aria-label="Two column navigation" className={cn('fixed top-0 bottom-0 left-0 z-40 flex overflow-hidden shadow-sm', theme.shell)} style={{ width: state.twoColumnOpen ? 290 : 70 }}><div className="flex w-[70px] shrink-0 flex-col items-center gap-3 py-5">{sections.map(section => <button key={section.id} type="button" title={section.label} aria-label={section.label} aria-pressed={selected.id === section.id} onClick={() => { state.setTwoColumnSection(section.id); state.setTwoColumnOpen(true) }} className={cn('grid h-10 w-10 place-items-center rounded-md border-0 bg-transparent text-[20px]', selected.id === section.id ? theme.active : theme.item)}><Icon name={section.icon} /></button>)}</div>{state.twoColumnOpen ? <div className="flex w-[220px] flex-col border-l border-white/10"><div className="flex h-20 items-center px-5 text-[16px] font-bold">{selected.label}<button type="button" onClick={() => state.setTwoColumnOpen(false)} className="ml-auto border-0 bg-transparent text-inherit" aria-label="Collapse secondary navigation"><Icon name="arrow-left-s-line" /></button></div><nav className="flex-1 overflow-y-auto px-3 py-3">{visibleItems.map(item => <NavItem key={item.key} to={keyToPath[item.key] ?? paths.dashboard} icon={item.icon} label={item.label} iconOnly={false} hint={navMeta[item.key]?.hint} theme={theme} onNavigate={() => undefined} />)}</nav></div> : null}</aside>
 }

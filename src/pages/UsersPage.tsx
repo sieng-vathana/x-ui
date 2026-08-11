@@ -1,13 +1,12 @@
 import { useMemo, useState } from 'react'
 import {
   useUsers,
-  useUserRoles,
-  useRoleDetails,
   useCreateUser,
   useUpdateUser,
   useDeleteUser,
 } from '../features/users/useUsers'
-import type { User, UserRole } from '../features/users/types'
+import { useRoleDetails, useRoles } from '../features/roles/useRoles'
+import type { CreateUserPayload, UpdateUserPayload, User, UserRole } from '../features/users/types'
 import { DataTable, type DataTableColumn } from '../components/ui/DataTable'
 import { Button } from '../components/ui/Button'
 import { Icon } from '../components/ui/Icon'
@@ -17,6 +16,8 @@ import { ConfirmModal } from '../components/ui/ConfirmModal'
 import { RolePermissionsModal } from '../components/ui/RolePermissionsModal'
 import { useToast } from '../context/ToastContext'
 import { cn } from '../lib/cn'
+import { useAuth } from '../context/AuthContext'
+import { useStores } from '../features/stores/useStores'
 
 function roleCodes(user: User): string[] {
   const codes = user.roles?.filter(Boolean) ?? []
@@ -44,8 +45,15 @@ function roleTone(role?: string): string {
 
 export function UsersPage() {
   const { toast } = useToast()
+  const { user: authenticatedUser } = useAuth()
+  const businessId = Number(authenticatedUser?.business.id)
+  const permissions = authenticatedUser?.permissions ?? []
+  const canCreate = permissions.includes('x-user:create')
+  const canUpdate = permissions.includes('x-user:update')
+  const canDelete = permissions.includes('x-user:delete')
   const { data: users = [] } = useUsers()
-  const { data: roles = [] } = useUserRoles()
+  const { data: roles = [] } = useRoles()
+  const { data: stores = [] } = useStores()
   const rolesByCode = useMemo(
     () => new Map(roles.map((role) => [role.roleCode.toUpperCase(), role])),
     [roles],
@@ -113,17 +121,18 @@ export function UsersPage() {
   }
 
   const handleOpenEdit = (user: User) => {
+    if (roleCodes(user).some((role) => role.toUpperCase() === 'OWNER')) return
     setEditingUser(user)
     setModalOpen(true)
   }
 
-  const handleSaveUser = async (payload: any) => {
+  const handleSaveUser = async (payload: CreateUserPayload | UpdateUserPayload) => {
     try {
       if (editingUser) {
-        await updateUserMutation.mutateAsync({ id: editingUser.id, payload })
+        await updateUserMutation.mutateAsync({ id: editingUser.id, payload: payload as UpdateUserPayload })
         toast('User updated successfully!', 'success')
       } else {
-        await createUserMutation.mutateAsync(payload)
+        await createUserMutation.mutateAsync(payload as CreateUserPayload)
         toast('User account created successfully!', 'success')
       }
       setModalOpen(false)
@@ -249,27 +258,27 @@ export function UsersPage() {
         align: 'right',
         cell: (u) => (
           <div className="flex items-center justify-end gap-1">
-            <button
+            {canUpdate && !roleCodes(u).some((role) => role.toUpperCase() === 'OWNER') ? <button
               type="button"
               onClick={() => handleOpenEdit(u)}
               className="grid h-8 w-8 place-items-center rounded-lg border border-vpos-line bg-white text-vpos-text transition hover:bg-vpos-subtle"
               title="Edit User"
             >
               <Icon name="pencil-line" className="text-[14px]" />
-            </button>
-            <button
+            </button> : null}
+            {canDelete && !roleCodes(u).some((role) => role.toUpperCase() === 'OWNER') ? <button
               type="button"
               onClick={() => setDeletingUser(u)}
               className="grid h-8 w-8 place-items-center rounded-lg border border-vpos-line bg-white text-vpos-red transition hover:bg-vpos-red-bg"
               title="Delete User"
             >
               <Icon name="delete-bin-line" className="text-[14px]" />
-            </button>
+            </button> : null}
           </div>
         ),
       },
     ],
-    [rolesByCode],
+    [rolesByCode, canUpdate, canDelete],
   )
 
   return (
@@ -282,9 +291,9 @@ export function UsersPage() {
             Manage staff accounts, store access permissions, and role authorizations.
           </p>
         </div>
-        <Button variant="primary" onClick={handleOpenCreate}>
+        {canCreate ? <Button variant="primary" onClick={handleOpenCreate} disabled={!roles.some((role) => role.roleCode.toUpperCase() !== 'OWNER')}>
           <Icon name="add-line" /> Add Staff User
-        </Button>
+        </Button> : null}
       </div>
 
       {/* Summary Cards */}
@@ -366,6 +375,8 @@ export function UsersPage() {
         onClose={() => setModalOpen(false)}
         user={editingUser}
         roles={roles}
+        stores={stores}
+        businessId={businessId}
         isLoading={createUserMutation.isPending || updateUserMutation.isPending}
         onSave={handleSaveUser}
       />

@@ -12,14 +12,25 @@ export interface User {
   updatedAt?: string
   role?: string
   roles?: string[]
-  stores?: { id: number; name: string }[]
+  memberships?: UserStoreMembership[]
+}
+
+export interface UserStoreMembership {
+  storeId: number
+  roleId: number
+  roleCode: string
+  roleName: string
 }
 
 export interface UserRole {
   id: number
+  businessId: number
   roleCode: string
   roleName: string
   description?: string
+  isSystem: boolean
+  permissionCount: number
+  createdAt?: string
 }
 
 export interface RolePermissionAccess {
@@ -31,29 +42,29 @@ export interface RolePermissionAccess {
   allowed: boolean
 }
 
-export interface UserRoleDetails extends UserRole {
-  businessId?: number
-  isSystem?: boolean
+export interface UserRoleDetails extends Omit<UserRole, 'permissionCount' | 'createdAt'> {
   permissions: RolePermissionAccess[]
 }
 
 export interface CreateUserPayload {
+  businessId: number
+  roleId: number
+  storeIds: number[]
   fullName: string
   username: string
-  password?: string
+  password: string
   email?: string
   phone?: string
   status?: number
-  role?: string
-  storeIds?: number[]
 }
 
 export interface UpdateUserPayload {
+  businessId: number
+  roleId: number
+  storeIds: number[]
   fullName?: string
   email?: string
   phone?: string
   password?: string
   status?: number
-  role?: string
-  storeIds?: number[]
 }

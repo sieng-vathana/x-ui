@@ -26,6 +26,7 @@ export const paths = {
   reports: '/reports',
   settings: '/settings',
   users: '/users',
+  roles: '/roles',
 } as const
 
 /** Map nav keys → paths */
@@ -40,4 +41,5 @@ export const navPaths: Record<string, string> = {
   reports: paths.reports,
   settings: paths.settings,
   users: paths.users,
+  roles: paths.roles,
 }
