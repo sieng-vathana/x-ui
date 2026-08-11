@@ -106,7 +106,6 @@ export function PosActivityModal({ mode, onClose, onAction }: PosActivityModalPr
     <Modal
       open={Boolean(mode)}
       onClose={onClose}
-      contained
       size="xl"
       title={
         <div className="flex items-center gap-3">
