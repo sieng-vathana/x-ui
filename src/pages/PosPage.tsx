@@ -24,7 +24,7 @@ import { useCreatePayment, useCreatePosOrder, useCompleteOrder } from '../featur
 import type { CreatePosOrderInput } from '../features/orders/types'
 import { useProductsList } from '../features/products/useProducts'
 import { useAdminStore } from '../hooks/useAdminStore'
-import { ApiError, resolveImageUrl } from '../lib/api'
+import { resolveImageUrl } from '../lib/api'
 import { cn } from '../lib/cn'
 import { formatCurrency, formatKhr } from '../lib/currency'
 import { paths } from '../lib/paths'
@@ -44,6 +44,7 @@ type PosProduct = {
   badge?: string
   currencyCode: string
   taxRate: number
+  catalogQuantity?: number
 }
 type PosCategory = {
   id: string
@@ -133,6 +134,7 @@ export function PosPage() {
           badge: product.isFeatured ? 'Featured' : undefined,
           currencyCode: (product.currencyCode || 'USD').toUpperCase(),
           taxRate: Number(product.tax?.percentage ?? 0),
+          catalogQuantity: variant.quantity == null ? undefined : Math.max(0, Number(variant.quantity)),
         }]
       })
     })
@@ -147,17 +149,23 @@ export function PosPage() {
     const stock = new Map<number, number | undefined>()
     variantIds.forEach((variantId, index) => {
       const query = stockQueries[index]
+      const catalogQuantity = products.find((product) => product.variantId === variantId)?.catalogQuantity
       if (query?.data) {
         stock.set(variantId, Math.max(0, query.data.availableQuantity))
-      } else if (query?.error instanceof ApiError && query.error.status === 404) {
-        // A missing stock balance means there is no available stock for POS.
-        stock.set(variantId, 0)
+      } else if (query?.isError) {
+        // Product quantity is the live catalog value while inventory is unavailable
+        // or is still migrating the variant into stock_balances.
+        stock.set(variantId, catalogQuantity)
+      } else if (catalogQuantity !== undefined) {
+        // Do not leave the POS stuck on "Checking stock…" while the balance request
+        // is pending. Inventory data replaces this value as soon as it arrives.
+        stock.set(variantId, catalogQuantity)
       } else {
         stock.set(variantId, undefined)
       }
     })
     return stock
-  }, [stockQueries, variantIds])
+  }, [products, stockQueries, variantIds])
 
   const categories = useMemo<PosCategory[]>(() => {
     const grouped = new Map<string, PosCategory>()
