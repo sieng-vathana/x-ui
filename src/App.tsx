@@ -4,6 +4,7 @@ import { BrowserRouter, Navigate, Route, Routes } from 'react-router-dom'
 import { AdminLayout } from './layouts/AdminLayout'
 import { DashboardPage } from './pages/DashboardPage'
 import { PlaceholderPage } from './pages/PlaceholderPage'
+import { CustomersPage } from './pages/CustomersPage'
 import { PosPage } from './pages/PosPage'
 import { ProductDetailPage } from './pages/ProductDetailPage'
 import { ProductFormPage } from './pages/ProductFormPage'
@@ -107,7 +108,7 @@ export default function App() {
                   <Route path="purchases/returns" element={<SupplierReturnsPage />} />
                 </Route>
                 <Route element={<RequirePermission permission="x-customer:read" />}>
-                  <Route path="customers" element={<PlaceholderPage title="Customers" description="Customer directory." />} />
+                  <Route path="customers" element={<CustomersPage />} />
                 </Route>
                 <Route element={<RequirePermission permission="x-report:read" />}>
                   <Route path="reports" element={<PlaceholderPage title="Reports" description="Business reports." />} />
