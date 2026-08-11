@@ -1,5 +1,11 @@
 import { API_BASE_URL, ApiClient } from '../../lib/api'
-import type { User, UserRole, CreateUserPayload, UpdateUserPayload } from './types'
+import type {
+  User,
+  UserRole,
+  UserRoleDetails,
+  CreateUserPayload,
+  UpdateUserPayload,
+} from './types'
 
 const api = new ApiClient({ baseUrl: API_BASE_URL })
 
@@ -47,16 +53,15 @@ export const userApi = {
   },
 
   async getRoles(): Promise<UserRole[]> {
-    try {
-      const response = await api.request<ApiEnvelope<UserRole[]>>('/users/roles')
-      return response.data ?? []
-    } catch {
-      return [
-        { id: 1, roleCode: 'OWNER', roleName: 'Owner', description: 'Full system access' },
-        { id: 2, roleCode: 'MANAGER', roleName: 'Store Manager', description: 'Store operations & inventory' },
-        { id: 3, roleCode: 'CASHIER', roleName: 'Cashier', description: 'POS checkout & sales' },
-        { id: 4, roleCode: 'INVENTORY_MANAGER', roleName: 'Inventory Staff', description: 'Stock & purchasing' },
-      ]
+    const response = await api.request<ApiEnvelope<UserRole[]>>('/users/roles')
+    return response.data ?? []
+  },
+
+  async getRoleDetails(id: number): Promise<UserRoleDetails> {
+    const response = await api.request<ApiEnvelope<UserRoleDetails>>(`/users/roles/${id}`)
+    if (!response.data) {
+      throw new Error(response.message ?? response.error ?? 'Role details were not found')
     }
+    return response.data
   },
 }

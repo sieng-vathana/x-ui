@@ -2,17 +2,19 @@ import { useMemo, useState } from 'react'
 import {
   useUsers,
   useUserRoles,
+  useRoleDetails,
   useCreateUser,
   useUpdateUser,
   useDeleteUser,
 } from '../features/users/useUsers'
-import type { User } from '../features/users/types'
+import type { User, UserRole } from '../features/users/types'
 import { DataTable, type DataTableColumn } from '../components/ui/DataTable'
 import { Button } from '../components/ui/Button'
 import { Icon } from '../components/ui/Icon'
 import { Select } from '../components/ui/Select'
 import { UserModal } from '../components/ui/UserModal'
 import { ConfirmModal } from '../components/ui/ConfirmModal'
+import { RolePermissionsModal } from '../components/ui/RolePermissionsModal'
 import { useToast } from '../context/ToastContext'
 import { cn } from '../lib/cn'
 
@@ -44,8 +46,15 @@ export function UsersPage() {
   const { toast } = useToast()
   const { data: users = [] } = useUsers()
   const { data: roles = [] } = useUserRoles()
-  const roleNames = useMemo(
-    () => new Map(roles.map((role) => [role.roleCode.toUpperCase(), role.roleName])),
+  const rolesByCode = useMemo(
+    () => new Map(roles.map((role) => [role.roleCode.toUpperCase(), role])),
+    [roles],
+  )
+  const roleFilterOptions = useMemo(
+    () => [
+      { value: 'All roles', label: 'All roles' },
+      ...roles.map((role) => ({ value: role.roleCode, label: role.roleName })),
+    ],
     [roles],
   )
 
@@ -60,6 +69,8 @@ export function UsersPage() {
   const [modalOpen, setModalOpen] = useState(false)
   const [editingUser, setEditingUser] = useState<User | null>(null)
   const [deletingUser, setDeletingUser] = useState<User | null>(null)
+  const [selectedRole, setSelectedRole] = useState<UserRole | null>(null)
+  const roleDetailsQuery = useRoleDetails(selectedRole?.id ?? null)
 
   // Metrics
   const totalUsers = users.length
@@ -173,19 +184,46 @@ export function UsersPage() {
         header: 'Role',
         cell: (u) => {
           const codes = roleCodes(u)
-          const r = codes[0] || 'UNASSIGNED'
-          const label = codes.length > 0
-            ? codes.map((code) => roleNames.get(code.toUpperCase()) || code).join(', ')
-            : 'Unassigned'
+          if (codes.length === 0) {
+            return (
+              <span className="inline-block rounded-md border border-gray-200 bg-gray-100 px-2.5 py-0.5 text-[11px] font-extrabold text-gray-800 shadow-2xs">
+                Unassigned
+              </span>
+            )
+          }
           return (
-            <span
-              className={cn(
-                'inline-block rounded-md border px-2.5 py-0.5 text-[11px] font-extrabold shadow-2xs',
-                roleTone(r),
-              )}
-            >
-              {label}
-            </span>
+            <div className="flex flex-wrap gap-1.5">
+              {codes.map((code) => {
+                const role = rolesByCode.get(code.toUpperCase())
+                const label = role?.roleName || code
+                return role ? (
+                  <button
+                    key={code}
+                    type="button"
+                    onClick={() => setSelectedRole(role)}
+                    className={cn(
+                      'inline-flex items-center gap-1 rounded-md border px-2.5 py-0.5 text-[11px] font-extrabold shadow-2xs transition hover:-translate-y-px hover:shadow-sm focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-vpos-primary',
+                      roleTone(code),
+                    )}
+                    title={`View ${label} permissions`}
+                    aria-label={`View ${label} permissions`}
+                  >
+                    {label}
+                    <Icon name="arrow-right-s-line" />
+                  </button>
+                ) : (
+                  <span
+                    key={code}
+                    className={cn(
+                      'inline-block rounded-md border px-2.5 py-0.5 text-[11px] font-extrabold shadow-2xs',
+                      roleTone(code),
+                    )}
+                  >
+                    {label}
+                  </span>
+                )
+              })}
+            </div>
           )
         },
       },
@@ -231,7 +269,7 @@ export function UsersPage() {
         ),
       },
     ],
-    [roleNames],
+    [rolesByCode],
   )
 
   return (
@@ -305,13 +343,7 @@ export function UsersPage() {
             <Select
               value={roleFilter}
               onChange={setRoleFilter}
-              options={[
-                { value: 'All roles', label: 'All roles' },
-                { value: 'OWNER', label: 'Owner' },
-                { value: 'MANAGER', label: 'Manager' },
-                { value: 'CASHIER', label: 'Cashier' },
-                { value: 'INVENTORY_MANAGER', label: 'Inventory Staff' },
-              ]}
+              options={roleFilterOptions}
               className="w-36"
             />
             <Select
@@ -336,6 +368,15 @@ export function UsersPage() {
         roles={roles}
         isLoading={createUserMutation.isPending || updateUserMutation.isPending}
         onSave={handleSaveUser}
+      />
+
+      <RolePermissionsModal
+        open={Boolean(selectedRole)}
+        role={selectedRole}
+        details={roleDetailsQuery.data}
+        isLoading={roleDetailsQuery.isLoading}
+        isError={roleDetailsQuery.isError}
+        onClose={() => setSelectedRole(null)}
       />
 
       {/* Delete Confirmation Modal */}

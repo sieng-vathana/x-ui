@@ -7,6 +7,7 @@ export const userQueryKeys = {
   list: () => [...userQueryKeys.all, 'list'] as const,
   detail: (id: number) => [...userQueryKeys.all, 'detail', id] as const,
   roles: () => [...userQueryKeys.all, 'roles'] as const,
+  roleDetail: (id: number) => [...userQueryKeys.roles(), 'detail', id] as const,
 }
 
 export function useUsers() {
@@ -20,6 +21,15 @@ export function useUserRoles() {
   return useQuery({
     queryKey: userQueryKeys.roles(),
     queryFn: () => userApi.getRoles(),
+  })
+}
+
+export function useRoleDetails(roleId: number | null) {
+  return useQuery({
+    queryKey: userQueryKeys.roleDetail(roleId ?? 0),
+    queryFn: () => userApi.getRoleDetails(roleId as number),
+    enabled: roleId !== null,
+    staleTime: 5 * 60 * 1000,
   })
 }
 

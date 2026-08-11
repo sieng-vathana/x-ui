@@ -22,6 +22,21 @@ export interface UserRole {
   description?: string
 }
 
+export interface RolePermissionAccess {
+  id: number
+  permissionCode: string
+  permissionName: string
+  moduleName: string
+  description?: string
+  allowed: boolean
+}
+
+export interface UserRoleDetails extends UserRole {
+  businessId?: number
+  isSystem?: boolean
+  permissions: RolePermissionAccess[]
+}
+
 export interface CreateUserPayload {
   fullName: string
   username: string
