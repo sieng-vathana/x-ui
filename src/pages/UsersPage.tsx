@@ -16,6 +16,13 @@ import { ConfirmModal } from '../components/ui/ConfirmModal'
 import { useToast } from '../context/ToastContext'
 import { cn } from '../lib/cn'
 
+function roleCodes(user: User): string[] {
+  const codes = user.roles?.filter(Boolean) ?? []
+  if (codes.length > 0) return codes
+  if (user.role) return [user.role]
+  return []
+}
+
 function roleTone(role?: string): string {
   switch (role?.toUpperCase()) {
     case 'OWNER':
@@ -37,6 +44,10 @@ export function UsersPage() {
   const { toast } = useToast()
   const { data: users = [] } = useUsers()
   const { data: roles = [] } = useUserRoles()
+  const roleNames = useMemo(
+    () => new Map(roles.map((role) => [role.roleCode.toUpperCase(), role.roleName])),
+    [roles],
+  )
 
   const createUserMutation = useCreateUser()
   const updateUserMutation = useUpdateUser()
@@ -54,8 +65,10 @@ export function UsersPage() {
   const totalUsers = users.length
   const activeUsers = users.filter((u) => u.status === 1).length
   const managersCashiers = users.filter((u) => {
-    const r = (u.role || u.roles?.[0] || '').toUpperCase()
-    return r === 'MANAGER' || r === 'CASHIER'
+    return roleCodes(u).some((role) => {
+      const code = role.toUpperCase()
+      return code === 'MANAGER' || code === 'CASHIER'
+    })
   }).length
   const inactiveUsers = users.filter((u) => u.status === 0 || u.status === 2).length
 
@@ -64,7 +77,7 @@ export function UsersPage() {
     return users.filter((u) => {
       if (
         roleFilter !== 'All roles' &&
-        (u.role || u.roles?.[0] || '').toUpperCase() !== roleFilter.toUpperCase()
+        !roleCodes(u).some((role) => role.toUpperCase() === roleFilter.toUpperCase())
       ) {
         return false
       }
@@ -159,7 +172,11 @@ export function UsersPage() {
         id: 'role',
         header: 'Role',
         cell: (u) => {
-          const r = u.role || u.roles?.[0] || 'STAFF'
+          const codes = roleCodes(u)
+          const r = codes[0] || 'UNASSIGNED'
+          const label = codes.length > 0
+            ? codes.map((code) => roleNames.get(code.toUpperCase()) || code).join(', ')
+            : 'Unassigned'
           return (
             <span
               className={cn(
@@ -167,7 +184,7 @@ export function UsersPage() {
                 roleTone(r),
               )}
             >
-              {r}
+              {label}
             </span>
           )
         },
@@ -214,7 +231,7 @@ export function UsersPage() {
         ),
       },
     ],
-    [],
+    [roleNames],
   )
 
   return (
