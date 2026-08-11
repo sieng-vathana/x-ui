@@ -19,11 +19,12 @@ import { ShortcutsModal } from '../components/pos/ShortcutsModal'
 import { useAuth } from '../context/AuthContext'
 import { useToast } from '../context/ToastContext'
 import { useCustomers } from '../features/customers/useCustomers'
+import { useStockBalances } from '../features/inventory/useStockBalances'
 import { useCreatePayment, useCreatePosOrder, useCompleteOrder } from '../features/orders/useOrders'
 import type { CreatePosOrderInput } from '../features/orders/types'
 import { useProductsList } from '../features/products/useProducts'
 import { useAdminStore } from '../hooks/useAdminStore'
-import { resolveImageUrl } from '../lib/api'
+import { ApiError, resolveImageUrl } from '../lib/api'
 import { cn } from '../lib/cn'
 import { formatCurrency, formatKhr } from '../lib/currency'
 import { paths } from '../lib/paths'
@@ -48,7 +49,9 @@ type PosCategory = {
   id: string
   name: string
   count: number
-  status: 'Available' | 'Restock'
+  stockLeft: number
+  stockKnown: boolean
+  status: 'Available' | 'Restock' | 'Out of stock'
   image?: string
 }
 type CartLine = {
@@ -135,34 +138,70 @@ export function PosPage() {
     })
   }, [productsQuery.data])
 
+  const variantIds = useMemo(
+    () => [...new Set(products.map((product) => product.variantId))],
+    [products],
+  )
+  const stockQueries = useStockBalances(storeId, variantIds)
+  const stockByVariant = useMemo(() => {
+    const stock = new Map<number, number | undefined>()
+    variantIds.forEach((variantId, index) => {
+      const query = stockQueries[index]
+      if (query?.data) {
+        stock.set(variantId, Math.max(0, query.data.availableQuantity))
+      } else if (query?.error instanceof ApiError && query.error.status === 404) {
+        // A missing stock balance means there is no available stock for POS.
+        stock.set(variantId, 0)
+      } else {
+        stock.set(variantId, undefined)
+      }
+    })
+    return stock
+  }, [stockQueries, variantIds])
+
   const categories = useMemo<PosCategory[]>(() => {
     const grouped = new Map<string, PosCategory>()
     for (const product of products) {
+      const stock = stockByVariant.get(product.variantId)
       const current = grouped.get(product.categoryId)
       if (current) {
         current.count += 1
         if (!current.image && product.image) current.image = product.image
+        current.stockKnown = current.stockKnown && stock !== undefined
+        current.stockLeft += stock ?? 0
+        if (stock === 0 && current.status === 'Available') current.status = 'Restock'
       } else {
         grouped.set(product.categoryId, {
           id: product.categoryId,
           name: product.categoryName,
           count: 1,
-          status: 'Available',
+          stockLeft: stock ?? 0,
+          stockKnown: stock !== undefined,
+          status: stock === 0 ? 'Out of stock' : 'Available',
           image: product.image,
         })
       }
     }
+
+    const finalizeCategory = (category: PosCategory): PosCategory => {
+      if (category.stockKnown && category.stockLeft === 0) return { ...category, status: 'Out of stock' }
+      return category
+    }
+    const allStock = products.map((product) => stockByVariant.get(product.variantId))
+
     return [
-      {
+      finalizeCategory({
         id: 'all',
         name: 'All Products',
         count: products.length,
-        status: products.length ? 'Available' : 'Restock',
+        stockLeft: allStock.reduce<number>((sum, stock) => sum + (stock ?? 0), 0),
+        stockKnown: allStock.every((stock) => stock !== undefined),
+        status: products.length > 0 && allStock.some((stock) => stock === 0) ? 'Restock' : 'Available',
         image: products[0]?.image,
-      },
-      ...Array.from(grouped.values()).sort((a, b) => a.name.localeCompare(b.name)),
+      }),
+      ...Array.from(grouped.values()).map(finalizeCategory).sort((a, b) => a.name.localeCompare(b.name)),
     ]
-  }, [products])
+  }, [products, stockByVariant])
 
   const customerOptions = useMemo(() => {
     const liveCustomers = (customersQuery.data?.content ?? [])
@@ -421,8 +460,11 @@ export function PosPage() {
       const next = { ...prev }
       const cur = next[id]
       const v = (cur?.qty ?? 0) + delta
+      const product = products.find((item) => item.id === id)
+      const available = product ? stockByVariant.get(product.variantId) : undefined
       if (v <= 0) delete next[id]
-      else next[id] = { qty: v, discount: cur?.discount }
+      else if (available === 0) return prev
+      else next[id] = { qty: available == null ? v : Math.min(v, available), discount: cur?.discount }
       return next
     })
     if (delta < 0) {
@@ -451,8 +493,11 @@ export function PosPage() {
 
   /** Add product or increase qty (preserves existing line discount) */
   const addProduct = (id: string) => {
+    const product = products.find((item) => item.id === id)
+    const available = product ? stockByVariant.get(product.variantId) : undefined
     setCart((prev) => {
       const cur = prev[id]
+      if (available === 0 || (available != null && (cur?.qty ?? 0) >= available)) return prev
       return {
         ...prev,
         [id]: { qty: (cur?.qty ?? 0) + 1, discount: cur?.discount },
@@ -639,9 +684,9 @@ export function PosPage() {
                       )}
                     >
                       {cat.image ? (
-                        <img src={cat.image} alt="" className="h-12 w-12 rounded-lg object-cover" />
+                        <img src={cat.image} alt="" className="h-14 w-14 shrink-0 rounded-lg object-cover" />
                       ) : (
-                        <span className="grid h-12 w-12 shrink-0 place-items-center rounded-lg bg-vpos-subtle text-vpos-muted">
+                        <span className="grid h-14 w-14 shrink-0 place-items-center rounded-lg bg-vpos-subtle text-vpos-muted">
                           <Icon name="image-line" />
                         </span>
                       )}
@@ -650,14 +695,16 @@ export function PosPage() {
                           {cat.name}
                         </strong>
                         <small className="block text-[11px] text-vpos-muted">
-                          {cat.count} Items
+                          {cat.count} Items · {cat.stockKnown ? formatStockLabel(cat.stockLeft) : 'Checking stock…'}
                         </small>
                         <span
                           className={cn(
                             'mt-0.5 inline-block rounded-full px-1.5 py-0.5 text-[10px] font-extrabold',
                             cat.status === 'Available'
                               ? 'bg-vpos-green-bg text-vpos-green'
-                              : 'bg-vpos-orange-bg text-vpos-orange',
+                              : cat.status === 'Out of stock'
+                                ? 'bg-vpos-red/10 text-vpos-red'
+                                : 'bg-vpos-orange-bg text-vpos-orange',
                           )}
                         >
                           {cat.status}
@@ -694,12 +741,18 @@ export function PosPage() {
               <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
                 {filtered.map((p) => {
                   const qty = cart[p.id]?.qty ?? 0
+                  const stock = stockByVariant.get(p.variantId)
+                  const outOfStock = stock === 0
                   return (
                     <button
                       key={p.id}
                       type="button"
-                      onClick={() => addProduct(p.id)}
-                      className="relative flex min-h-[260px] flex-col overflow-hidden rounded-[12px] border border-vpos-line bg-white text-left shadow-sm transition hover:-translate-y-0.5 hover:border-vpos-primary/50 hover:shadow-md"
+                      disabled={outOfStock}
+                      onClick={() => { if (!outOfStock) addProduct(p.id) }}
+                      className={cn(
+                        'relative flex min-h-[300px] flex-col overflow-hidden rounded-[12px] border border-vpos-line bg-white text-left shadow-sm transition hover:-translate-y-0.5 hover:border-vpos-primary/50 hover:shadow-md',
+                        outOfStock && 'cursor-not-allowed opacity-65 hover:translate-y-0 hover:border-vpos-line hover:shadow-sm',
+                      )}
                     >
                       {p.badge ? (
                         <span className="absolute top-2 left-2 z-[1] rounded-full bg-vpos-primary px-2 py-0.5 text-[10px] font-extrabold text-white">
@@ -711,12 +764,12 @@ export function PosPage() {
                           {qty}
                         </span>
                       ) : null}
-                      <div className="flex h-[140px] items-center justify-center bg-vpos-subtle p-3">
+                      <div className="flex h-[180px] items-center justify-center bg-vpos-subtle">
                         {p.image ? (
                           <img
                             src={p.image}
                             alt={p.name}
-                            className="max-h-full max-w-full object-contain"
+                            className="h-full w-full object-cover"
                             loading="lazy"
                           />
                         ) : (
@@ -730,6 +783,18 @@ export function PosPage() {
                         <small className="mt-1 text-[12px] text-vpos-muted">
                           {p.variant}
                         </small>
+                        <span className={cn(
+                          'mt-2 w-fit rounded-full px-2 py-0.5 text-[10px] font-extrabold',
+                          stock === 0
+                            ? 'bg-vpos-red/10 text-vpos-red'
+                            : stock == null
+                              ? 'bg-vpos-subtle text-vpos-muted'
+                              : stock <= 5
+                                ? 'bg-vpos-orange-bg text-vpos-orange'
+                                : 'bg-vpos-green-bg text-vpos-green',
+                        )}>
+                          {formatStockLabel(stock)}
+                        </span>
                         <div className="mt-auto flex flex-wrap items-baseline gap-1.5 pt-2">
                           <span className="text-[15px] font-extrabold text-vpos-primary">
                             {formatCurrency(p.price, p.currencyCode)}
@@ -749,12 +814,18 @@ export function PosPage() {
               <div className="flex flex-col gap-2">
                 {filtered.map((p) => {
                   const qty = cart[p.id]?.qty ?? 0
+                  const stock = stockByVariant.get(p.variantId)
+                  const outOfStock = stock === 0
                   return (
                     <button
                       key={p.id}
                       type="button"
-                      onClick={() => addProduct(p.id)}
-                      className="flex items-center gap-3 rounded-[12px] border border-vpos-line bg-white p-2.5 text-left hover:border-vpos-primary/40"
+                      disabled={outOfStock}
+                      onClick={() => { if (!outOfStock) addProduct(p.id) }}
+                      className={cn(
+                        'flex items-center gap-3 rounded-[12px] border border-vpos-line bg-white p-2.5 text-left hover:border-vpos-primary/40',
+                        outOfStock && 'cursor-not-allowed opacity-65 hover:border-vpos-line',
+                      )}
                     >
                       {p.image ? (
                         <img src={p.image} alt="" className="h-14 w-14 rounded-lg object-cover" />
@@ -770,6 +841,18 @@ export function PosPage() {
                         <small className="text-[12px] text-vpos-muted">
                           {p.variant}
                         </small>
+                        <span className={cn(
+                          'mt-1 inline-block rounded-full px-2 py-0.5 text-[10px] font-extrabold',
+                          stock === 0
+                            ? 'bg-vpos-red/10 text-vpos-red'
+                            : stock == null
+                              ? 'bg-vpos-subtle text-vpos-muted'
+                              : stock <= 5
+                                ? 'bg-vpos-orange-bg text-vpos-orange'
+                                : 'bg-vpos-green-bg text-vpos-green',
+                        )}>
+                          {formatStockLabel(stock)}
+                        </span>
                       </span>
                       {qty > 0 ? (
                         <span className="rounded-full bg-vpos-sand px-2 py-0.5 text-[12px] font-bold text-vpos-primary">
@@ -1017,6 +1100,12 @@ export function PosPage() {
       />
     </div>
   )
+}
+
+function formatStockLabel(stock: number | undefined): string {
+  if (stock === undefined) return 'Checking stock…'
+  if (stock <= 0) return 'Out of stock'
+  return `${stock} left`
 }
 
 function IconBtn({
