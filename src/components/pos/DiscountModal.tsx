@@ -4,7 +4,7 @@ import { Chip } from '../ui/Chip'
 import { Icon } from '../ui/Icon'
 import { Modal } from '../ui/Modal'
 import { SegmentedControl } from '../ui/SegmentedControl'
-import { formatUsd } from '../../data/pos-mockup'
+import { formatUsd } from '../../lib/currency'
 import { cn } from '../../lib/cn'
 
 export type DiscountType = 'percent' | 'fixed'

@@ -15,19 +15,41 @@ import {
   type LineDiscount,
 } from '../components/pos/DiscountModal'
 import { ShortcutsModal } from '../components/pos/ShortcutsModal'
-import {
-  formatKhr,
-  formatUsd,
-  posCategories,
-  posProducts,
-  type PosProduct,
-} from '../data/pos-mockup'
+import { useAuth } from '../context/AuthContext'
+import { useToast } from '../context/ToastContext'
+import { useCustomers } from '../features/customers/useCustomers'
+import { useCreatePayment, useCreatePosOrder, useCompleteOrder } from '../features/orders/useOrders'
+import type { CreatePosOrderInput } from '../features/orders/types'
+import { useProductsList } from '../features/products/useProducts'
 import { useAdminStore } from '../hooks/useAdminStore'
+import { resolveImageUrl } from '../lib/api'
 import { cn } from '../lib/cn'
+import { formatCurrency, formatKhr } from '../lib/currency'
 import { paths } from '../lib/paths'
 import { card, pageContent, searchField } from '../lib/ui'
 
 type CartEntry = { qty: number; discount?: LineDiscount | null }
+type PosProduct = {
+  id: string
+  variantId: number
+  name: string
+  variant: string
+  price: number
+  oldPrice?: number
+  image?: string
+  categoryId: string
+  categoryName: string
+  badge?: string
+  currencyCode: string
+  taxRate: number
+}
+type PosCategory = {
+  id: string
+  name: string
+  count: number
+  status: 'Available' | 'Restock'
+  image?: string
+}
 type CartLine = {
   product: PosProduct
   qty: number
@@ -36,8 +58,6 @@ type CartLine = {
 type PaymentMethod = 'qr' | 'cash'
 type ViewMode = 'grid' | 'list'
 type SortMode = 'name-asc' | 'name-desc' | 'price-asc' | 'price-desc'
-
-const TAX_RATE = 0.0246
 
 function isTypingTarget(el: EventTarget | null): boolean {
   if (!(el instanceof HTMLElement)) return false
@@ -53,22 +73,98 @@ function isTypingTarget(el: EventTarget | null): boolean {
 export function PosPage() {
   const navigate = useNavigate()
   const { storeId, setStoreId } = useAdminStore()
+  const { user } = useAuth()
+  const { toast } = useToast()
+  const productsQuery = useProductsList(storeId)
+  const customersQuery = useCustomers()
+  const createOrderMutation = useCreatePosOrder()
+  const createPaymentMutation = useCreatePayment()
+  const completeOrderMutation = useCompleteOrder()
   const [query, setQuery] = useState('')
   const [categoryId, setCategoryId] = useState('all')
   const [view, setView] = useState<ViewMode>('grid')
   const [sort, setSort] = useState<SortMode>('name-asc')
   const [payment, setPayment] = useState<PaymentMethod>('qr')
-  const [customer, setCustomer] = useState('Walk-in customer')
-  const [cart, setCart] = useState<Record<string, CartEntry>>({
-    p4: { qty: 1 },
-    p2: { qty: 1 },
-  })
+  const [customerId, setCustomerId] = useState('0')
+  const [cart, setCart] = useState<Record<string, CartEntry>>({})
   const [discountTargetId, setDiscountTargetId] = useState<string | null>(null)
   const [shortcutsOpen, setShortcutsOpen] = useState(false)
   const [isFullscreen, setIsFullscreen] = useState(false)
   const catRef = useRef<HTMLDivElement>(null)
   const searchRef = useRef<HTMLInputElement>(null)
   const rootRef = useRef<HTMLDivElement>(null)
+
+  const products = useMemo<PosProduct[]>(() => {
+    return (productsQuery.data ?? []).flatMap((product) => {
+      if (product.isSellable === false) return []
+      const categoryId = product.category?.id ? String(product.category.id) : 'general'
+      const categoryName = product.category?.categoryName || 'General'
+      const image = resolveImageUrl(
+        product.thumbnail || product.variants?.find((variant) => variant.isDefault)?.image || product.images?.[0]?.imageUrl,
+      )
+      return (product.variants ?? []).flatMap((variant) => {
+        if (!variant.id || variant.posPrice == null || variant.posPrice < 0) return []
+        return [{
+          id: String(variant.id),
+          variantId: variant.id,
+          name: product.productName,
+          variant: variant.variantName || variant.sku || 'Default',
+          price: Number(variant.posPrice),
+          oldPrice: variant.compareAtPrice,
+          image: resolveImageUrl(variant.image) || image,
+          categoryId,
+          categoryName,
+          badge: product.isFeatured ? 'Featured' : undefined,
+          currencyCode: (product.currencyCode || 'USD').toUpperCase(),
+          taxRate: Number(product.tax?.percentage ?? 0),
+        }]
+      })
+    })
+  }, [productsQuery.data])
+
+  const categories = useMemo<PosCategory[]>(() => {
+    const grouped = new Map<string, PosCategory>()
+    for (const product of products) {
+      const current = grouped.get(product.categoryId)
+      if (current) {
+        current.count += 1
+        if (!current.image && product.image) current.image = product.image
+      } else {
+        grouped.set(product.categoryId, {
+          id: product.categoryId,
+          name: product.categoryName,
+          count: 1,
+          status: 'Available',
+          image: product.image,
+        })
+      }
+    }
+    return [
+      {
+        id: 'all',
+        name: 'All Products',
+        count: products.length,
+        status: products.length ? 'Available' : 'Restock',
+        image: products[0]?.image,
+      },
+      ...Array.from(grouped.values()).sort((a, b) => a.name.localeCompare(b.name)),
+    ]
+  }, [products])
+
+  const customerOptions = useMemo(() => {
+    const liveCustomers = (customersQuery.data?.content ?? [])
+      .filter((customer) => customer.status !== 0)
+      .map((customer) => ({
+        value: String(customer.id),
+        label: customer.phone ? `${customer.fullName} · ${customer.phone}` : customer.fullName,
+      }))
+    return [{ value: '0', label: 'Walk-in customer' }, ...liveCustomers.filter((customer) => customer.value !== '0')]
+  }, [customersQuery.data])
+
+  useEffect(() => {
+    setCart({})
+    setCategoryId('all')
+  }, [storeId])
 
   const toggleFullscreen = useCallback(async () => {
     try {
@@ -137,7 +233,6 @@ export function PosPage() {
         }
         if (key === 'p') {
           e.preventDefault()
-          // Pay Now — ready for checkout wiring
           return
         }
         if (key === 'h' || key === 'o') {
@@ -169,7 +264,7 @@ export function PosPage() {
   }, [toggleFullscreen, shortcutsOpen])
 
   const filtered = useMemo(() => {
-    let list = posProducts.filter((p) => {
+    let list = products.filter((p) => {
       if (categoryId !== 'all' && p.categoryId !== categoryId) return false
       if (!query.trim()) return true
       const q = query.toLowerCase()
@@ -190,18 +285,18 @@ export function PosPage() {
       }
     })
     return list
-  }, [categoryId, query, sort])
+  }, [categoryId, products, query, sort])
 
   const lines: CartLine[] = useMemo(() => {
     return Object.entries(cart)
       .map(([id, entry]) => {
-        const product = posProducts.find((p) => p.id === id)
+        const product = products.find((p) => p.id === id)
         return product
           ? { product, qty: entry.qty, discount: entry.discount }
           : null
       })
       .filter(Boolean) as CartLine[]
-  }, [cart])
+  }, [cart, products])
 
   const discountTarget = useMemo(() => {
     if (!discountTargetId) return null
@@ -219,8 +314,89 @@ export function PosPage() {
   )
   const subTotal =
     Math.round((grossSubTotal - totalDiscount) * 100) / 100
-  const taxVat = Math.round(subTotal * TAX_RATE * 100) / 100
-  const totalUsd = Math.round((subTotal + taxVat) * 100) / 100
+  const currencyCode = lines[0]?.product.currencyCode ?? 'USD'
+  const taxRate = lines.length > 0 && lines.every((line) => line.product.taxRate === lines[0].product.taxRate)
+    ? lines[0].product.taxRate
+    : 0
+  const taxVat = Math.round((subTotal * taxRate / 100) * 100) / 100
+  const total = Math.round((subTotal + taxVat) * 100) / 100
+
+  const handlePayNow = useCallback(async () => {
+    const businessId = Number(user?.business.id)
+    const selectedStoreId = Number(storeId)
+    const cashierId = Number(user?.id)
+    if (!businessId || !selectedStoreId || !cashierId) {
+      toast('Select a store and sign in before taking payment.', 'warning')
+      return
+    }
+    if (lines.length === 0) {
+      toast('Add at least one product before taking payment.', 'warning')
+      return
+    }
+
+    const input: CreatePosOrderInput = {
+      businessId,
+      storeId: selectedStoreId,
+      customerId: Number(customerId),
+      cashierId,
+      currencyCode,
+      taxRate,
+      idempotencyKey: `POS-${Date.now()}-${crypto.randomUUID?.() ?? Math.random().toString(36).slice(2)}`,
+      items: lines.map((line) => ({
+        variantId: line.product.variantId,
+        quantity: line.qty,
+        ...(line.discount
+          ? {
+              discountType: line.discount.type === 'percent' ? 'PERCENTAGE' as const : 'FIXED' as const,
+              discountValue: line.discount.value,
+              discountReason: 'POS manual item discount',
+            }
+          : {}),
+      })),
+    }
+
+    try {
+      const order = await createOrderMutation.mutateAsync(input)
+      const paymentRecord = await createPaymentMutation.mutateAsync({
+        orderId: order.id,
+        businessId,
+        storeId: selectedStoreId,
+        amount: order.grandTotal,
+        tenderedAmount: payment === 'cash' ? order.grandTotal : undefined,
+        currencyCode: order.currencyCode,
+        method: payment === 'cash' ? 'CASH' : 'QR',
+        provider: payment === 'cash' ? 'NONE' : 'BAKONG',
+        idempotencyKey: `PAY-${order.id}-${Date.now()}`,
+        note: payment === 'cash' ? 'POS cash payment' : 'POS QR payment awaiting confirmation',
+      })
+
+      if (payment === 'cash') {
+        await completeOrderMutation.mutateAsync(order.id)
+        toast(`Order ${order.orderNo} completed.`, 'success')
+      } else {
+        toast(`Order ${order.orderNo} is waiting for QR payment confirmation.`, 'info')
+      }
+      if (paymentRecord) {
+        setCart({})
+        setDiscountTargetId(null)
+      }
+    } catch (error) {
+      toast(error instanceof Error ? error.message : 'Checkout could not be completed.', 'error')
+    }
+  }, [completeOrderMutation, createOrderMutation, createPaymentMutation, currencyCode, customerId, lines, payment, storeId, taxRate, toast, user])
+
+  const checkoutPending = createOrderMutation.isPending || createPaymentMutation.isPending || completeOrderMutation.isPending
+
+  useEffect(() => {
+    const onKey = (event: KeyboardEvent) => {
+      if (event.altKey && !event.ctrlKey && !event.metaKey && event.key.toLowerCase() === 'p') {
+        event.preventDefault()
+        void handlePayNow()
+      }
+    }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [handlePayNow])
 
   const bump = (id: string, delta: number) => {
     setCart((prev) => {
@@ -418,7 +594,7 @@ export function PosPage() {
                 ref={catRef}
                 className="flex gap-3 overflow-x-auto px-6 pb-1 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
               >
-                {posCategories.map((cat) => {
+                {categories.map((cat) => {
                   const selected = categoryId === cat.id
                   return (
                     <button
@@ -432,11 +608,13 @@ export function PosPage() {
                           : 'border-vpos-line bg-white hover:border-vpos-primary/40',
                       )}
                     >
-                      <img
-                        src={cat.image}
-                        alt=""
-                        className="h-12 w-12 rounded-lg object-cover"
-                      />
+                      {cat.image ? (
+                        <img src={cat.image} alt="" className="h-12 w-12 rounded-lg object-cover" />
+                      ) : (
+                        <span className="grid h-12 w-12 shrink-0 place-items-center rounded-lg bg-vpos-subtle text-vpos-muted">
+                          <Icon name="image-line" />
+                        </span>
+                      )}
                       <span className="min-w-0">
                         <strong className="block truncate text-[13px] font-extrabold text-vpos-text">
                           {cat.name}
@@ -470,7 +648,19 @@ export function PosPage() {
             </div>
 
             {/* Product grid / list with images */}
-            {view === 'grid' ? (
+            {productsQuery.isLoading ? (
+              <div className="rounded-[12px] border border-dashed border-vpos-line px-4 py-12 text-center text-[13px] text-vpos-muted">
+                Loading products for this store…
+              </div>
+            ) : productsQuery.isError ? (
+              <div className="rounded-[12px] border border-dashed border-vpos-red/40 bg-vpos-red/5 px-4 py-12 text-center text-[13px] text-vpos-red">
+                {productsQuery.error instanceof Error ? productsQuery.error.message : 'Products could not be loaded.'}
+              </div>
+            ) : filtered.length === 0 ? (
+              <div className="rounded-[12px] border border-dashed border-vpos-line px-4 py-12 text-center text-[13px] text-vpos-muted">
+                {products.length === 0 ? 'This store has no sellable variants with a POS price.' : 'No products match your search.'}
+              </div>
+            ) : view === 'grid' ? (
               <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
                 {filtered.map((p) => {
                   const qty = cart[p.id]?.qty ?? 0
@@ -492,12 +682,16 @@ export function PosPage() {
                         </span>
                       ) : null}
                       <div className="flex h-[140px] items-center justify-center bg-vpos-subtle p-3">
-                        <img
-                          src={p.image}
-                          alt={p.name}
-                          className="max-h-full max-w-full object-contain"
-                          loading="lazy"
-                        />
+                        {p.image ? (
+                          <img
+                            src={p.image}
+                            alt={p.name}
+                            className="max-h-full max-w-full object-contain"
+                            loading="lazy"
+                          />
+                        ) : (
+                          <Icon name="image-line" className="text-[36px] text-vpos-muted" />
+                        )}
                       </div>
                       <div className="flex flex-1 flex-col p-3">
                         <strong className="line-clamp-2 text-[14px] font-extrabold text-vpos-text">
@@ -508,11 +702,11 @@ export function PosPage() {
                         </small>
                         <div className="mt-auto flex flex-wrap items-baseline gap-1.5 pt-2">
                           <span className="text-[15px] font-extrabold text-vpos-primary">
-                            {formatUsd(p.price)}
+                            {formatCurrency(p.price, p.currencyCode)}
                           </span>
                           {p.oldPrice != null ? (
                             <span className="text-[12px] text-vpos-muted line-through">
-                              {formatUsd(p.oldPrice)}
+                              {formatCurrency(p.oldPrice, p.currencyCode)}
                             </span>
                           ) : null}
                         </div>
@@ -532,11 +726,13 @@ export function PosPage() {
                       onClick={() => addProduct(p.id)}
                       className="flex items-center gap-3 rounded-[12px] border border-vpos-line bg-white p-2.5 text-left hover:border-vpos-primary/40"
                     >
-                      <img
-                        src={p.image}
-                        alt=""
-                        className="h-14 w-14 rounded-lg object-cover"
-                      />
+                      {p.image ? (
+                        <img src={p.image} alt="" className="h-14 w-14 rounded-lg object-cover" />
+                      ) : (
+                        <span className="grid h-14 w-14 shrink-0 place-items-center rounded-lg bg-vpos-subtle text-vpos-muted">
+                          <Icon name="image-line" />
+                        </span>
+                      )}
                       <span className="min-w-0 flex-1">
                         <strong className="block text-[14px] text-vpos-text">
                           {p.name}
@@ -551,7 +747,7 @@ export function PosPage() {
                         </span>
                       ) : null}
                       <span className="text-[15px] font-extrabold text-vpos-primary">
-                        {formatUsd(p.price)}
+                        {formatCurrency(p.price, p.currencyCode)}
                       </span>
                     </button>
                   )
@@ -566,24 +762,13 @@ export function PosPage() {
               <h2 className="m-0 mb-2 text-[14px] font-extrabold text-vpos-text">
                 Customer
               </h2>
-              <label className="flex h-10 items-center gap-2 rounded-[10px] border border-vpos-line bg-vpos-subtle px-3">
-                <Icon name="user-line" className="text-vpos-muted" />
-                <input
-                  value={customer}
-                  onChange={(e) => setCustomer(e.target.value)}
-                  className="w-full border-0 bg-transparent text-[14px] text-vpos-text outline-none"
-                />
-                {customer ? (
-                  <button
-                    type="button"
-                    aria-label="Clear customer"
-                    onClick={() => setCustomer('')}
-                    className="border-0 bg-transparent text-vpos-muted hover:text-vpos-text"
-                  >
-                    <Icon name="close-line" />
-                  </button>
-                ) : null}
-              </label>
+              <Select
+                value={customerId}
+                onChange={setCustomerId}
+                options={customerOptions}
+                searchable
+                placeholder={customersQuery.isLoading ? 'Loading customers…' : 'Select customer'}
+              />
             </div>
 
             <div className="flex min-h-0 flex-1 flex-col p-4">
@@ -624,11 +809,13 @@ export function PosPage() {
                         className="rounded-[12px] border border-vpos-line bg-vpos-subtle/50 p-2.5"
                       >
                         <div className="flex gap-2.5">
-                          <img
-                            src={p.image}
-                            alt=""
-                            className="h-12 w-12 rounded-lg object-cover"
-                          />
+                          {p.image ? (
+                            <img src={p.image} alt="" className="h-12 w-12 rounded-lg object-cover" />
+                          ) : (
+                            <span className="grid h-12 w-12 shrink-0 place-items-center rounded-lg bg-white text-vpos-muted">
+                              <Icon name="image-line" />
+                            </span>
+                          )}
                           <div className="min-w-0 flex-1">
                             <div className="flex items-start justify-between gap-2">
                               <div className="min-w-0">
@@ -643,19 +830,19 @@ export function PosPage() {
                                     −
                                     {discount.type === 'percent'
                                       ? `${discount.value}%`
-                                      : formatUsd(discount.value)}{' '}
-                                    ({formatUsd(lineDisc)})
+                                      : formatCurrency(discount.value, p.currencyCode)}{' '}
+                                    ({formatCurrency(lineDisc, p.currencyCode)})
                                   </small>
                                 ) : null}
                               </div>
                               <div className="shrink-0 text-right">
                                 {lineDisc > 0 ? (
                                   <span className="block text-[12px] text-vpos-muted line-through">
-                                    {formatUsd(lineGross)}
+                                    {formatCurrency(lineGross, p.currencyCode)}
                                   </span>
                                 ) : null}
                                 <strong className="text-[14px] text-vpos-primary">
-                                  {formatUsd(lineNet)}
+                                  {formatCurrency(lineNet, p.currencyCode)}
                                 </strong>
                               </div>
                             </div>
@@ -712,27 +899,27 @@ export function PosPage() {
               </h3>
               <div className="mb-3 space-y-1.5 text-[13px]">
                 <Row label="Items" value={String(itemCount)} />
-                <Row label="Sub Total" value={formatUsd(grossSubTotal)} />
+                <Row label="Sub Total" value={formatCurrency(grossSubTotal, currencyCode)} />
                 {totalDiscount > 0 ? (
                   <div className="flex justify-between text-vpos-red">
                     <span>Discount</span>
                     <span className="font-semibold">
-                      −{formatUsd(totalDiscount)}
+                      −{formatCurrency(totalDiscount, currencyCode)}
                     </span>
                   </div>
                 ) : null}
-                <Row label="Tax / VAT" value={formatUsd(taxVat)} />
+                <Row label={`Tax / VAT${taxRate ? ` (${taxRate}%)` : ''}`} value={formatCurrency(taxVat, currencyCode)} />
                 <div className="flex items-end justify-between border-t border-vpos-line pt-2">
                   <span className="text-[14px] font-bold text-vpos-text">
                     Total
                   </span>
                   <span className="text-right">
                     <strong className="block text-[21px] text-vpos-primary">
-                      {formatUsd(totalUsd)}
+                      {formatCurrency(total, currencyCode)}
                     </strong>
-                    <small className="text-[12px] text-vpos-muted">
-                      {formatKhr(totalUsd)}
-                    </small>
+                    {currencyCode === 'USD' ? (
+                      <small className="text-[12px] text-vpos-muted">{formatKhr(total)}</small>
+                    ) : null}
                   </span>
                 </div>
               </div>
@@ -762,9 +949,10 @@ export function PosPage() {
                 <Button
                   variant="primary"
                   className="h-12 min-h-12 font-extrabold"
-                  disabled={lines.length === 0}
+                  disabled={lines.length === 0 || checkoutPending}
+                  onClick={() => void handlePayNow()}
                 >
-                  Pay Now <Icon name="arrow-right-line" />
+                  {checkoutPending ? 'Processing…' : 'Pay Now'} <Icon name="arrow-right-line" />
                 </Button>
               </div>
             </div>
