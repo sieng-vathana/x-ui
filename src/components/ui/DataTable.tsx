@@ -167,7 +167,7 @@ export function DataTable<T>({
   const cellPad = dense ? 'py-2.5' : ''
 
   return (
-    <article className={cn(card, 'overflow-hidden p-4', className)}>
+    <article className={cn(card, 'overflow-visible p-4', className)}>
       {(title || actions || searchable || toolbar) && (
         <div className="mb-3 flex flex-col gap-3">
           {(title || actions) && (
