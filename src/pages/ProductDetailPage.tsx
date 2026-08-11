@@ -223,12 +223,12 @@ export function ProductDetailPage() {
           <div className="grid grid-cols-1 gap-8 lg:grid-cols-12">
             {/* Left Image Showcase */}
             <div className="lg:col-span-5 flex flex-col gap-4">
-              <div className="relative flex aspect-square w-full items-center justify-center overflow-hidden rounded-2xl border border-vpos-line/80 bg-vpos-subtle/50 p-4">
+              <div className="relative flex aspect-square w-full items-center justify-center overflow-hidden rounded-2xl border border-vpos-line/80 bg-vpos-subtle/50">
                 {selectedImageUrl ? (
                   <img
                     src={resolveImageUrl(selectedImageUrl)}
                     alt={product.productName}
-                    className="h-full w-full object-contain transition-transform duration-300 hover:scale-105"
+                    className="h-full w-full object-cover transition-transform duration-300 hover:scale-105"
                   />
                 ) : (
                   <div className="flex flex-col items-center gap-2 text-vpos-muted">
