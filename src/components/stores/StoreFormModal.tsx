@@ -1,11 +1,11 @@
-import { useCallback, useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react'
 import { useToast } from '../../context/ToastContext'
 import { fileApi, fileContentPath, resolveImageUrl } from '../../features/files/fileApi'
 import { useCreateStore, useUpdateStore } from '../../features/stores/useStores'
 import type { BffStore } from '../../features/stores/types'
 import { StoreLocationPicker } from '../business/StoreLocationPicker'
 import { Button } from '../ui/Button'
-import { FormField } from '../ui/FormField'
+import { FormField, SelectField } from '../ui/FormField'
 import { Icon } from '../ui/Icon'
 import { Modal } from '../ui/Modal'
 import { UploadZone } from '../ui/UploadZone'
@@ -33,12 +33,19 @@ export function StoreFormModal({ open, onClose, store = null }: StoreFormModalPr
   const [name, setName] = useState('')
   const [code, setCode] = useState('')
   const [addressLine1, setAddressLine1] = useState('')
+  const [addressLine2, setAddressLine2] = useState('')
+  const [landmark, setLandmark] = useState('')
   const [city, setCity] = useState('')
+  const [stateProvince, setStateProvince] = useState('')
   const [countryCode, setCountryCode] = useState('KH')
+  const [postalCode, setPostalCode] = useState('')
   const [phone, setPhone] = useState('')
+  const [alternatePhone, setAlternatePhone] = useState('')
   const [email, setEmail] = useState('')
+  const [website, setWebsite] = useState('')
   const [latitude, setLatitude] = useState('')
   const [longitude, setLongitude] = useState('')
+  const [status, setStatus] = useState('1')
   const [images, setImages] = useState<StoreImageDraft[]>([])
   const [isUploading, setIsUploading] = useState(false)
   const [uploadError, setUploadError] = useState<string | null>(null)
@@ -59,12 +66,19 @@ export function StoreFormModal({ open, onClose, store = null }: StoreFormModalPr
     setName('')
     setCode('')
     setAddressLine1('')
+    setAddressLine2('')
+    setLandmark('')
     setCity('')
+    setStateProvince('')
     setCountryCode('KH')
+    setPostalCode('')
     setPhone('')
+    setAlternatePhone('')
     setEmail('')
+    setWebsite('')
     setLatitude('')
     setLongitude('')
+    setStatus('1')
     setImages((current) => {
       current.forEach((image) => revokePreview(image.previewUrl))
       return []
@@ -91,12 +105,19 @@ export function StoreFormModal({ open, onClose, store = null }: StoreFormModalPr
     setName(store.name)
     setCode(store.code)
     setAddressLine1(store.addressLine1)
+    setAddressLine2(store.addressLine2 ?? '')
+    setLandmark(store.landmark ?? '')
     setCity(store.city)
+    setStateProvince(store.stateProvince ?? '')
     setCountryCode(store.countryCode)
+    setPostalCode(store.postalCode ?? '')
     setPhone(store.phone ?? '')
+    setAlternatePhone(store.alternatePhone ?? '')
     setEmail(store.email ?? '')
+    setWebsite(store.website ?? '')
     setLatitude(store.latitude?.toString() ?? '')
     setLongitude(store.longitude?.toString() ?? '')
+    setStatus(String(store.status ?? 1))
     void Promise.all((store.images ?? []).map(async (image, index) => ({ image, index, url: await resolveImageUrl(image.imageUrl) })))
       .then((resolvedImages) => {
         if (lastPopulatedIdRef.current !== store.id) return
@@ -178,26 +199,25 @@ export function StoreFormModal({ open, onClose, store = null }: StoreFormModalPr
       return
     }
 
-    const request = {
+    const commonRequest = {
       name: name.trim(),
       code: code.trim(),
       addressLine1: addressLine1.trim(),
+      addressLine2: addressLine2.trim() || undefined,
+      landmark: landmark.trim() || undefined,
       city: city.trim(),
+      stateProvince: stateProvince.trim() || undefined,
       countryCode: countryCode.trim(),
+      postalCode: postalCode.trim() || undefined,
       phone: phone.trim() || undefined,
+      alternatePhone: alternatePhone.trim() || undefined,
       email: email.trim() || undefined,
+      website: website.trim() || undefined,
       latitude: Number(latitude),
       longitude: Number(longitude),
       images: images.map((image, index) => ({ imageUrl: image.imageUrl, isPrimary: image.isPrimary, sortOrder: index })),
-      ...(store ? {
-        addressLine2: store.addressLine2 ?? undefined,
-        landmark: store.landmark ?? undefined,
-        stateProvince: store.stateProvince ?? undefined,
-        postalCode: store.postalCode ?? undefined,
-        alternatePhone: store.alternatePhone ?? undefined,
-        website: store.website ?? undefined,
-      } : {}),
     }
+    const request = store ? { ...commonRequest, status: Number(status) } : commonRequest
 
     try {
       if (store) {
@@ -221,16 +241,20 @@ export function StoreFormModal({ open, onClose, store = null }: StoreFormModalPr
       open={open}
       onClose={close}
       title={isEditing ? 'Edit store' : 'Add store'}
-      description={isEditing ? 'Update this store location, logo, and supporting images.' : 'Create a store with a primary logo and supporting images.'}
+      description={isEditing ? 'Update the complete store profile, location, contact details, and images.' : 'Create the complete store profile before adding products and inventory.'}
       size="lg"
+      panelClassName="max-w-3xl"
       footer={<><Button variant="secondary" onClick={close} disabled={isPending}>Cancel</Button><Button variant="primary" form={FORM_ID} type="submit" disabled={isPending || isUploading}>{isPending ? (isEditing ? 'Saving…' : 'Creating…') : isEditing ? 'Save changes' : 'Create store'}</Button></>}
     >
-      <form ref={formRef} id={FORM_ID} onSubmit={handleSubmit} className="space-y-4">
+      <form ref={formRef} id={FORM_ID} onSubmit={handleSubmit} className="space-y-6">
         {submitError ? <div className="rounded-lg bg-vpos-red-bg px-3 py-2 text-[13px] font-bold text-vpos-red">{submitError}</div> : null}
-        <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-          <div className="md:col-span-2"><FormField label="Store name" required value={name} onChange={(event) => setName(event.target.value)} placeholder="e.g. Riverside Flagship" /></div>
-          <FormField label="Store code" required value={code} onChange={(event) => setCode(event.target.value.toUpperCase())} placeholder="e.g. PNH-001" />
-        </div>
+        <FormSection eyebrow="IDENTITY" title="Store identity" description="Use the name and code your team will recognize across POS, inventory, and orders.">
+          <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+            <div className="md:col-span-2"><FormField label="Store name" required value={name} onChange={(event) => setName(event.target.value)} placeholder="e.g. Riverside Flagship" /></div>
+            <FormField label="Store code" required value={code} onChange={(event) => setCode(event.target.value.toUpperCase())} placeholder="e.g. PNH-001" />
+            {isEditing ? <SelectField label="Status" value={status} onChange={(event) => setStatus(event.target.value)} options={[{ value: '1', label: 'Active' }, { value: '0', label: 'Inactive' }, { value: '2', label: 'Maintenance' }]} /> : null}
+          </div>
+        </FormSection>
 
         <div className="border-t border-vpos-line pt-5">
           <StoreLocationPicker
@@ -241,21 +265,47 @@ export function StoreFormModal({ open, onClose, store = null }: StoreFormModalPr
           />
         </div>
 
-        <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-          <FormField label="Phone" value={phone} onChange={(event) => setPhone(event.target.value)} placeholder="+855 23 123 456" />
-          <div className="md:col-span-2"><FormField label="Address line 1" required value={addressLine1} onChange={(event) => setAddressLine1(event.target.value)} placeholder="No. 123, Street 456" /></div>
-          <FormField label="City" required value={city} onChange={(event) => setCity(event.target.value)} placeholder="e.g. Phnom Penh" />
-          <FormField label="Country code" required value={countryCode} onChange={(event) => setCountryCode(event.target.value.toUpperCase())} placeholder="KH" maxLength={2} />
-          <div className="md:col-span-2"><FormField label="Email" type="email" value={email} onChange={(event) => setEmail(event.target.value)} placeholder="store@example.com" /></div>
-        </div>
+        <FormSection eyebrow="ADDRESS" title="Store address" description="Keep the complete address for customer directions, delivery, and reporting.">
+          <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+            <div className="md:col-span-2"><FormField label="Address line 1" required value={addressLine1} onChange={(event) => setAddressLine1(event.target.value)} placeholder="No. 123, Street 456" /></div>
+            <div className="md:col-span-2"><FormField label="Address line 2" value={addressLine2} onChange={(event) => setAddressLine2(event.target.value)} placeholder="Building, floor, unit, or neighborhood" /></div>
+            <FormField label="Landmark" value={landmark} onChange={(event) => setLandmark(event.target.value)} placeholder="Near Central Market" />
+            <FormField label="City" required value={city} onChange={(event) => setCity(event.target.value)} placeholder="e.g. Phnom Penh" />
+            <FormField label="State / province" value={stateProvince} onChange={(event) => setStateProvince(event.target.value)} placeholder="e.g. Phnom Penh" />
+            <FormField label="Postal code" value={postalCode} onChange={(event) => setPostalCode(event.target.value)} placeholder="12000" />
+            <FormField label="Country code" required value={countryCode} onChange={(event) => setCountryCode(event.target.value.toUpperCase())} placeholder="KH" maxLength={2} />
+          </div>
+        </FormSection>
 
-        <div>
+        <FormSection eyebrow="CONTACT" title="Contact details" description="Give customers and your operations team reliable ways to reach this location.">
+          <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+            <FormField label="Primary phone" value={phone} onChange={(event) => setPhone(event.target.value)} placeholder="+855 23 123 456" />
+            <FormField label="Alternate phone" value={alternatePhone} onChange={(event) => setAlternatePhone(event.target.value)} placeholder="+855 12 345 678" />
+            <FormField label="Email" type="email" value={email} onChange={(event) => setEmail(event.target.value)} placeholder="store@example.com" />
+            <FormField label="Website" type="url" value={website} onChange={(event) => setWebsite(event.target.value)} placeholder="https://example.com" />
+          </div>
+        </FormSection>
+
+        <FormSection eyebrow="BRAND ASSETS" title="Store images" description="Use a primary image for the store logo and add supporting images for the storefront or location.">
           <div className="mb-2 flex items-baseline justify-between gap-3"><span className="block text-[12px] font-[750] tracking-[0.02em] text-vpos-primary-2">Store images</span><span className="text-[12px] text-vpos-muted">Choose one image as the primary logo.</span></div>
           {images.length ? <div className="mb-3 grid grid-cols-2 gap-3 sm:grid-cols-3">{images.map((image) => <div key={image.key} className="relative overflow-hidden rounded-[4px] border border-vpos-line bg-vpos-subtle"><img src={image.previewUrl} alt="Store upload preview" className="aspect-square w-full object-cover" /><div className="absolute right-2 bottom-2 left-2 flex gap-1"><button type="button" onClick={() => setPrimaryImage(image.key)} className={`min-h-7 flex-1 rounded-[3px] px-2 text-[11px] font-semibold ${image.isPrimary ? 'bg-vpos-primary text-white' : 'bg-white/90 text-vpos-text'}`}>{image.isPrimary ? 'Primary logo' : 'Set as primary'}</button><button type="button" onClick={() => removeImage(image.key)} className="grid h-7 w-7 place-items-center rounded-[3px] bg-vpos-red text-white" aria-label="Remove image"><Icon name="delete-bin-line" /></button></div></div>)}</div> : null}
           <UploadZone title={isUploading ? 'Uploading images…' : 'Click to upload store images'} description="PNG, JPG or WEBP • Max 5 MB each" tip="Upload multiple images. The primary image is used as the store logo." multiple onFiles={handleFiles} />
           {uploadError ? <p className="mt-1 text-[12px] font-bold text-vpos-red">{uploadError}</p> : null}
-        </div>
+        </FormSection>
       </form>
     </Modal>
+  )
+}
+
+function FormSection({ eyebrow, title, description, children }: { eyebrow: string; title: string; description: string; children: ReactNode }) {
+  return (
+    <section className="border-t border-vpos-line pt-5 first:border-t-0 first:pt-0">
+      <div className="mb-4">
+        <p className="m-0 text-[11px] font-extrabold tracking-[.14em] text-vpos-primary">{eyebrow}</p>
+        <h3 className="mt-1 mb-0 text-[15px] font-extrabold text-vpos-text">{title}</h3>
+        <p className="mt-1 mb-0 text-[12px] leading-5 text-vpos-muted">{description}</p>
+      </div>
+      {children}
+    </section>
   )
 }

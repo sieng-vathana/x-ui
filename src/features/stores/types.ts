@@ -50,4 +50,6 @@ export interface CreateStoreRequest {
   images?: { imageUrl: string; isPrimary?: boolean; sortOrder?: number }[]
 }
 
-export type UpdateStoreRequest = Omit<CreateStoreRequest, 'businessId'>
+export type UpdateStoreRequest = Omit<CreateStoreRequest, 'businessId'> & {
+  status?: number
+}
