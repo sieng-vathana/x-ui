@@ -4,7 +4,6 @@ import { BrowserRouter, Navigate, Route, Routes } from 'react-router-dom'
 import { AdminLayout } from './layouts/AdminLayout'
 import { DashboardPage } from './pages/DashboardPage'
 import { PlaceholderPage } from './pages/PlaceholderPage'
-import { CustomersPage } from './pages/CustomersPage'
 import { PosPage } from './pages/PosPage'
 import { ProductDetailPage } from './pages/ProductDetailPage'
 import { ProductFormPage } from './pages/ProductFormPage'
@@ -32,8 +31,6 @@ import { BusinessProfilePage } from './pages/BusinessProfilePage'
 import { SignInPage } from './pages/auth/SignInPage'
 import { BusinessRegistrationPage } from './pages/auth/BusinessRegistrationPage'
 import { UsersPage } from './pages/UsersPage'
-import { RoleManagementPage } from './pages/RoleManagementPage'
-import { PaymentsPage } from './pages/PaymentsPage'
 
 const queryClient = new QueryClient({
   defaultOptions: {
