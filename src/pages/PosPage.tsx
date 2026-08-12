@@ -25,7 +25,7 @@ import type { CreatePosOrderInput } from '../features/orders/types'
 import { useCreateCashPayment, useCreateQrPayment } from '../features/payments/usePayments'
 import { useProductsList } from '../features/products/useProducts'
 import { useAdminStore } from '../hooks/useAdminStore'
-import { resolveImageUrl } from '../lib/api'
+import { ApiError, resolveImageUrl } from '../lib/api'
 import { cn } from '../lib/cn'
 import { formatCurrency, formatKhr } from '../lib/currency'
 import { paths } from '../lib/paths'
@@ -45,7 +45,6 @@ type PosProduct = {
   badge?: string
   currencyCode: string
   taxRate: number
-  catalogQuantity?: number
 }
 type PosCategory = {
   id: string
@@ -133,7 +132,6 @@ export function PosPage() {
           badge: product.isFeatured ? 'Featured' : undefined,
           currencyCode: (product.currencyCode || 'USD').toUpperCase(),
           taxRate: Number(product.tax?.percentage ?? 0),
-          catalogQuantity: variant.quantity == null ? undefined : Math.max(0, Number(variant.quantity)),
         }]
       })
     })
@@ -148,17 +146,11 @@ export function PosPage() {
     const stock = new Map<number, number | undefined>()
     variantIds.forEach((variantId, index) => {
       const query = stockQueries[index]
-      const catalogQuantity = products.find((product) => product.variantId === variantId)?.catalogQuantity
       if (query?.data) {
         stock.set(variantId, Math.max(0, query.data.availableQuantity))
-      } else if (query?.isError) {
-        // Product quantity is the live catalog value while inventory is unavailable
-        // or is still migrating the variant into stock_balances.
-        stock.set(variantId, catalogQuantity)
-      } else if (catalogQuantity !== undefined) {
-        // Do not leave the POS stuck on "Checking stock…" while the balance request
-        // is pending. Inventory data replaces this value as soon as it arrives.
-        stock.set(variantId, catalogQuantity)
+      } else if (query?.isError && query.error instanceof ApiError && query.error.status === 404) {
+        // A missing balance means this variant has not received stock for this store.
+        stock.set(variantId, 0)
       } else {
         stock.set(variantId, undefined)
       }
