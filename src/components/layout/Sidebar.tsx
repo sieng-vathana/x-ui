@@ -18,7 +18,7 @@ export interface SidebarProps {
 const navMeta: Record<string, { hint: string }> = {
   dashboard: { hint: 'Business overview & metrics' }, pos: { hint: 'Sell products at the register' },
   products: { hint: 'Catalog, stock movement & low stock' }, stores: { hint: 'Locations, hours & managers' },
-  sales: { hint: 'Orders and invoices' }, purchases: { hint: 'Supplier orders & receipts' },
+  sales: { hint: 'Orders and invoices' }, payments: { hint: 'Cash and KHQRPay activity' }, purchases: { hint: 'Supplier orders & receipts' },
   customers: { hint: 'Customer directory' }, reports: { hint: 'Analytics & exports' },
   settings: { hint: 'Store configuration' }, users: { hint: 'Team access & roles' },
   roles: { hint: 'Custom roles & action permissions' },
@@ -26,13 +26,13 @@ const navMeta: Record<string, { hint: string }> = {
 
 const keyToPath: Record<string, string> = {
   dashboard: paths.dashboard, pos: paths.pos, products: paths.products, stores: paths.stores,
-  sales: paths.sales, purchases: paths.purchases, customers: paths.customers, reports: paths.reports,
+  sales: paths.sales, payments: paths.payments, purchases: paths.purchases, customers: paths.customers, reports: paths.reports,
   settings: paths.settings, users: paths.users, roles: paths.roles,
 }
 
 const navigationPermissions: Record<string, string> = {
   dashboard: 'x-bff:read', pos: 'x-order:create', products: 'x-product:read', stores: 'x-store:read',
-  sales: 'x-order:read', purchases: 'x-inventory:read', customers: 'x-customer:read',
+  sales: 'x-order:read', payments: 'x-order:read', purchases: 'x-inventory:read', customers: 'x-customer:read',
   reports: 'x-report:read', settings: 'x-business:read', users: 'x-user:read', roles: 'x-user:read',
 }
 
@@ -50,7 +50,7 @@ const purchaseSubItems = [
 ]
 
 const staticItems = [
-  { key: 'sales', icon: 'line-chart-line', label: 'Sales' }, { key: 'customers', icon: 'user-heart-line', label: 'Customers' },
+  { key: 'sales', icon: 'line-chart-line', label: 'Sales' }, { key: 'payments', icon: 'secure-payment-line', label: 'Payment activity' }, { key: 'customers', icon: 'user-heart-line', label: 'Customers' },
   { key: 'reports', icon: 'bar-chart-box-line', label: 'Reports' },
 ]
 

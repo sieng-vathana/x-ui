@@ -1,8 +1,6 @@
 import { API_BASE_URL, ApiClient } from '../../lib/api'
 import type {
-  CreatePaymentInput,
   CreatePosOrderInput,
-  Payment,
   PosOrder,
 } from './types'
 
@@ -33,18 +31,6 @@ export const orderApi = {
         method: 'POST',
       }),
       'The order could not be completed.',
-    )
-  },
-}
-
-export const paymentApi = {
-  async create(input: CreatePaymentInput): Promise<Payment> {
-    return requireData(
-      await api.request<ApiEnvelope<Payment>>('/payments', {
-        method: 'POST',
-        body: JSON.stringify(input),
-      }),
-      'The payment could not be created.',
     )
   },
 }

@@ -32,6 +32,7 @@ import { SignInPage } from './pages/auth/SignInPage'
 import { BusinessRegistrationPage } from './pages/auth/BusinessRegistrationPage'
 import { UsersPage } from './pages/UsersPage'
 import { RoleManagementPage } from './pages/RoleManagementPage'
+import { PaymentsPage } from './pages/PaymentsPage'
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -98,6 +99,7 @@ export default function App() {
                 </Route>
                 <Route element={<RequirePermission permission="x-order:read" />}>
                   <Route path="sales" element={<PlaceholderPage title="Sales" description="Sales history and invoices." />} />
+                  <Route path="sales/payments" element={<PaymentsPage />} />
                 </Route>
                 <Route element={<RequirePermission permission="x-inventory:read" />}>
                   <Route path="purchases" element={<PurchaseOrdersPage />} />

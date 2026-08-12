@@ -1,6 +1,4 @@
 export type OrderDiscountType = 'PERCENTAGE' | 'FIXED'
-export type PaymentMethod = 'CASH' | 'QR'
-export type PaymentProvider = 'NONE' | 'BAKONG'
 
 export interface PosOrderItemInput {
   variantId: number
@@ -47,26 +45,5 @@ export interface PosOrder {
   tax: number
   grandTotal: number
   items: OrderItem[]
-}
-
-export interface CreatePaymentInput {
-  orderId: number
-  businessId: number
-  storeId: number
-  amount: number
-  tenderedAmount?: number
-  currencyCode: string
-  method: PaymentMethod
-  provider: PaymentProvider
-  idempotencyKey: string
-  note?: string
-}
-
-export interface Payment {
-  id: number
-  orderId: number
-  amount: number
-  status: 'PAID' | 'PENDING' | 'REFUNDED' | 'PARTIALLY_REFUNDED'
-  method: PaymentMethod
 }
 

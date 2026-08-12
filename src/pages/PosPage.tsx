@@ -20,8 +20,9 @@ import { useAuth } from '../context/AuthContext'
 import { useToast } from '../context/ToastContext'
 import { useCustomers } from '../features/customers/useCustomers'
 import { useStockBalances } from '../features/inventory/useStockBalances'
-import { useCreatePayment, useCreatePosOrder, useCompleteOrder } from '../features/orders/useOrders'
+import { useCreatePosOrder, useCompleteOrder } from '../features/orders/useOrders'
 import type { CreatePosOrderInput } from '../features/orders/types'
+import { useCreateCashPayment, useCreateQrPayment } from '../features/payments/usePayments'
 import { useProductsList } from '../features/products/useProducts'
 import { useAdminStore } from '../hooks/useAdminStore'
 import { resolveImageUrl } from '../lib/api'
@@ -83,7 +84,8 @@ export function PosPage() {
   const productsQuery = useProductsList(storeId)
   const customersQuery = useCustomers()
   const createOrderMutation = useCreatePosOrder()
-  const createPaymentMutation = useCreatePayment()
+  const createCashPaymentMutation = useCreateCashPayment()
+  const createQrPaymentMutation = useCreateQrPayment()
   const completeOrderMutation = useCompleteOrder()
   const [query, setQuery] = useState('')
   const [categoryId, setCategoryId] = useState('all')
@@ -417,37 +419,67 @@ export function PosPage() {
       })),
     }
 
+    const checkoutWindow = payment === 'qr'
+      ? window.open('about:blank', 'khqrpay-checkout')
+      : null
+    if (checkoutWindow) {
+      checkoutWindow.opener = null
+      checkoutWindow.document.title = 'Preparing KHQRPay checkout…'
+    }
+
     try {
       const order = await createOrderMutation.mutateAsync(input)
-      const paymentRecord = await createPaymentMutation.mutateAsync({
-        orderId: order.id,
-        businessId,
-        storeId: selectedStoreId,
-        amount: order.grandTotal,
-        tenderedAmount: payment === 'cash' ? order.grandTotal : undefined,
-        currencyCode: order.currencyCode,
-        method: payment === 'cash' ? 'CASH' : 'QR',
-        provider: payment === 'cash' ? 'NONE' : 'BAKONG',
-        idempotencyKey: `PAY-${order.id}-${Date.now()}`,
-        note: payment === 'cash' ? 'POS cash payment' : 'POS QR payment awaiting confirmation',
-      })
-
       if (payment === 'cash') {
+        await createCashPaymentMutation.mutateAsync({
+          orderId: order.id,
+          businessId,
+          storeId: selectedStoreId,
+          amount: order.grandTotal,
+          tenderedAmount: order.grandTotal,
+          currencyCode: order.currencyCode,
+          method: 'CASH',
+          provider: 'NONE',
+          idempotencyKey: `PAY-${order.id}-${Date.now()}`,
+          note: 'POS cash payment',
+        })
         await completeOrderMutation.mutateAsync(order.id)
         toast(`Order ${order.orderNo} completed.`, 'success')
       } else {
-        toast(`Order ${order.orderNo} is waiting for QR payment confirmation.`, 'info')
+        const items = lines
+          .map((line) => `${line.product.name} x${line.qty}`)
+          .join(', ')
+          .slice(0, 500)
+        const qrPayment = await createQrPaymentMutation.mutateAsync({
+          orderId: order.id,
+          businessId,
+          storeId: selectedStoreId,
+          amount: order.grandTotal,
+          currencyCode: order.currencyCode,
+          idempotencyKey: `PAY-${order.id}-${Date.now()}`,
+          note: items,
+        })
+        if (!qrPayment.checkoutUrl) {
+          throw new Error('KHQRPay did not return a checkout URL.')
+        }
+        if (checkoutWindow) {
+          checkoutWindow.location.replace(qrPayment.checkoutUrl)
+        } else {
+          window.location.assign(qrPayment.checkoutUrl)
+        }
+        toast(`KHQRPay checkout opened for ${order.orderNo}.`, 'info')
       }
-      if (paymentRecord) {
-        setCart({})
-        setDiscountTargetId(null)
-      }
+      setCart({})
+      setDiscountTargetId(null)
     } catch (error) {
+      checkoutWindow?.close()
       toast(error instanceof Error ? error.message : 'Checkout could not be completed.', 'error')
     }
-  }, [completeOrderMutation, createOrderMutation, createPaymentMutation, currencyCode, customerId, lines, payment, storeId, taxRate, toast, user])
+  }, [completeOrderMutation, createCashPaymentMutation, createOrderMutation, createQrPaymentMutation, currencyCode, customerId, lines, payment, storeId, taxRate, toast, user])
 
-  const checkoutPending = createOrderMutation.isPending || createPaymentMutation.isPending || completeOrderMutation.isPending
+  const checkoutPending = createOrderMutation.isPending
+    || createCashPaymentMutation.isPending
+    || createQrPaymentMutation.isPending
+    || completeOrderMutation.isPending
 
   useEffect(() => {
     const onKey = (event: KeyboardEvent) => {
