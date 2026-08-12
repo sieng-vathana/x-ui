@@ -18,7 +18,7 @@ export interface SidebarProps {
 const navMeta: Record<string, { hint: string }> = {
   dashboard: { hint: 'Business overview & metrics' }, pos: { hint: 'Sell products at the register' },
   products: { hint: 'Catalog, stock movement & low stock' }, stores: { hint: 'Locations, hours & managers' },
-  sales: { hint: 'Orders and invoices' }, payments: { hint: 'Cash and KHQRPay activity' }, purchases: { hint: 'Supplier orders & receipts' },
+  sales: { hint: 'Orders and invoices' }, payments: { hint: 'Generate and test KHQRPay' }, purchases: { hint: 'Supplier orders & receipts' },
   customers: { hint: 'Customer directory' }, reports: { hint: 'Analytics & exports' },
   settings: { hint: 'Store configuration' }, users: { hint: 'Team access & roles' },
   roles: { hint: 'Custom roles & action permissions' },
@@ -50,7 +50,7 @@ const purchaseSubItems = [
 ]
 
 const staticItems = [
-  { key: 'sales', icon: 'line-chart-line', label: 'Sales' }, { key: 'payments', icon: 'secure-payment-line', label: 'Payment activity' }, { key: 'customers', icon: 'user-heart-line', label: 'Customers' },
+  { key: 'sales', icon: 'line-chart-line', label: 'Sales' }, { key: 'payments', icon: 'secure-payment-line', label: 'KHQRPay test' }, { key: 'customers', icon: 'user-heart-line', label: 'Customers' },
   { key: 'reports', icon: 'bar-chart-box-line', label: 'Reports' },
 ]
 

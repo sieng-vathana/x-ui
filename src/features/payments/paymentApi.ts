@@ -45,4 +45,11 @@ export const paymentApi = {
       'Payment activity could not be loaded.',
     )
   },
+
+  async get(id: number): Promise<Payment> {
+    return requireData(
+      await api.request<ApiEnvelope<Payment>>(`/payments/${encodeURIComponent(id)}`),
+      'Payment status could not be loaded.',
+    )
+  },
 }

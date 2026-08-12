@@ -1,328 +1,374 @@
-import { useEffect, useMemo, useState, type FormEvent } from 'react'
-import { useSearchParams } from 'react-router-dom'
+import { useCallback, useEffect, useRef, useState, type FormEvent, type ReactNode } from 'react'
 import {
   Breadcrumb,
   Button,
-  DataTable,
   Icon,
-  MetricCard,
-  Select,
   Status,
+  StoreSwitcher,
   Topbar,
-  type DataTableColumn,
 } from '../components'
+import { useAuth } from '../context/AuthContext'
 import { useToast } from '../context/ToastContext'
-import type { Payment, PaymentStatus } from '../features/payments/types'
-import { usePaymentsForOrder } from '../features/payments/usePayments'
+import type { QrPaymentResponse } from '../features/payments/types'
+import { useCreateQrPayment, usePaymentStatus } from '../features/payments/usePayments'
+import { useAdminStore } from '../hooks/useAdminStore'
 import { formatCurrency } from '../lib/currency'
 import { paths } from '../lib/paths'
-import { card, pageContent, searchField } from '../lib/ui'
+import { card, pageContent } from '../lib/ui'
 
-type StatusFilter = PaymentStatus | 'ALL'
-const EMPTY_PAYMENTS: Payment[] = []
+type TestLog = {
+  id: string
+  time: Date
+  label: string
+  detail: string
+  tone: 'neutral' | 'success' | 'warning' | 'danger'
+}
 
-const STATUS_OPTIONS: Array<{ value: StatusFilter; label: string }> = [
-  { value: 'ALL', label: 'All statuses' },
-  { value: 'PENDING', label: 'Pending' },
-  { value: 'PAID', label: 'Paid' },
-  { value: 'FAILED', label: 'Failed' },
-  { value: 'CANCELLED', label: 'Cancelled' },
-  { value: 'PARTIALLY_REFUNDED', label: 'Partially refunded' },
-  { value: 'REFUNDED', label: 'Refunded' },
-]
+const statusTone = {
+  neutral: 'bg-vpos-primary',
+  success: 'bg-vpos-green',
+  warning: 'bg-vpos-orange',
+  danger: 'bg-vpos-red',
+} as const
 
-const dateFormatter = new Intl.DateTimeFormat('en-GB', {
-  dateStyle: 'medium',
-  timeStyle: 'short',
+const clockFormatter = new Intl.DateTimeFormat('en-GB', {
+  hour: '2-digit',
+  minute: '2-digit',
+  second: '2-digit',
 })
 
-function formatDate(value?: string | null) {
-  if (!value) return '—'
-  const date = new Date(value)
-  return Number.isNaN(date.getTime()) ? value : dateFormatter.format(date)
-}
-
-function paymentEvents(payment: Payment) {
-  const events = [{
-    label: 'Payment initiated',
-    detail: `${payment.method} · ${payment.provider}`,
-    time: payment.createdAt,
-    tone: 'bg-vpos-primary',
-  }]
-  if (payment.paidAt) {
-    events.push({
-      label: 'Payment confirmed',
-      detail: 'Funds marked as paid',
-      time: payment.paidAt,
-      tone: 'bg-vpos-green',
-    })
-  }
-  if (payment.refundedAmount > 0) {
-    events.push({
-      label: payment.status === 'REFUNDED' ? 'Payment refunded' : 'Partial refund recorded',
-      detail: formatCurrency(payment.refundedAmount, payment.currencyCode),
-      time: payment.updatedAt,
-      tone: 'bg-vpos-orange',
-    })
-  } else if (payment.status === 'FAILED' || payment.status === 'CANCELLED') {
-    events.push({
-      label: payment.status === 'FAILED' ? 'Payment failed' : 'Payment cancelled',
-      detail: payment.note || 'No reason supplied',
-      time: payment.updatedAt,
-      tone: 'bg-vpos-red',
-    })
-  }
-  return events
-}
-
 export function PaymentsPage() {
-  const [searchParams, setSearchParams] = useSearchParams()
+  const { user } = useAuth()
+  const { storeId, setStoreId } = useAdminStore()
   const { toast } = useToast()
-  const initialOrderId = Number(searchParams.get('orderId')) || undefined
-  const [orderInput, setOrderInput] = useState(initialOrderId ? String(initialOrderId) : '')
-  const [orderId, setOrderId] = useState<number | undefined>(initialOrderId)
-  const [status, setStatus] = useState<StatusFilter>('ALL')
-  const [selectedId, setSelectedId] = useState<number | null>(null)
-  const paymentsQuery = usePaymentsForOrder(orderId)
-  const payments = paymentsQuery.data ?? EMPTY_PAYMENTS
+  const createQr = useCreateQrPayment()
+  const [orderId, setOrderId] = useState('')
+  const [amount, setAmount] = useState('1.00')
+  const [items, setItems] = useState('KHQRPay test payment')
+  const [checkout, setCheckout] = useState<QrPaymentResponse | null>(null)
+  const [logs, setLogs] = useState<TestLog[]>([])
+  const lastStatus = useRef<string | null>(null)
+  const paymentQuery = usePaymentStatus(checkout?.payment.id)
+  const payment = paymentQuery.data ?? checkout?.payment
 
-  const filteredPayments = useMemo(
-    () => status === 'ALL' ? payments : payments.filter((payment) => payment.status === status),
-    [payments, status],
-  )
-  const selectedPayment = payments.find((payment) => payment.id === selectedId) ?? payments[0]
+  const appendLog = useCallback((entry: Omit<TestLog, 'id' | 'time'>) => {
+    setLogs((current) => [{
+      ...entry,
+      id: crypto.randomUUID?.() ?? `${Date.now()}-${Math.random()}`,
+      time: new Date(),
+    }, ...current])
+  }, [])
 
   useEffect(() => {
-    if (payments.length > 0 && !payments.some((payment) => payment.id === selectedId)) {
-      setSelectedId(payments[0].id)
-    }
-  }, [payments, selectedId])
+    if (!payment?.status || lastStatus.current === payment.status) return
+    const previous = lastStatus.current
+    lastStatus.current = payment.status
+    if (!previous && payment.status === 'PENDING') return
+    appendLog({
+      label: payment.status === 'PAID' ? 'Payment confirmed' : `Status changed to ${payment.status}`,
+      detail: payment.status === 'PAID'
+        ? 'The payment service now reports this transaction as paid.'
+        : 'The latest status came from the payment service.',
+      tone: payment.status === 'PAID' ? 'success' : payment.status === 'PENDING' ? 'warning' : 'danger',
+    })
+  }, [appendLog, payment?.status])
 
-  const columns = useMemo<DataTableColumn<Payment>[]>(() => [
-    {
-      id: 'reference',
-      header: 'Reference',
-      searchable: (payment) => `${payment.id} ${payment.externalReference ?? ''} ${payment.idempotencyKey}`,
-      cell: (payment) => (
-        <button
-          type="button"
-          onClick={() => setSelectedId(payment.id)}
-          className="border-0 bg-transparent p-0 text-left font-extrabold text-vpos-primary hover:underline"
-        >
-          PAY-{payment.id}
-        </button>
-      ),
-    },
-    {
-      id: 'method',
-      header: 'Method',
-      searchable: (payment) => `${payment.method} ${payment.provider}`,
-      cell: (payment) => (
-        <span className="inline-flex items-center gap-2 font-semibold">
-          <Icon name={payment.method === 'QR' ? 'qr-code-line' : 'money-dollar-circle-line'} />
-          {payment.method === 'QR' ? 'KHQRPay' : 'Cash'}
-        </span>
-      ),
-    },
-    {
-      id: 'amount',
-      header: 'Amount',
-      cell: (payment) => <strong>{formatCurrency(payment.amount, payment.currencyCode)}</strong>,
-    },
-    {
-      id: 'status',
-      header: 'Status',
-      searchable: (payment) => payment.status,
-      cell: (payment) => <Status value={payment.status.replaceAll('_', ' ')} />,
-    },
-    {
-      id: 'created',
-      header: 'Created',
-      hideOnMobile: true,
-      cell: (payment) => formatDate(payment.createdAt),
-    },
-    {
-      id: 'updated',
-      header: 'Last activity',
-      hideOnMobile: true,
-      cell: (payment) => formatDate(payment.updatedAt),
-    },
-    {
-      id: 'action',
-      header: '',
-      cell: (payment) => (
-        <Button variant="text" onClick={() => setSelectedId(payment.id)}>
-          Inspect
-        </Button>
-      ),
-    },
-  ], [])
+  useEffect(() => {
+    if (!paymentQuery.isError) return
+    appendLog({
+      label: 'Status check failed',
+      detail: paymentQuery.error instanceof Error ? paymentQuery.error.message : 'The payment service could not be reached.',
+      tone: 'danger',
+    })
+  }, [appendLog, paymentQuery.error, paymentQuery.isError])
 
-  const submitOrder = (event: FormEvent) => {
+  const generateCheckout = async (event: FormEvent) => {
     event.preventDefault()
-    const nextOrderId = Number(orderInput)
-    if (!Number.isSafeInteger(nextOrderId) || nextOrderId <= 0) {
+    const businessId = Number(user?.business.id)
+    const selectedStoreId = Number(storeId)
+    const parsedOrderId = Number(orderId)
+    const parsedAmount = Number(amount)
+    if (!businessId || !selectedStoreId) {
+      toast('Select a store before generating a payment.', 'warning')
+      return
+    }
+    if (!Number.isSafeInteger(parsedOrderId) || parsedOrderId <= 0) {
       toast('Enter a valid positive order ID.', 'warning')
       return
     }
-    setOrderId(nextOrderId)
-    setSelectedId(null)
-    setSearchParams({ orderId: String(nextOrderId) })
+    if (!Number.isFinite(parsedAmount) || parsedAmount < 0.01) {
+      toast('Enter an amount of at least $0.01.', 'warning')
+      return
+    }
+
+    setCheckout(null)
+    setLogs([])
+    lastStatus.current = null
+    appendLog({
+      label: 'Generating checkout',
+      detail: `Preparing ${formatCurrency(parsedAmount, 'USD')} for order #${parsedOrderId}.`,
+      tone: 'neutral',
+    })
+    try {
+      const result = await createQr.mutateAsync({
+        orderId: parsedOrderId,
+        businessId,
+        storeId: selectedStoreId,
+        amount: parsedAmount,
+        currencyCode: 'USD',
+        idempotencyKey: `QR-TEST-${parsedOrderId}-${Date.now()}`,
+        note: items.trim() || 'KHQRPay test payment',
+      })
+      if (!result.checkoutUrl) throw new Error('KHQRPay did not return a checkout URL.')
+      setCheckout(result)
+      lastStatus.current = result.payment.status
+      appendLog({
+        label: 'QR checkout generated',
+        detail: `Transaction ${result.transactionId} is ready and waiting for payment.`,
+        tone: 'success',
+      })
+    } catch (error) {
+      appendLog({
+        label: 'QR generation failed',
+        detail: error instanceof Error ? error.message : 'The checkout could not be generated.',
+        tone: 'danger',
+      })
+    }
   }
 
-  const totalValue = payments.reduce((sum, payment) => sum + Number(payment.amount), 0)
-  const paidCount = payments.filter((payment) => payment.status === 'PAID').length
-  const pendingCount = payments.filter((payment) => payment.status === 'PENDING').length
+  const resetTest = () => {
+    setCheckout(null)
+    setLogs([])
+    lastStatus.current = null
+    createQr.reset()
+  }
+
+  const copyCheckoutUrl = async () => {
+    if (!checkout?.checkoutUrl) return
+    await navigator.clipboard.writeText(checkout.checkoutUrl)
+    toast('Checkout link copied.', 'success')
+  }
+
+  const isPaid = payment?.status === 'PAID'
+  const isTerminalFailure = payment?.status === 'FAILED' || payment?.status === 'CANCELLED'
 
   return (
     <>
       <Topbar
-        title="Payment activity"
-        subtitle="Trace cash and KHQRPay attempts from checkout to settlement"
+        title="KHQRPay test"
+        subtitle="Generate one checkout, scan it, and watch the real payment status"
+        actions={<StoreSwitcher value={storeId} onChange={setStoreId} />}
       />
       <main className={pageContent}>
-        <section className="mb-5 flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
+        <section className="mb-5 flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
           <div>
-            <Breadcrumb items={[{ label: 'Sales', to: paths.sales }, { label: 'Payment activity' }]} />
-            <p className="mt-3 max-w-[680px] text-[13px] leading-6 text-vpos-muted">
-              Search an order to see every payment record and the exact lifecycle events stored by the payment service.
+            <Breadcrumb items={[{ label: 'Point of sale', to: paths.pos }, { label: 'KHQRPay test' }]} />
+            <p className="mt-3 max-w-[720px] text-[13px] leading-6 text-vpos-muted">
+              This page creates a real KHQRPay checkout. It shows success only when the payment service reports <strong className="text-vpos-text">PAID</strong>.
             </p>
           </div>
-          <form onSubmit={submitOrder} className="flex w-full max-w-[460px] gap-2">
-            <label className={`${searchField} flex-1`}>
-              <Icon name="receipt-line" className="text-vpos-muted" />
-              <input
-                inputMode="numeric"
-                value={orderInput}
-                onChange={(event) => setOrderInput(event.target.value)}
-                placeholder="Enter order ID"
-                aria-label="Order ID"
-                className="h-full min-w-0 flex-1 border-0 bg-transparent text-[13px] outline-none"
-              />
-            </label>
-            <Button type="submit">
-              <Icon name="search-line" /> Find activity
+          {checkout ? (
+            <Button variant="secondary" onClick={resetTest}>
+              <Icon name="restart-line" /> Start another test
             </Button>
-          </form>
+          ) : null}
         </section>
 
-        {orderId ? (
-          <>
-            <section className="mb-[18px] grid grid-cols-1 gap-[18px] sm:grid-cols-2 xl:grid-cols-4">
-              <MetricCard label="Attempts" value={String(payments.length)} trend={`Order #${orderId}`} trendAs="small" icon={<Icon name="stack-line" />} />
-              <MetricCard label="Paid" value={String(paidCount)} trend="Confirmed records" trendAs="small" icon={<Icon name="checkbox-circle-line" />} iconTone="positive" />
-              <MetricCard label="Pending" value={String(pendingCount)} trend="Awaiting confirmation" trendAs="small" icon={<Icon name="time-line" />} iconTone="warning" />
-              <MetricCard label="Attempted value" value={payments[0] ? formatCurrency(totalValue, payments[0].currencyCode) : '—'} trend="All attempts" trendAs="small" icon={<Icon name="funds-line" />} />
-            </section>
-
-            {paymentsQuery.isError ? (
-              <section className={`${card} mb-[18px] flex items-center justify-between gap-4 border-vpos-red/30 p-4`}>
-                <span className="flex items-center gap-3 text-[13px] font-semibold text-vpos-red">
-                  <Icon name="error-warning-line" className="text-[20px]" />
-                  {paymentsQuery.error instanceof Error ? paymentsQuery.error.message : 'Payment activity could not be loaded.'}
+        <section className="grid gap-[18px] xl:grid-cols-[360px_minmax(0,1fr)]">
+          <div className="space-y-[18px]">
+            <form onSubmit={generateCheckout} className={`${card} p-5`}>
+              <div className="mb-5 flex items-start gap-3">
+                <span className="grid h-10 w-10 shrink-0 place-items-center rounded-md bg-vpos-sand text-[20px] text-vpos-primary">
+                  <Icon name="qr-code-line" />
                 </span>
-                <Button variant="secondary" onClick={() => void paymentsQuery.refetch()}>Try again</Button>
-              </section>
-            ) : null}
+                <span>
+                  <strong className="block text-[15px] text-vpos-text">Test details</strong>
+                  <small className="mt-1 block text-[12px] leading-5 text-vpos-muted">Use an existing order ID and a small USD amount.</small>
+                </span>
+              </div>
 
-            <section className="grid gap-[18px] xl:grid-cols-[minmax(0,1fr)_340px]">
-              <DataTable
-                data={filteredPayments}
-                columns={columns}
-                rowKey={(payment) => String(payment.id)}
-                title={`Payment records · order #${orderId}`}
-                searchPlaceholder="Search reference, method, status…"
-                emptyMessage={paymentsQuery.isLoading ? 'Loading payment activity…' : 'No payment records found for this order.'}
-                emptyIcon={paymentsQuery.isLoading ? 'loader-4-line' : 'receipt-line'}
-                toolbar={(
-                  <Select
-                    variant="toolbar"
-                    value={status === 'ALL' ? '' : status}
-                    placeholder="All statuses"
-                    onChange={(value) => setStatus((value || 'ALL') as StatusFilter)}
-                    options={STATUS_OPTIONS.filter((option) => option.value !== 'ALL')}
+              <Field label="Order ID" hint="Existing order number from the POS">
+                <input
+                  inputMode="numeric"
+                  value={orderId}
+                  onChange={(event) => setOrderId(event.target.value)}
+                  placeholder="Example: 1042"
+                  className="h-11 w-full rounded-[4px] border border-vpos-line bg-white px-3.5 text-[14px] outline-none focus:border-vpos-primary focus:ring-2 focus:ring-vpos-primary/10"
+                />
+              </Field>
+
+              <Field label="Amount" hint="Direct API v1.1 accepts USD only">
+                <label className="flex h-11 overflow-hidden rounded-[4px] border border-vpos-line bg-white focus-within:border-vpos-primary focus-within:ring-2 focus-within:ring-vpos-primary/10">
+                  <span className="grid w-11 place-items-center border-r border-vpos-line bg-vpos-subtle font-extrabold text-vpos-primary">$</span>
+                  <input
+                    inputMode="decimal"
+                    value={amount}
+                    onChange={(event) => setAmount(event.target.value)}
+                    placeholder="1.00"
+                    className="min-w-0 flex-1 border-0 px-3.5 text-[14px] outline-none"
                   />
-                )}
-                actions={(
-                  <Button variant="secondary" disabled={paymentsQuery.isFetching} onClick={() => void paymentsQuery.refetch()}>
-                    <Icon name="refresh-line" className={paymentsQuery.isFetching ? 'animate-spin' : ''} />
-                    Refresh
-                  </Button>
-                )}
-              />
+                  <span className="grid w-14 place-items-center text-[11px] font-extrabold text-vpos-muted">USD</span>
+                </label>
+              </Field>
 
-              <PaymentTrail payment={selectedPayment} />
+              <Field label="Items / remark" hint="Included in the signed request">
+                <textarea
+                  value={items}
+                  onChange={(event) => setItems(event.target.value.slice(0, 500))}
+                  rows={3}
+                  className="w-full resize-none rounded-[4px] border border-vpos-line bg-white px-3.5 py-3 text-[13px] outline-none focus:border-vpos-primary focus:ring-2 focus:ring-vpos-primary/10"
+                />
+              </Field>
+
+              <Button type="submit" className="mt-1 min-h-11 w-full" disabled={createQr.isPending}>
+                <Icon name={createQr.isPending ? 'loader-4-line' : 'qr-code-line'} className={createQr.isPending ? 'animate-spin' : ''} />
+                {createQr.isPending ? 'Generating…' : 'Generate payment QR'}
+              </Button>
+            </form>
+
+            <StatusPanel payment={payment} isFetching={paymentQuery.isFetching} />
+          </div>
+
+          <div className="space-y-[18px]">
+            <section className={`${card} overflow-hidden`}>
+              <header className="flex flex-col gap-3 border-b border-vpos-line px-5 py-4 sm:flex-row sm:items-center sm:justify-between">
+                <div>
+                  <span className="text-[10px] font-extrabold tracking-[0.16em] text-vpos-muted uppercase">Live checkout</span>
+                  <h2 className="mt-1 text-[16px] font-extrabold text-vpos-text">
+                    {checkout ? `Transaction ${checkout.transactionId}` : 'Generate a checkout to begin'}
+                  </h2>
+                </div>
+                {checkout?.checkoutUrl ? (
+                  <div className="flex flex-wrap gap-2">
+                    <Button variant="secondary" onClick={() => void copyCheckoutUrl()}>
+                      <Icon name="file-copy-line" /> Copy link
+                    </Button>
+                    <a
+                      href={checkout.checkoutUrl}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="inline-flex min-h-[39px] items-center justify-center gap-2 rounded-[4px] bg-vpos-primary px-4 text-[14px] font-semibold text-white no-underline hover:bg-vpos-primary-2"
+                    >
+                      <Icon name="external-link-line" /> Open checkout
+                    </a>
+                  </div>
+                ) : null}
+              </header>
+
+              <div className="relative min-h-[560px] bg-[#edf3f1] p-3 sm:p-5">
+                {checkout?.checkoutUrl ? (
+                  <iframe
+                    key={checkout.transactionId}
+                    title="KHQRPay checkout"
+                    src={checkout.checkoutUrl}
+                    className="h-[620px] w-full rounded-[6px] border border-vpos-line bg-white shadow-[0_18px_45px_rgba(15,34,58,.16)]"
+                    allow="payment"
+                    onLoad={() => appendLog({
+                      label: 'Checkout displayed',
+                      detail: 'The KHQRPay hosted payment page finished loading in the preview.',
+                      tone: 'neutral',
+                    })}
+                  />
+                ) : (
+                  <div className="grid min-h-[520px] place-items-center rounded-[6px] border border-dashed border-vpos-line bg-white/70 px-6 text-center">
+                    <span className="max-w-[420px]">
+                      <span className="mx-auto grid h-16 w-16 place-items-center rounded-[6px] bg-vpos-sand text-[30px] text-vpos-primary">
+                        <Icon name="qr-scan-2-line" />
+                      </span>
+                      <strong className="mt-5 block text-[18px] text-vpos-text">Your generated QR will appear here</strong>
+                      <span className="mt-2 block text-[13px] leading-6 text-vpos-muted">Enter the test details, generate the checkout, then scan the QR with a Cambodian banking app.</span>
+                    </span>
+                  </div>
+                )}
+              </div>
             </section>
-          </>
-        ) : (
-          <section className={`${card} relative overflow-hidden p-8 sm:p-12`}>
-            <div className="absolute top-0 bottom-0 left-0 w-1 bg-vpos-primary" />
-            <span className="grid h-12 w-12 place-items-center rounded-md bg-vpos-sand text-[24px] text-vpos-primary">
-              <Icon name="file-search-line" />
-            </span>
-            <h2 className="mt-5 text-[22px] font-extrabold text-vpos-text">Start with an order ID</h2>
-            <p className="mt-2 max-w-[560px] text-[14px] leading-6 text-vpos-muted">
-              Payment records are grouped by order. Enter an order ID to inspect cash receipts, KHQRPay references, pending confirmations, and refunds.
-            </p>
-          </section>
-        )}
+
+            <section className={`${card} overflow-hidden`}>
+              <header className="flex items-center justify-between border-b border-vpos-line px-5 py-4">
+                <span>
+                  <span className="text-[10px] font-extrabold tracking-[0.16em] text-vpos-muted uppercase">Test log</span>
+                  <strong className="mt-1 block text-[15px] text-vpos-text">Request and payment events</strong>
+                </span>
+                {paymentQuery.isFetching ? <Icon name="loader-4-line" className="animate-spin text-[20px] text-vpos-primary" /> : null}
+              </header>
+              <div className="max-h-[330px] overflow-y-auto px-5 py-2">
+                {logs.length > 0 ? logs.map((log) => (
+                  <div key={log.id} className="grid grid-cols-[72px_14px_1fr] gap-2 border-b border-vpos-line/70 py-3 last:border-0">
+                    <time className="pt-0.5 font-mono text-[11px] text-vpos-muted">{clockFormatter.format(log.time)}</time>
+                    <span className={`mt-1.5 h-2 w-2 rounded-full ${statusTone[log.tone]}`} />
+                    <span>
+                      <strong className="block text-[13px] text-vpos-text">{log.label}</strong>
+                      <span className="mt-0.5 block text-[12px] leading-5 text-vpos-muted">{log.detail}</span>
+                    </span>
+                  </div>
+                )) : (
+                  <div className="py-10 text-center text-[13px] text-vpos-muted">Events will appear after you generate a checkout.</div>
+                )}
+              </div>
+            </section>
+          </div>
+        </section>
+
+        {checkout && !isPaid && !isTerminalFailure ? (
+          <p className="mt-4 flex items-start gap-2 text-[12px] leading-5 text-vpos-muted">
+            <Icon name="information-line" className="mt-0.5 shrink-0 text-[16px]" />
+            The page checks the payment service every three seconds. If scanning succeeds but this remains pending, KHQRPay verification or its signed callback is not connected yet.
+          </p>
+        ) : null}
       </main>
     </>
   )
 }
 
-function PaymentTrail({ payment }: { payment?: Payment }) {
-  if (!payment) {
-    return (
-      <aside className={`${card} min-h-[320px] p-6`}>
-        <span className="text-[13px] text-vpos-muted">Select a payment to inspect its activity.</span>
-      </aside>
-    )
-  }
-  const events = paymentEvents(payment)
+function Field({ label, hint, children }: { label: string; hint: string; children: ReactNode }) {
   return (
-    <aside className={`${card} self-start overflow-hidden`}>
-      <header className="border-b border-dashed border-vpos-line bg-vpos-subtle px-5 py-4">
-        <span className="text-[10px] font-extrabold tracking-[0.16em] text-vpos-muted uppercase">Processing trail</span>
-        <div className="mt-2 flex items-center justify-between gap-3">
-          <strong className="text-[18px] text-vpos-text">PAY-{payment.id}</strong>
-          <Status value={payment.status.replaceAll('_', ' ')} />
-        </div>
-      </header>
-      <div className="space-y-3 border-b border-dashed border-vpos-line px-5 py-4 text-[12px]">
-        <DetailRow label="Order" value={`#${payment.orderId}`} />
-        <DetailRow label="Amount" value={formatCurrency(payment.amount, payment.currencyCode)} />
-        <DetailRow label="Method" value={payment.method === 'QR' ? 'KHQRPay' : 'Cash'} />
-        <DetailRow label="Transaction" value={payment.externalReference || '—'} mono />
-      </div>
-      <ol className="px-5 py-5">
-        {events.map((event, index) => (
-          <li key={`${event.label}-${event.time}`} className="relative flex gap-3 pb-6 last:pb-0">
-            {index < events.length - 1 ? <span className="absolute top-3 bottom-0 left-[5px] w-px bg-vpos-line" /> : null}
-            <span className={`relative mt-1 h-[11px] w-[11px] shrink-0 rounded-full ring-4 ring-white ${event.tone}`} />
-            <span className="min-w-0">
-              <strong className="block text-[13px] text-vpos-text">{event.label}</strong>
-              <span className="mt-0.5 block text-[12px] text-vpos-muted">{event.detail}</span>
-              <time className="mt-1 block text-[11px] font-semibold text-vpos-muted">{formatDate(event.time)}</time>
-            </span>
-          </li>
-        ))}
-      </ol>
-      {payment.note ? (
-        <footer className="border-t border-dashed border-vpos-line bg-vpos-subtle px-5 py-4 text-[12px] leading-5 text-vpos-muted">
-          <strong className="mb-1 block text-[10px] tracking-[0.12em] uppercase">Items / note</strong>
-          {payment.note}
-        </footer>
-      ) : null}
-    </aside>
+    <label className="mb-4 block">
+      <span className="mb-1.5 flex items-baseline justify-between gap-3">
+        <strong className="text-[12px] text-vpos-text">{label}</strong>
+        <small className="text-right text-[10px] text-vpos-muted">{hint}</small>
+      </span>
+      {children}
+    </label>
   )
 }
 
-function DetailRow({ label, value, mono = false }: { label: string; value: string; mono?: boolean }) {
+function StatusPanel({ payment, isFetching }: { payment?: QrPaymentResponse['payment']; isFetching: boolean }) {
+  if (!payment) {
+    return (
+      <section className={`${card} p-5`}>
+        <span className="text-[10px] font-extrabold tracking-[0.16em] text-vpos-muted uppercase">Payment status</span>
+        <div className="mt-4 flex items-center gap-3 text-vpos-muted">
+          <span className="grid h-10 w-10 place-items-center rounded-full bg-vpos-subtle text-[20px]"><Icon name="radio-button-line" /></span>
+          <span className="text-[13px]">No active test</span>
+        </div>
+      </section>
+    )
+  }
+  const paid = payment.status === 'PAID'
+  const failed = payment.status === 'FAILED' || payment.status === 'CANCELLED'
   return (
-    <div className="flex items-start justify-between gap-4">
-      <span className="text-vpos-muted">{label}</span>
-      <span className={`max-w-[210px] break-all text-right font-bold text-vpos-text ${mono ? 'font-mono text-[11px]' : ''}`}>{value}</span>
-    </div>
+    <section className={`${card} overflow-hidden border-l-4 ${paid ? 'border-l-vpos-green' : failed ? 'border-l-vpos-red' : 'border-l-vpos-orange'}`}>
+      <div className="p-5">
+        <div className="flex items-start justify-between gap-3">
+          <span>
+            <span className="text-[10px] font-extrabold tracking-[0.16em] text-vpos-muted uppercase">Payment status</span>
+            <strong className={`mt-2 block text-[20px] ${paid ? 'text-vpos-green' : failed ? 'text-vpos-red' : 'text-vpos-orange'}`}>
+              {paid ? 'Payment successful' : failed ? 'Payment failed' : 'Waiting for payment'}
+            </strong>
+          </span>
+          <Status value={payment.status.replaceAll('_', ' ')} />
+        </div>
+        <dl className="mt-5 space-y-2 border-t border-dashed border-vpos-line pt-4 text-[12px]">
+          <StatusRow label="Payment ID" value={`PAY-${payment.id}`} />
+          <StatusRow label="Order" value={`#${payment.orderId}`} />
+          <StatusRow label="Amount" value={formatCurrency(payment.amount, payment.currencyCode)} />
+          <StatusRow label="Last check" value={isFetching ? 'Checking now…' : clockFormatter.format(new Date())} />
+        </dl>
+      </div>
+    </section>
   )
+}
+
+function StatusRow({ label, value }: { label: string; value: string }) {
+  return <div className="flex justify-between gap-3"><dt className="text-vpos-muted">{label}</dt><dd className="m-0 text-right font-bold text-vpos-text">{value}</dd></div>
 }

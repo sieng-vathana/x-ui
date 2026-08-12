@@ -16,3 +16,12 @@ export function usePaymentsForOrder(orderId?: number) {
     enabled: Boolean(orderId),
   })
 }
+
+export function usePaymentStatus(id?: number) {
+  return useQuery({
+    queryKey: ['payment', id],
+    queryFn: () => paymentApi.get(id!),
+    enabled: Boolean(id),
+    refetchInterval: (query) => query.state.data?.status === 'PENDING' ? 3000 : false,
+  })
+}
