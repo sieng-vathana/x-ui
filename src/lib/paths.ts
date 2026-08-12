@@ -9,6 +9,7 @@ export const paths = {
   productEdit: (id: string | number) => `/products/${encodeURIComponent(id)}/edit`,
   productUnits: '/products/units',
   productCategories: '/products/categories',
+  productBrands: '/products/brands',
   productOptions: '/products/options',
   productStockMovement: '/products/stock-movement',
   productLowStock: '/products/low-stock',
