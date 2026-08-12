@@ -25,7 +25,7 @@ import type { CustomerPayload } from '../features/customers/types'
 import { useStockBalances } from '../features/inventory/useStockBalances'
 import { useCreatePosOrder, useCompleteOrder } from '../features/orders/useOrders'
 import type { CreatePosOrderInput } from '../features/orders/types'
-import { useCreateCashPayment, useCreatePosQrCheckout } from '../features/payments/usePayments'
+import { useCreateCashPayment, useCreatePosQrCheckout, usePaymentStatus } from '../features/payments/usePayments'
 import type { QrPaymentResponse } from '../features/payments/types'
 import { useProductsList } from '../features/products/useProducts'
 import { useAdminStore } from '../hooks/useAdminStore'
@@ -104,6 +104,8 @@ export function PosPage() {
   const [activityMode, setActivityMode] = useState<'hold' | 'recent' | null>(null)
   const [qrCheckout, setQrCheckout] = useState<{ orderNo: string; response: QrPaymentResponse } | null>(null)
   const [isFullscreen, setIsFullscreen] = useState(false)
+  const completedQrPaymentIdRef = useRef<number | null>(null)
+  const qrPaymentQuery = usePaymentStatus(qrCheckout?.response.payment.id)
   const catRef = useRef<HTMLDivElement>(null)
   const searchRef = useRef<HTMLInputElement>(null)
   const rootRef = useRef<HTMLDivElement>(null)
@@ -476,6 +478,25 @@ export function PosPage() {
     || createCashPaymentMutation.isPending
     || createPosQrCheckoutMutation.isPending
     || completeOrderMutation.isPending
+
+  const liveQrPayment = qrPaymentQuery.data ?? qrCheckout?.response.payment
+  const liveQrCheckout = qrCheckout && liveQrPayment
+    ? { ...qrCheckout, response: { ...qrCheckout.response, payment: liveQrPayment } }
+    : qrCheckout
+
+  useEffect(() => {
+    if (!qrCheckout || qrPaymentQuery.data?.status !== 'PAID') return
+    const paymentId = qrCheckout.response.payment.id
+    if (completedQrPaymentIdRef.current === paymentId || completeOrderMutation.isPending) return
+
+    completedQrPaymentIdRef.current = paymentId
+    void completeOrderMutation.mutateAsync(qrCheckout.response.payment.orderId)
+      .then(() => toast(`Payment received. Order ${qrCheckout.orderNo} completed.`, 'success'))
+      .catch((error) => {
+        completedQrPaymentIdRef.current = null
+        toast(error instanceof Error ? error.message : 'Payment received, but the order could not be completed.', 'error')
+      })
+  }, [completeOrderMutation, qrCheckout, qrPaymentQuery.data?.status, toast])
 
   useEffect(() => {
     const onKey = (event: KeyboardEvent) => {
@@ -1154,9 +1175,9 @@ export function PosPage() {
       />
 
       <PosQrPaymentModal
-        key={qrCheckout?.response.transactionId ?? 'no-qr-checkout'}
-        checkout={qrCheckout?.response ?? null}
-        orderNo={qrCheckout?.orderNo}
+        key={liveQrCheckout?.response.transactionId ?? 'no-qr-checkout'}
+        checkout={liveQrCheckout?.response ?? null}
+        orderNo={liveQrCheckout?.orderNo}
         onClose={() => setQrCheckout(null)}
       />
     </div>

@@ -16,6 +16,8 @@ export function PosQrPaymentModal({ checkout, orderNo, onClose }: PosQrPaymentMo
   const qrImageSource = checkout?.qrImageDataUrl
   const qrImageUrl = checkout?.qrImageUrl
   const [qrImageFailed, setQrImageFailed] = useState(false)
+  const isPaid = checkout?.payment.status === 'PAID'
+  const isFailed = checkout?.payment.status === 'FAILED' || checkout?.payment.status === 'CANCELLED'
 
   const copyQrData = async () => {
     if (!checkout?.qrPayload) return
@@ -50,7 +52,9 @@ export function PosQrPaymentModal({ checkout, orderNo, onClose }: PosQrPaymentMo
             <span className="flex items-center gap-2 text-[18px] font-black tracking-[-0.03em]">
               <Icon name="qr-code-line" className="text-[22px]" /> KHQR
             </span>
-            <span className="text-[10px] font-extrabold tracking-[0.14em] uppercase">Scan to pay</span>
+            <span className="text-[10px] font-extrabold tracking-[0.14em] uppercase">
+              {isPaid ? 'Payment received' : isFailed ? 'Payment failed' : 'Scan to pay'}
+            </span>
           </div>
 
           <div className="px-5 py-5 text-center sm:px-8">
@@ -93,9 +97,15 @@ export function PosQrPaymentModal({ checkout, orderNo, onClose }: PosQrPaymentMo
               )}
             </div>
 
-            <strong className="mt-4 block text-[14px] text-vpos-text">Waiting for customer payment</strong>
+            <strong className="mt-4 block text-[14px] text-vpos-text">
+              {isPaid ? 'Payment completed' : isFailed ? 'Payment was not completed' : 'Waiting for customer payment'}
+            </strong>
             <span className="mt-1 block text-[12px] leading-5 text-vpos-muted">
-              The order has been created. Keep this QR visible until the customer finishes in their bank app.
+              {isPaid
+                ? 'KHQRPay confirmed the payment. The POS is completing the order.'
+                : isFailed
+                  ? 'The provider reported that this payment did not complete.'
+                  : 'Keep this QR visible until the customer finishes in their bank app.'}
             </span>
             <code
               className="mt-4 block truncate rounded-[4px] bg-vpos-subtle px-3 py-2 font-mono text-[10px] text-vpos-muted"
