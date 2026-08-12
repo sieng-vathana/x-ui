@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import type { QrPaymentResponse } from '../../features/payments/types'
 import { formatCurrency } from '../../lib/currency'
 import { Button } from '../ui/Button'
@@ -14,6 +14,45 @@ export interface PosQrPaymentModalProps {
 export function PosQrPaymentModal({ checkout, orderNo, onClose }: PosQrPaymentModalProps) {
   const [copied, setCopied] = useState(false)
   const qrImageUrl = checkout?.qrImageUrl
+  const [qrImageSrc, setQrImageSrc] = useState<string | null>(null)
+  const [qrImageError, setQrImageError] = useState<string | null>(null)
+
+  useEffect(() => {
+    if (!qrImageUrl) {
+      setQrImageSrc(null)
+      setQrImageError(null)
+      return
+    }
+
+    const controller = new AbortController()
+    let objectUrl: string | null = null
+    setQrImageSrc(null)
+    setQrImageError(null)
+
+    void fetch(qrImageUrl, {
+      cache: 'no-store',
+      credentials: 'omit',
+      signal: controller.signal,
+    })
+      .then((response) => {
+        if (!response.ok) throw new Error(`QR image request failed with HTTP ${response.status}.`)
+        return response.blob()
+      })
+      .then((image) => {
+        if (!image.type.startsWith('image/')) throw new Error('KHQRPay returned an invalid QR image.')
+        objectUrl = URL.createObjectURL(image)
+        setQrImageSrc(objectUrl)
+      })
+      .catch((error: unknown) => {
+        if (controller.signal.aborted) return
+        setQrImageError(error instanceof Error ? error.message : 'The QR image could not be loaded.')
+      })
+
+    return () => {
+      controller.abort()
+      if (objectUrl) URL.revokeObjectURL(objectUrl)
+    }
+  }, [qrImageUrl])
 
   const copyQrData = async () => {
     if (!checkout?.qrPayload) return
@@ -58,16 +97,36 @@ export function PosQrPaymentModal({ checkout, orderNo, onClose }: PosQrPaymentMo
               {formatCurrency(checkout.payment.amount, checkout.payment.currencyCode)}
             </strong>
 
-            <div className="mx-auto mt-4 aspect-square w-full max-w-[300px] rounded-[8px] border border-vpos-line bg-white p-2">
-              <img
-                key={checkout.transactionId}
-                src={qrImageUrl}
-                alt={`KHQR payment code for transaction ${checkout.transactionId}`}
-                width="300"
-                height="300"
-                decoding="async"
-                className="h-full w-full object-contain"
-              />
+            <div className="mx-auto mt-4 grid aspect-square w-full max-w-[300px] place-items-center rounded-[8px] border border-vpos-line bg-white p-2">
+              {qrImageSrc ? (
+                <img
+                  key={checkout.transactionId}
+                  src={qrImageSrc}
+                  alt={`KHQR payment code for transaction ${checkout.transactionId}`}
+                  width="300"
+                  height="300"
+                  className="block h-full w-full object-contain"
+                />
+              ) : qrImageError ? (
+                <span className="px-5 text-center">
+                  <Icon name="error-warning-line" className="text-[30px] text-vpos-red" />
+                  <strong className="mt-2 block text-[13px] text-vpos-text">QR image failed to load</strong>
+                  <span className="mt-1 block text-[11px] leading-5 text-vpos-muted">{qrImageError}</span>
+                  <a
+                    href={qrImageUrl}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="mt-3 inline-flex items-center gap-1.5 text-[12px] font-bold text-vpos-primary"
+                  >
+                    <Icon name="external-link-line" /> Open QR image
+                  </a>
+                </span>
+              ) : (
+                <span className="text-center text-vpos-muted">
+                  <Icon name="loader-4-line" className="animate-spin text-[30px] text-vpos-primary" />
+                  <span className="mt-2 block text-[12px]">Loading QR…</span>
+                </span>
+              )}
             </div>
 
             <strong className="mt-4 block text-[14px] text-vpos-text">Waiting for customer payment</strong>
