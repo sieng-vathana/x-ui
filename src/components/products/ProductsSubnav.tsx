@@ -6,6 +6,7 @@ import { useAuth } from '../../context/AuthContext'
 const items: Array<{ to: string; label: string; end?: boolean; permission?: string }> = [
   { to: paths.products, label: 'All products', end: true },
   { to: paths.productUnits, label: 'Units', permission: 'x-product:unit' },
+  { to: paths.productBrands, label: 'Brands' },
   { to: paths.productCategories, label: 'Categories', permission: 'x-product:category' },
   { to: paths.productOptions, label: 'Options' },
   { to: paths.productStockMovement, label: 'Stock movement' },

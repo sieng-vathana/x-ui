@@ -11,6 +11,7 @@ import { ProductFormPage } from './pages/ProductFormPage'
 import { ProductsPage } from './pages/ProductsPage'
 import { LowStockPage } from './pages/products/LowStockPage'
 import { ProductOptionsPage } from './pages/products/ProductOptionsPage'
+import { ProductBrandsPage } from './pages/products/ProductBrandsPage'
 import { ProductCategoriesPage } from './pages/products/ProductCategoriesPage'
 import { ProductUnitsPage } from './pages/products/ProductUnitsPage'
 import { StockMovementPage } from './pages/products/StockMovementPage'
@@ -94,34 +95,36 @@ export default function App() {
                     element={<ProductCategoriesPage />}
                   />
                 </Route>
-                <Route element={<RequirePermission permission="x-store:read" />}>
-                  <Route path="stores" element={<StoresPage />} />
-                </Route>
-                <Route element={<RequirePermission permission="x-order:read" />}>
-                  <Route path="sales" element={<PlaceholderPage title="Sales" description="Sales history and invoices." />} />
-                  <Route path="sales/payments" element={<PaymentsPage />} />
-                </Route>
-                <Route element={<RequirePermission permission="x-inventory:read" />}>
-                  <Route path="purchases" element={<PurchaseOrdersPage />} />
-                  <Route path="purchases/orders/new" element={<PurchaseOrderDetailPage />} />
-                  <Route path="purchases/orders/:id" element={<PurchaseOrderDetailPage />} />
-                  <Route path="purchases/receive" element={<ReceiveGoodsPage />} />
-                  <Route path="purchases/suppliers" element={<SuppliersPage />} />
-                  <Route path="purchases/returns" element={<SupplierReturnsPage />} />
-                </Route>
-                <Route element={<RequirePermission permission="x-customer:read" />}>
-                  <Route path="customers" element={<CustomersPage />} />
-                </Route>
-                <Route element={<RequirePermission permission="x-report:read" />}>
-                  <Route path="reports" element={<PlaceholderPage title="Reports" description="Business reports." />} />
-                </Route>
-                <Route element={<RequirePermission permission="x-business:read" />}>
-                  <Route path="settings" element={<BusinessProfilePage />} />
-                </Route>
-                <Route element={<RequirePermission permission="x-user:read" />}>
-                  <Route path="users" element={<UsersPage />} />
-                  <Route path="roles" element={<RoleManagementPage />} />
-                </Route>
+                <Route path="products/brands" element={<ProductBrandsPage />} />
+                <Route path="products/options" element={<ProductOptionsPage />} />
+                <Route path="products/variants" element={<Navigate to="/products/options" replace />} />
+                <Route path="products/stock-movement" element={<StockMovementPage />} />
+                <Route path="products/low-stock" element={<LowStockPage />} />
+                <Route path="products/new" element={<ProductFormPage />} />
+                <Route path="products/:id" element={<ProductDetailPage />} />
+                <Route path="products/:sku/edit" element={<ProductFormPage />} />
+                <Route path="inventory" element={<Navigate to="/products/low-stock" replace />} />
+                <Route path="stores" element={<StoresPage />} />
+                <Route
+                  path="sales"
+                  element={<PlaceholderPage title="Sales" description="Sales history and invoices." />}
+                />
+                <Route path="purchases" element={<PurchaseOrdersPage />} />
+                <Route path="purchases/orders/new" element={<PurchaseOrderDetailPage />} />
+                <Route path="purchases/orders/:id" element={<PurchaseOrderDetailPage />} />
+                <Route path="purchases/receive" element={<ReceiveGoodsPage />} />
+                <Route path="purchases/suppliers" element={<SuppliersPage />} />
+                <Route path="purchases/returns" element={<SupplierReturnsPage />} />
+                <Route
+                  path="customers"
+                  element={<PlaceholderPage title="Customers" description="Customer directory." />}
+                />
+                <Route
+                  path="reports"
+                  element={<PlaceholderPage title="Reports" description="Business reports." />}
+                />
+                <Route path="settings" element={<BusinessProfilePage />} />
+                <Route path="users" element={<UsersPage />} />
               </Route>
             </Route>
 

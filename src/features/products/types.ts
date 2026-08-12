@@ -111,6 +111,29 @@ export interface ProductItem {
   images?: { imageUrl?: string }[]
 }
 
+export interface CreateProductUnitPayload {
+  businessId: number
+  storeIds?: number[]
+  unitCode: string
+  unitName: string
+  description?: string
+  isGlobal?: boolean
+  status?: string
+}
+
+export interface CreateProductCategoryPayload {
+  businessId: number
+  storeIds?: number[]
+  categoryCode: string
+  categoryName: string
+  description?: string
+  image?: string
+  sortOrder?: number
+  isFeatured?: boolean
+  isGlobal?: boolean
+  status?: string
+}
+
 export interface CreateProductPayload {
   storeId: number
   productCode?: string

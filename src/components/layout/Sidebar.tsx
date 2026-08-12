@@ -39,6 +39,7 @@ const navigationPermissions: Record<string, string> = {
 const productSubItems: Array<{ to: string; label: string; end?: boolean; permission?: string }> = [
   { to: paths.products, label: 'All products', end: true },
   { to: paths.productUnits, label: 'Unit', permission: 'x-product:unit' },
+  { to: paths.productBrands, label: 'Brand' },
   { to: paths.productCategories, label: 'Category', permission: 'x-product:category' },
   { to: paths.productOptions, label: 'Variants' },
   { to: paths.productStockMovement, label: 'Stock movement' }, { to: paths.productLowStock, label: 'Low stock' },

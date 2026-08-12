@@ -1,7 +1,9 @@
 import { API_BASE_URL, ApiClient } from '../../lib/api'
 import type {
   ApiEnvelope,
+  CreateProductCategoryPayload,
   CreateProductPayload,
+  CreateProductUnitPayload,
   PageEnvelope,
   ProductAttribute,
   ProductAttributeValue,
@@ -55,12 +57,74 @@ export const productApi = {
     return response.data?.content ?? []
   },
 
+  async createCategory(payload: CreateProductCategoryPayload): Promise<ProductCategory> {
+    const response = await api.request<ApiEnvelope<ProductCategory>>('/products/categories', {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    })
+    if (!response.data) {
+      throw new Error(response.message || 'Failed to create category.')
+    }
+    return response.data
+  },
+
+  async updateCategory(id: number, payload: CreateProductCategoryPayload): Promise<ProductCategory> {
+    const response = await api.request<ApiEnvelope<ProductCategory>>(
+      `/products/categories/${id}?businessId=${payload.businessId}`,
+      {
+        method: 'PUT',
+        body: JSON.stringify(payload),
+      },
+    )
+    if (!response.data) {
+      throw new Error(response.message || 'Failed to update category.')
+    }
+    return response.data
+  },
+
+  async deleteCategory(id: number, businessId: string | number): Promise<void> {
+    await api.request<ApiEnvelope<void>>(`/products/categories/${id}?businessId=${businessId}`, {
+      method: 'DELETE',
+    })
+  },
+
   async getUnits(businessId: string | number, storeId?: string | number): Promise<ProductUnit[]> {
     const storeParam = buildStoreParam(storeId)
     const response = await api.request<ApiEnvelope<PageEnvelope<ProductUnit>>>(
       `/products/units?businessId=${businessId}${storeParam}&size=100`,
     )
     return response.data?.content ?? []
+  },
+
+  async createUnit(payload: CreateProductUnitPayload): Promise<ProductUnit> {
+    const response = await api.request<ApiEnvelope<ProductUnit>>('/products/units', {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    })
+    if (!response.data) {
+      throw new Error(response.message || 'Failed to create unit.')
+    }
+    return response.data
+  },
+
+  async updateUnit(id: number, payload: CreateProductUnitPayload): Promise<ProductUnit> {
+    const response = await api.request<ApiEnvelope<ProductUnit>>(
+      `/products/units/${id}?businessId=${payload.businessId}`,
+      {
+        method: 'PUT',
+        body: JSON.stringify(payload),
+      },
+    )
+    if (!response.data) {
+      throw new Error(response.message || 'Failed to update unit.')
+    }
+    return response.data
+  },
+
+  async deleteUnit(id: number, businessId: string | number): Promise<void> {
+    await api.request<ApiEnvelope<void>>(`/products/units/${id}?businessId=${businessId}`, {
+      method: 'DELETE',
+    })
   },
 
   async getBrands(businessId: string | number, storeId?: string | number): Promise<ProductBrand[]> {

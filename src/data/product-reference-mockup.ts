@@ -38,3 +38,23 @@ export const productCategories: ProductCategoryReference[] = [
   { id: 'category-cold', code: 'CLD', name: 'Cold drinks', icon: 'drinks-2-line', tone: 'cold', productCount: 3, storeCount: 3, sortOrder: 50, status: 'Active' },
   { id: 'category-extras', code: 'EXT', name: 'Add-ons', icon: 'add-circle-line', tone: 'extra', productCount: 0, storeCount: 1, sortOrder: 60, status: 'Inactive' },
 ]
+
+export interface ProductBrandReference {
+  id: string
+  code: string
+  name: string
+  icon: string
+  productCount: number
+  storeCount: number
+  sortOrder: number
+  status: 'Active' | 'Inactive'
+}
+
+export const productBrands: ProductBrandReference[] = [
+  { id: 'brand-premium', code: 'PRM', name: 'Premium Blend', icon: 'star-line', productCount: 6, storeCount: 3, sortOrder: 10, status: 'Active' },
+  { id: 'brand-organic', code: 'ORG', name: 'Organica', icon: 'leaf-line', productCount: 4, storeCount: 3, sortOrder: 20, status: 'Active' },
+  { id: 'brand-local', code: 'LOC', name: 'Local Roast', icon: 'map-pin-line', productCount: 5, storeCount: 2, sortOrder: 30, status: 'Active' },
+  { id: 'brand-gourmet', code: 'GOU', name: 'Gourmet', icon: 'vip-crown-line', productCount: 3, storeCount: 2, sortOrder: 40, status: 'Active' },
+  { id: 'brand-daily', code: 'DLY', name: 'Daily Brew', icon: 'sun-line', productCount: 7, storeCount: 3, sortOrder: 50, status: 'Active' },
+  { id: 'brand-legacy', code: 'LGC', name: 'Legacy', icon: 'building-line', productCount: 0, storeCount: 1, sortOrder: 60, status: 'Inactive' },
+]
