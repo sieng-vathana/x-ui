@@ -102,9 +102,11 @@ export function UserModal({
       onClose={onClose}
       title={isEdit ? `Edit Staff User: ${user?.fullName || user?.username}` : 'Add New Staff User'}
       description={isEdit ? 'Update staff member profile, role, and status permissions.' : 'Create a new staff user account with assigned role and store access.'}
-      size="md"
+      size="lg"
+      panelClassName="max-h-[min(92vh,820px)]"
+      bodyClassName="max-h-[min(80vh,680px)] py-6 sm:px-7"
     >
-      <form onSubmit={handleSubmit} className="space-y-4">
+      <form onSubmit={handleSubmit} className="space-y-6">
         <FormField
           label="Full name"
           required
@@ -159,16 +161,16 @@ export function UserModal({
           placeholder={isEdit ? '••••••••' : 'Min 8 characters'}
         />
 
-        <fieldset>
-          <legend className="mb-2 block text-[12px] font-semibold tracking-[.02em] text-vpos-dark">
+        <fieldset className="border-t border-vpos-line pt-5">
+          <legend className="mb-2 block text-[13px] font-extrabold uppercase tracking-[.12em] text-vpos-primary">
             Store access <b className="text-vpos-red">*</b>
           </legend>
-          <div className="grid max-h-44 grid-cols-1 gap-2 overflow-y-auto rounded-[4px] border border-vpos-line bg-vpos-subtle p-2 sm:grid-cols-2">
+          <div className="grid max-h-52 grid-cols-1 gap-2 overflow-y-auto rounded-xl border border-vpos-line bg-vpos-subtle p-2 sm:grid-cols-2">
             {stores.length ? stores.map((store) => {
               const storeId = Number(store.id)
               const checked = storeIds.includes(storeId)
               return (
-                <label key={store.id} className="flex cursor-pointer items-center gap-3 rounded-[4px] border border-vpos-line bg-white px-3 py-2.5 text-[13px] font-semibold text-vpos-text hover:border-vpos-primary/50">
+                <label key={store.id} className="flex cursor-pointer items-center gap-3 rounded-lg border border-vpos-line bg-white px-3.5 py-3 text-[13px] font-semibold text-vpos-text transition hover:border-vpos-primary/50 hover:bg-vpos-sand/30">
                   <input
                     type="checkbox"
                     checked={checked}
@@ -186,15 +188,15 @@ export function UserModal({
           </div>
         </fieldset>
 
-        <div>
-          <label className="mb-1.5 block text-[12px] font-extrabold tracking-[.02em] text-vpos-primary-2">
+        <div className="border-t border-vpos-line pt-5">
+          <label className="mb-2 block text-[13px] font-extrabold uppercase tracking-[.12em] text-vpos-primary">
             Account status
           </label>
           <div className="flex items-center gap-3">
             <button
               type="button"
               onClick={() => setStatus(1)}
-              className={`flex flex-1 items-center justify-center gap-2 rounded-xl border py-2.5 text-[13px] font-bold transition ${
+              className={`flex min-h-11 flex-1 items-center justify-center gap-2 rounded-xl border text-[13px] font-bold transition ${
                 status === 1
                   ? 'border-vpos-green bg-vpos-green-bg text-vpos-green shadow-xs'
                   : 'border-vpos-line bg-white text-vpos-muted hover:bg-vpos-subtle'
@@ -205,7 +207,7 @@ export function UserModal({
             <button
               type="button"
               onClick={() => setStatus(0)}
-              className={`flex flex-1 items-center justify-center gap-2 rounded-xl border py-2.5 text-[13px] font-bold transition ${
+              className={`flex min-h-11 flex-1 items-center justify-center gap-2 rounded-xl border text-[13px] font-bold transition ${
                 status === 0
                   ? 'border-vpos-red bg-vpos-red-bg text-vpos-red shadow-xs'
                   : 'border-vpos-line bg-white text-vpos-muted hover:bg-vpos-subtle'
@@ -216,7 +218,7 @@ export function UserModal({
           </div>
         </div>
 
-        <div className="mt-6 flex justify-end gap-2 pt-2">
+        <div className="flex justify-end gap-2 border-t border-vpos-line pt-5">
           <Button type="button" variant="secondary" onClick={onClose}>
             Cancel
           </Button>
