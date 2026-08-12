@@ -17,9 +17,11 @@ import {
 import { PosActivityModal } from '../components/pos/PosActivityModal'
 import { PosQrPaymentModal } from '../components/pos/PosQrPaymentModal'
 import { ShortcutsModal } from '../components/pos/ShortcutsModal'
+import { QuickCustomerModal } from '../components/customers/QuickCustomerModal'
 import { useAuth } from '../context/AuthContext'
 import { useToast } from '../context/ToastContext'
-import { useCustomers } from '../features/customers/useCustomers'
+import { useCreateCustomer, useCustomers } from '../features/customers/useCustomers'
+import type { CustomerPayload } from '../features/customers/types'
 import { useStockBalances } from '../features/inventory/useStockBalances'
 import { useCreatePosOrder, useCompleteOrder } from '../features/orders/useOrders'
 import type { CreatePosOrderInput } from '../features/orders/types'
@@ -84,6 +86,7 @@ export function PosPage() {
   const { toast } = useToast()
   const productsQuery = useProductsList(storeId)
   const customersQuery = useCustomers()
+  const createCustomerMutation = useCreateCustomer()
   const createOrderMutation = useCreatePosOrder()
   const createCashPaymentMutation = useCreateCashPayment()
   const createQrPaymentMutation = useCreateQrPayment()
@@ -94,6 +97,7 @@ export function PosPage() {
   const [sort, setSort] = useState<SortMode>('name-asc')
   const [payment, setPayment] = useState<PaymentMethod>('qr')
   const [customerId, setCustomerId] = useState('0')
+  const [quickCustomerOpen, setQuickCustomerOpen] = useState(false)
   const [cart, setCart] = useState<Record<string, CartEntry>>({})
   const [discountTargetId, setDiscountTargetId] = useState<string | null>(null)
   const [shortcutsOpen, setShortcutsOpen] = useState(false)
@@ -214,6 +218,20 @@ export function PosPage() {
       }))
     return [{ value: '0', label: 'Walk-in customer' }, ...liveCustomers.filter((customer) => customer.value !== '0')]
   }, [customersQuery.data])
+
+  const canCreateCustomer = user?.permissions?.includes('x-customer:create') ?? false
+  const businessId = Number(user?.business.id)
+
+  const handleQuickCustomerSave = useCallback(async (payload: CustomerPayload) => {
+    try {
+      const customer = await createCustomerMutation.mutateAsync(payload)
+      setCustomerId(String(customer.id))
+      setQuickCustomerOpen(false)
+      toast('Customer added to this sale.', 'success')
+    } catch (error) {
+      toast(error instanceof Error ? error.message : 'Customer could not be created.', 'error')
+    }
+  }, [createCustomerMutation, toast])
 
   useEffect(() => {
     setCart({})
@@ -892,13 +910,28 @@ export function PosPage() {
               <h2 className="m-0 mb-2 text-[14px] font-extrabold text-vpos-text">
                 Customer
               </h2>
-              <Select
-                value={customerId}
-                onChange={setCustomerId}
-                options={customerOptions}
-                searchable
-                placeholder={customersQuery.isLoading ? 'Loading customers…' : 'Select customer'}
-              />
+              <div className="flex items-end gap-2">
+                <Select
+                  className="min-w-0 flex-1"
+                  value={customerId}
+                  onChange={setCustomerId}
+                  options={customerOptions}
+                  searchable
+                  placeholder={customersQuery.isLoading ? 'Loading customers…' : 'Select customer'}
+                />
+                {canCreateCustomer ? (
+                  <Button
+                    type="button"
+                    variant="soft"
+                    className="h-[39px] w-[39px] shrink-0 p-0"
+                    onClick={() => setQuickCustomerOpen(true)}
+                    aria-label="Add customer"
+                    title="Add customer"
+                  >
+                    <Icon name="user-add-line" />
+                  </Button>
+                ) : null}
+              </div>
             </div>
 
             <div className="flex min-h-0 flex-1 flex-col p-4">
@@ -1089,6 +1122,15 @@ export function PosPage() {
           </aside>
         </div>
       </main>
+
+      <QuickCustomerModal
+        open={quickCustomerOpen}
+        onClose={() => setQuickCustomerOpen(false)}
+        businessId={businessId}
+        storeId={Number(storeId)}
+        isLoading={createCustomerMutation.isPending}
+        onSave={handleQuickCustomerSave}
+      />
 
       <DiscountModal
         open={Boolean(discountTarget)}
