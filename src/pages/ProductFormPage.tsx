@@ -45,6 +45,9 @@ interface ProductImage {
 
 interface VariantInput {
   key: string
+  image?: string
+  imageFile?: File
+  imagePreviewUrl?: string
   sku: string
   barcode: string
   variantName: string
@@ -60,6 +63,7 @@ interface VariantInput {
 function emptyVariant(id: number): VariantInput {
   return {
     key: String(Date.now() + id),
+    image: undefined,
     sku: '',
     barcode: '',
     variantName: '',
@@ -146,6 +150,8 @@ export function ProductFormPage() {
       setVariants(
         existingProduct.variants.map((v, idx) => ({
           key: String(v.id || idx),
+          image: v.image || undefined,
+          imagePreviewUrl: v.image || undefined,
           sku: v.sku || '',
           barcode: v.barcode || '',
           variantName: v.variantName || '',
@@ -243,6 +249,16 @@ export function ProductFormPage() {
         }
       }
 
+      const variantImageUrls = new Map<string, string | undefined>()
+      for (const variant of variants) {
+        if (variant.imageFile) {
+          const res = await productApi.uploadFile(variant.imageFile)
+          variantImageUrls.set(variant.key, res.url)
+        } else {
+          variantImageUrls.set(variant.key, variant.image)
+        }
+      }
+
       const payload = {
         storeId: numStoreId,
         productCode: productCode || `PRD-${Date.now()}`,
@@ -265,7 +281,7 @@ export function ProductFormPage() {
           sku: v.sku || `SKU-${Date.now()}-${index}`,
           barcode: v.barcode || `BAR-${Date.now()}-${index}`,
           variantName: v.variantName || 'Default',
-          image: uploadedThumbnail || existingProduct?.thumbnail,
+          image: variantImageUrls.get(v.key),
           costPrice: v.costPrice ? Number(v.costPrice) : 0,
           posPrice: v.posPrice ? Number(v.posPrice) : 0,
           compareAtPrice: v.compareAtPrice ? Number(v.compareAtPrice) : 0,
@@ -279,7 +295,7 @@ export function ProductFormPage() {
           sku: `SKU-${Date.now()}`,
           barcode: `BAR-${Date.now()}`,
           variantName: 'Default',
-          image: uploadedThumbnail || existingProduct?.thumbnail,
+          image: undefined,
           posPrice: 0,
           isDefault: true,
         }],
@@ -397,6 +413,7 @@ export function ProductFormPage() {
         stockQuantity: '',
         stockAlertQty: '5',
         supplierId: '',
+        image: undefined,
       }
     })
 
@@ -421,6 +438,19 @@ export function ProductFormPage() {
 
   const removeVariant = useCallback((key: string) => {
     setVariants((prev) => prev.filter((v) => v.key !== key))
+  }, [])
+
+  const handleVariantImage = useCallback((key: string, file?: File) => {
+    if (!file) return
+    setVariants((prev) => prev.map((variant) => variant.key === key
+      ? { ...variant, imageFile: file, imagePreviewUrl: URL.createObjectURL(file) }
+      : variant))
+  }, [])
+
+  const removeVariantImage = useCallback((key: string) => {
+    setVariants((prev) => prev.map((variant) => variant.key === key
+      ? { ...variant, image: undefined, imageFile: undefined, imagePreviewUrl: undefined }
+      : variant))
   }, [])
 
   const handleFiles = useCallback((files: FileList | null) => {
@@ -865,6 +895,44 @@ export function ProductFormPage() {
                       ) : null}
                     </div>
                     <div className={formGrid}>
+                      <div className="md:col-span-3">
+                        <div className="flex flex-wrap items-center gap-3 rounded-lg border border-dashed border-vpos-line bg-white p-3">
+                          {v.imagePreviewUrl ? (
+                            <div className="relative h-16 w-16 overflow-hidden rounded-lg border border-vpos-line bg-vpos-subtle">
+                              <img src={v.imagePreviewUrl} alt={`${v.variantName || `Variant ${idx + 1}`} image`} className="h-full w-full object-cover" />
+                              <button
+                                type="button"
+                                onClick={() => removeVariantImage(v.key)}
+                                className="absolute top-1 right-1 grid h-5 w-5 place-items-center rounded-full border-0 bg-black/70 text-[11px] text-white"
+                                aria-label="Remove variant image"
+                              >
+                                ×
+                              </button>
+                            </div>
+                          ) : (
+                            <div className="grid h-16 w-16 place-items-center rounded-lg bg-vpos-subtle text-vpos-muted">
+                              <Icon name="image-line" className="text-[22px]" />
+                            </div>
+                          )}
+                          <div className="min-w-[190px] flex-1">
+                            <strong className="block text-[12px] font-extrabold text-vpos-primary-2">Variant image</strong>
+                            <small className="mt-1 block text-[11px] text-vpos-muted">Use a different image for this SKU. It will not replace the parent product images.</small>
+                          </div>
+                          <label className="inline-flex cursor-pointer items-center gap-1.5 rounded-md border border-vpos-line bg-white px-3 py-2 text-[12px] font-bold text-vpos-primary hover:border-vpos-primary">
+                            <Icon name="upload-2-line" />
+                            {v.imagePreviewUrl ? 'Change image' : 'Upload image'}
+                            <input
+                              type="file"
+                              accept="image/png,image/jpeg,image/webp"
+                              className="hidden"
+                              onChange={(event) => {
+                                handleVariantImage(v.key, event.target.files?.[0])
+                                event.currentTarget.value = ''
+                              }}
+                            />
+                          </label>
+                        </div>
+                      </div>
                       <FormField label="SKU" required value={v.sku} onChange={(e) => updateVariant(v.key, 'sku', e.target.value.toUpperCase())} placeholder="e.g. ICE-AMER-M" />
                       <FormField label="Barcode" required value={v.barcode} onChange={(e) => updateVariant(v.key, 'barcode', e.target.value)} placeholder="e.g. 885001020001" />
                       <Select label="Supplier" placeholder="Select a supplier" value={v.supplierId} onChange={(val) => updateVariant(v.key, 'supplierId', val)} options={supplierOptions} searchable />

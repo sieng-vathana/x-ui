@@ -68,6 +68,25 @@ export function ProductDetailPage() {
   const variantColumns: DataTableColumn<any>[] = useMemo(
     () => [
       {
+        id: 'image',
+        header: 'Image',
+        cell: (v) => (
+          <div className="h-10 w-10 overflow-hidden rounded-lg border border-vpos-line bg-vpos-subtle">
+            {v.image ? (
+              <img
+                src={resolveImageUrl(v.image)}
+                alt={v.variantName || 'Variant'}
+                className="h-full w-full object-cover"
+              />
+            ) : (
+              <div className="grid h-full w-full place-items-center text-vpos-muted">
+                <Icon name="image-line" className="text-[16px]" />
+              </div>
+            )}
+          </div>
+        ),
+      },
+      {
         id: 'variantName',
         header: 'Variant Name',
         cell: (v) => (
