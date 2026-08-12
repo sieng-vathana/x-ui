@@ -1,4 +1,4 @@
-import { useEffect, useId, useRef, useState } from 'react'
+import { useEffect, useId, useRef, useState, type ReactNode } from 'react'
 import { cn } from '../../lib/cn'
 import { Icon } from './Icon'
 
@@ -19,6 +19,7 @@ export interface SelectProps {
   variant?: 'form' | 'toolbar'
   className?: string
   searchable?: boolean
+  searchAction?: ReactNode
 }
 
 const labelClass =
@@ -35,6 +36,7 @@ export function Select({
   variant = 'form',
   className,
   searchable = false,
+  searchAction,
 }: SelectProps) {
   const [open, setOpen] = useState(false)
   const [query, setQuery] = useState('')
@@ -128,15 +130,20 @@ export function Select({
           )}
         >
           {searchable ? (
-            <div className="border-b border-vpos-line px-3 py-2">
+            <div className="flex items-center gap-2 border-b border-vpos-line px-3 py-2">
               <input
                 ref={inputRef}
-                className="h-9 w-full rounded-[4px] border border-vpos-line bg-vpos-surface px-2.5 text-[13px] text-vpos-text outline-none focus:border-vpos-primary"
+                className="h-9 min-w-0 flex-1 rounded-[4px] border border-vpos-line bg-vpos-surface px-2.5 text-[13px] text-vpos-text outline-none focus:border-vpos-primary"
                 placeholder="Search..."
                 value={query}
                 onChange={(e) => setQuery(e.target.value)}
                 onClick={(e) => e.stopPropagation()}
               />
+              {searchAction ? (
+                <span className="shrink-0" onClick={(e) => e.stopPropagation()}>
+                  {searchAction}
+                </span>
+              ) : null}
             </div>
           ) : null}
           <div className="max-h-[220px] overflow-y-auto py-1">

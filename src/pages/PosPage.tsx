@@ -910,20 +910,16 @@ export function PosPage() {
               <h2 className="m-0 mb-2 text-[14px] font-extrabold text-vpos-text">
                 Customer
               </h2>
-              <div className="flex items-end gap-2">
-                <Select
-                  className="min-w-0 flex-1"
-                  value={customerId}
-                  onChange={setCustomerId}
-                  options={customerOptions}
-                  searchable
-                  placeholder={customersQuery.isLoading ? 'Loading customers…' : 'Select customer'}
-                />
-                {canCreateCustomer ? (
+              <Select
+                value={customerId}
+                onChange={setCustomerId}
+                options={customerOptions}
+                searchable
+                searchAction={canCreateCustomer ? (
                   <Button
                     type="button"
                     variant="soft"
-                    className="h-[39px] w-[39px] shrink-0 p-0"
+                    className="h-9 w-9 p-0"
                     onClick={() => setQuickCustomerOpen(true)}
                     aria-label="Add customer"
                     title="Add customer"
@@ -931,7 +927,8 @@ export function PosPage() {
                     <Icon name="user-add-line" />
                   </Button>
                 ) : null}
-              </div>
+                placeholder={customersQuery.isLoading ? 'Loading customers…' : 'Select customer'}
+              />
             </div>
 
             <div className="flex min-h-0 flex-1 flex-col p-4">
