@@ -15,6 +15,7 @@ import {
   type LineDiscount,
 } from '../components/pos/DiscountModal'
 import { PosActivityModal } from '../components/pos/PosActivityModal'
+import { PosQrPaymentModal } from '../components/pos/PosQrPaymentModal'
 import { ShortcutsModal } from '../components/pos/ShortcutsModal'
 import { useAuth } from '../context/AuthContext'
 import { useToast } from '../context/ToastContext'
@@ -23,6 +24,7 @@ import { useStockBalances } from '../features/inventory/useStockBalances'
 import { useCreatePosOrder, useCompleteOrder } from '../features/orders/useOrders'
 import type { CreatePosOrderInput } from '../features/orders/types'
 import { useCreateCashPayment, useCreateQrPayment } from '../features/payments/usePayments'
+import type { QrPaymentResponse } from '../features/payments/types'
 import { useProductsList } from '../features/products/useProducts'
 import { useAdminStore } from '../hooks/useAdminStore'
 import { ApiError, resolveImageUrl } from '../lib/api'
@@ -96,6 +98,7 @@ export function PosPage() {
   const [discountTargetId, setDiscountTargetId] = useState<string | null>(null)
   const [shortcutsOpen, setShortcutsOpen] = useState(false)
   const [activityMode, setActivityMode] = useState<'hold' | 'recent' | null>(null)
+  const [qrCheckout, setQrCheckout] = useState<{ orderNo: string; response: QrPaymentResponse } | null>(null)
   const [isFullscreen, setIsFullscreen] = useState(false)
   const catRef = useRef<HTMLDivElement>(null)
   const searchRef = useRef<HTMLInputElement>(null)
@@ -411,14 +414,6 @@ export function PosPage() {
       })),
     }
 
-    const checkoutWindow = payment === 'qr'
-      ? window.open('about:blank', 'khqrpay-checkout')
-      : null
-    if (checkoutWindow) {
-      checkoutWindow.opener = null
-      checkoutWindow.document.title = 'Preparing KHQRPay checkout…'
-    }
-
     try {
       const order = await createOrderMutation.mutateAsync(input)
       if (payment === 'cash') {
@@ -450,20 +445,13 @@ export function PosPage() {
           idempotencyKey: `PAY-${order.id}-${Date.now()}`,
           note: items,
         })
-        if (!qrPayment.checkoutUrl) {
-          throw new Error('KHQRPay did not return a checkout URL.')
-        }
-        if (checkoutWindow) {
-          checkoutWindow.location.replace(qrPayment.checkoutUrl)
-        } else {
-          window.location.assign(qrPayment.checkoutUrl)
-        }
-        toast(`KHQRPay checkout opened for ${order.orderNo}.`, 'info')
+        if (!qrPayment.qrImageUrl) throw new Error('KHQRPay did not return a QR image.')
+        setQrCheckout({ orderNo: order.orderNo, response: qrPayment })
+        toast(`KHQR payment QR is ready for ${order.orderNo}.`, 'info')
       }
       setCart({})
       setDiscountTargetId(null)
     } catch (error) {
-      checkoutWindow?.close()
       toast(error instanceof Error ? error.message : 'Checkout could not be completed.', 'error')
     }
   }, [completeOrderMutation, createCashPaymentMutation, createOrderMutation, createQrPaymentMutation, currencyCode, customerId, lines, payment, storeId, taxRate, toast, user])
@@ -1126,6 +1114,13 @@ export function PosPage() {
         mode={activityMode}
         onClose={() => setActivityMode(null)}
         onAction={handleActivityAction}
+      />
+
+      <PosQrPaymentModal
+        key={qrCheckout?.response.transactionId ?? 'no-qr-checkout'}
+        checkout={qrCheckout?.response ?? null}
+        orderNo={qrCheckout?.orderNo}
+        onClose={() => setQrCheckout(null)}
       />
     </div>
   )
