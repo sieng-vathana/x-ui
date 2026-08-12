@@ -23,6 +23,8 @@ export interface ModalProps {
   className?: string
   panelClassName?: string
   bodyClassName?: string
+  /** Prevent accidental dismissal while interacting with a form. */
+  closeOnBackdrop?: boolean
   hideClose?: boolean
   /** light = white app modal; dark = FinPOS-style panel */
   tone?: ModalTone
@@ -59,6 +61,7 @@ export function Modal({
   className,
   panelClassName,
   bodyClassName,
+  closeOnBackdrop = true,
   hideClose = false,
   tone = 'light',
   contained = false,
@@ -120,7 +123,13 @@ export function Modal({
         className,
       )}
       role="presentation"
-      onClick={phase === 'exit' ? undefined : onClose}
+      onClick={
+        phase === 'exit' || !closeOnBackdrop
+          ? undefined
+          : (event) => {
+              if (event.target === event.currentTarget) onClose()
+            }
+      }
     >
       <div
         key={`modal-panel-${generation}`}

@@ -103,6 +103,7 @@ export function UserModal({
       title={isEdit ? `Edit Staff User: ${user?.fullName || user?.username}` : 'Add New Staff User'}
       description={isEdit ? 'Update staff member profile, role, and status permissions.' : 'Create a new staff user account with assigned role and store access.'}
       size="lg"
+      closeOnBackdrop={false}
       panelClassName="max-h-[min(92vh,820px)]"
       bodyClassName="max-h-[min(80vh,680px)] py-6 sm:px-7"
     >
