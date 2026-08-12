@@ -104,7 +104,7 @@ export function PaymentsPage() {
     setLogs([])
     lastStatus.current = null
     appendLog({
-      label: 'Generating checkout',
+      label: 'Generating QR',
       detail: `Preparing ${formatCurrency(parsedAmount, 'USD')} for order #${parsedOrderId}.`,
       tone: 'neutral',
     })
@@ -117,18 +117,18 @@ export function PaymentsPage() {
         currencyCode: 'USD',
         idempotencyKey: `QR-TEST-${parsedOrderId}-${Date.now()}`,
       })
-      if (!result.checkoutUrl) throw new Error('KHQRPay did not return a checkout URL.')
+      if (!result.qrImageUrl) throw new Error('KHQRPay did not return a QR image.')
       setCheckout(result)
       lastStatus.current = result.payment.status
       appendLog({
-        label: 'QR checkout generated',
+        label: 'Payment QR generated',
         detail: `Transaction ${result.transactionId} is ready and waiting for payment.`,
         tone: 'success',
       })
     } catch (error) {
       appendLog({
         label: 'QR generation failed',
-        detail: error instanceof Error ? error.message : 'The checkout could not be generated.',
+        detail: error instanceof Error ? error.message : 'The QR code could not be generated.',
         tone: 'danger',
       })
     }
@@ -141,10 +141,10 @@ export function PaymentsPage() {
     createQr.reset()
   }
 
-  const copyCheckoutUrl = async () => {
-    if (!checkout?.checkoutUrl) return
-    await navigator.clipboard.writeText(checkout.checkoutUrl)
-    toast('Checkout link copied.', 'success')
+  const copyQrPayload = async () => {
+    if (!checkout?.qrPayload) return
+    await navigator.clipboard.writeText(checkout.qrPayload)
+    toast('KHQR payment data copied.', 'success')
   }
 
   const isPaid = payment?.status === 'PAID'
@@ -154,7 +154,7 @@ export function PaymentsPage() {
     <>
       <Topbar
         title="KHQRPay test"
-        subtitle="Generate one checkout, scan it, and watch the real payment status"
+        subtitle="Generate one KHQR code, scan it, and watch the real payment status"
         actions={<StoreSwitcher value={storeId} onChange={setStoreId} />}
       />
       <main className={pageContent}>
@@ -162,7 +162,7 @@ export function PaymentsPage() {
           <div>
             <Breadcrumb items={[{ label: 'Point of sale', to: paths.pos }, { label: 'KHQRPay test' }]} />
             <p className="mt-3 max-w-[720px] text-[13px] leading-6 text-vpos-muted">
-              This page creates a real KHQRPay checkout. It shows success only when the payment service reports <strong className="text-vpos-text">PAID</strong>.
+              This page creates a real KHQR payment. It shows success only when the payment service reports <strong className="text-vpos-text">PAID</strong>.
             </p>
           </div>
           {checkout ? (
@@ -222,42 +222,76 @@ export function PaymentsPage() {
             <section className={`${card} overflow-hidden`}>
               <header className="flex flex-col gap-3 border-b border-vpos-line px-5 py-4 sm:flex-row sm:items-center sm:justify-between">
                 <div>
-                  <span className="text-[10px] font-extrabold tracking-[0.16em] text-vpos-muted uppercase">Live checkout</span>
+                  <span className="text-[10px] font-extrabold tracking-[0.16em] text-vpos-muted uppercase">Live KHQR</span>
                   <h2 className="mt-1 text-[16px] font-extrabold text-vpos-text">
-                    {checkout ? `Transaction ${checkout.transactionId}` : 'Generate a checkout to begin'}
+                    {checkout ? `Transaction ${checkout.transactionId}` : 'Generate a QR code to begin'}
                   </h2>
                 </div>
-                {checkout?.checkoutUrl ? (
+                {checkout?.qrImageUrl ? (
                   <div className="flex flex-wrap gap-2">
-                    <Button variant="secondary" onClick={() => void copyCheckoutUrl()}>
-                      <Icon name="file-copy-line" /> Copy link
-                    </Button>
+                    {checkout.qrPayload ? (
+                      <Button variant="secondary" onClick={() => void copyQrPayload()}>
+                        <Icon name="file-copy-line" /> Copy KHQR data
+                      </Button>
+                    ) : null}
                     <a
-                      href={checkout.checkoutUrl}
+                      href={checkout.qrImageUrl}
                       target="_blank"
                       rel="noreferrer"
                       className="inline-flex min-h-[39px] items-center justify-center gap-2 rounded-[4px] bg-vpos-primary px-4 text-[14px] font-semibold text-white no-underline hover:bg-vpos-primary-2"
                     >
-                      <Icon name="external-link-line" /> Open checkout
+                      <Icon name="external-link-line" /> Open QR
                     </a>
                   </div>
                 ) : null}
               </header>
 
               <div className="relative min-h-[560px] bg-[#edf3f1] p-3 sm:p-5">
-                {checkout?.checkoutUrl ? (
-                  <iframe
-                    key={checkout.transactionId}
-                    title="KHQRPay checkout"
-                    src={checkout.checkoutUrl}
-                    className="h-[620px] w-full rounded-[6px] border border-vpos-line bg-white shadow-[0_18px_45px_rgba(15,34,58,.16)]"
-                    allow="payment"
-                    onLoad={() => appendLog({
-                      label: 'Checkout displayed',
-                      detail: 'The KHQRPay hosted payment page finished loading in the preview.',
-                      tone: 'neutral',
-                    })}
-                  />
+                {checkout?.qrImageUrl ? (
+                  <div className="grid min-h-[520px] place-items-center rounded-[6px] border border-vpos-line/70 bg-[radial-gradient(circle_at_top,#ffffff_0%,#f5f9f8_54%,#e4edeb_100%)] px-4 py-8">
+                    <div className="w-full max-w-[430px] overflow-hidden rounded-[10px] border border-vpos-line bg-white shadow-[0_22px_55px_rgba(15,34,58,.16)]">
+                      <div className="flex items-center justify-between bg-[#d9222a] px-5 py-3.5 text-white">
+                        <span className="flex items-center gap-2 text-[18px] font-black tracking-[-0.03em]">
+                          <Icon name="qr-code-line" className="text-[22px]" /> KHQR
+                        </span>
+                        <span className="text-[11px] font-bold tracking-[0.12em] uppercase">Scan to pay</span>
+                      </div>
+                      <div className="px-5 pb-6 pt-5 text-center sm:px-8">
+                        <span className="text-[11px] font-bold tracking-[0.14em] text-vpos-muted uppercase">Payment amount</span>
+                        <strong className="mt-1 block text-[30px] tracking-[-0.04em] text-vpos-text">
+                          {formatCurrency(payment?.amount ?? checkout.payment.amount, checkout.payment.currencyCode)}
+                        </strong>
+                        <div className="mx-auto mt-4 aspect-square w-full max-w-[320px] rounded-[8px] border border-vpos-line bg-white p-3 shadow-[inset_0_0_0_1px_rgba(15,34,58,.02)]">
+                          <img
+                            key={checkout.transactionId}
+                            src={checkout.qrImageUrl}
+                            alt={`KHQR payment code for transaction ${checkout.transactionId}`}
+                            width="320"
+                            height="320"
+                            decoding="async"
+                            className="h-full w-full object-contain"
+                            onLoad={() => appendLog({
+                              label: 'QR code displayed',
+                              detail: 'The KHQR image is ready to scan with a Cambodian banking app.',
+                              tone: 'neutral',
+                            })}
+                            onError={() => appendLog({
+                              label: 'QR image failed to load',
+                              detail: 'Open the QR in a new tab or generate a new payment.',
+                              tone: 'danger',
+                            })}
+                          />
+                        </div>
+                        <strong className="mt-5 block text-[14px] text-vpos-text">Scan with your banking app</strong>
+                        <span className="mt-1.5 block text-[12px] leading-5 text-vpos-muted">
+                          Keep this page open while the payment status is checked automatically.
+                        </span>
+                        <code className="mt-4 block truncate rounded-[4px] bg-vpos-subtle px-3 py-2 font-mono text-[10px] text-vpos-muted" title={checkout.transactionId}>
+                          {checkout.transactionId}
+                        </code>
+                      </div>
+                    </div>
+                  </div>
                 ) : (
                   <div className="grid min-h-[520px] place-items-center rounded-[6px] border border-dashed border-vpos-line bg-white/70 px-6 text-center">
                     <span className="max-w-[420px]">
@@ -265,7 +299,7 @@ export function PaymentsPage() {
                         <Icon name="qr-scan-2-line" />
                       </span>
                       <strong className="mt-5 block text-[18px] text-vpos-text">Your generated QR will appear here</strong>
-                      <span className="mt-2 block text-[13px] leading-6 text-vpos-muted">Enter the test details, generate the checkout, then scan the QR with a Cambodian banking app.</span>
+                      <span className="mt-2 block text-[13px] leading-6 text-vpos-muted">Enter the test details, generate the QR, then scan it with a Cambodian banking app.</span>
                     </span>
                   </div>
                 )}
@@ -291,7 +325,7 @@ export function PaymentsPage() {
                     </span>
                   </div>
                 )) : (
-                  <div className="py-10 text-center text-[13px] text-vpos-muted">Events will appear after you generate a checkout.</div>
+                  <div className="py-10 text-center text-[13px] text-vpos-muted">Events will appear after you generate a QR code.</div>
                 )}
               </div>
             </section>

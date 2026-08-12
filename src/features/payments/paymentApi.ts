@@ -33,7 +33,7 @@ export const paymentApi = {
         method: 'POST',
         body: JSON.stringify(input),
       }),
-      'The KHQRPay checkout could not be created.',
+      'The KHQR payment QR could not be created.',
     )
   },
 
