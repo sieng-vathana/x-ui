@@ -67,7 +67,8 @@ export function PosQrPaymentModal({ checkout, orderNo, onClose }: PosQrPaymentMo
       size="md"
       title={orderNo ? `KHQR payment · ${orderNo}` : 'KHQR payment'}
       description="Ask the customer to scan this code with a Cambodian banking app."
-      panelClassName="max-w-[500px]"
+      panelClassName="max-h-[calc(100dvh-2rem)] max-w-[500px]"
+      bodyClassName="[@media(min-height:800px)]:!max-h-none [@media(min-height:800px)]:!overflow-y-visible"
       footer={
         <>
           {checkout?.qrPayload ? (

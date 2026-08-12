@@ -22,6 +22,7 @@ export interface ModalProps {
   size?: ModalSize
   className?: string
   panelClassName?: string
+  bodyClassName?: string
   hideClose?: boolean
   /** light = white app modal; dark = FinPOS-style panel */
   tone?: ModalTone
@@ -57,6 +58,7 @@ export function Modal({
   size = 'md',
   className,
   panelClassName,
+  bodyClassName,
   hideClose = false,
   tone = 'light',
   contained = false,
@@ -202,6 +204,7 @@ export function Modal({
               : size === 'xl'
                 ? 'max-h-none py-5 sm:px-6'
                 : 'max-h-[min(70vh,520px)] py-4',
+            bodyClassName,
           )}
         >
           {children}
