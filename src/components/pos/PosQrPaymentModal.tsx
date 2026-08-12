@@ -13,6 +13,7 @@ export interface PosQrPaymentModalProps {
 
 export function PosQrPaymentModal({ checkout, orderNo, onClose }: PosQrPaymentModalProps) {
   const [copied, setCopied] = useState(false)
+  const qrImageSource = checkout?.qrImageDataUrl
   const qrImageUrl = checkout?.qrImageUrl
   const [qrImageLoaded, setQrImageLoaded] = useState(false)
   const [qrImageFailed, setQrImageFailed] = useState(false)
@@ -44,7 +45,7 @@ export function PosQrPaymentModal({ checkout, orderNo, onClose }: PosQrPaymentMo
         </>
       }
     >
-      {checkout && qrImageUrl ? (
+      {checkout && qrImageSource ? (
         <div className="overflow-hidden rounded-[10px] border border-vpos-line bg-white shadow-[0_18px_45px_rgba(15,34,58,.12)]">
           <div className="flex items-center justify-between bg-[#d9222a] px-5 py-3 text-white">
             <span className="flex items-center gap-2 text-[18px] font-black tracking-[-0.03em]">
@@ -65,7 +66,7 @@ export function PosQrPaymentModal({ checkout, orderNo, onClose }: PosQrPaymentMo
               {!qrImageFailed ? (
                 <img
                   key={checkout.transactionId}
-                  src={qrImageUrl}
+                  src={qrImageSource}
                   alt={`KHQR payment code for transaction ${checkout.transactionId}`}
                   width="300"
                   height="300"
@@ -84,14 +85,16 @@ export function PosQrPaymentModal({ checkout, orderNo, onClose }: PosQrPaymentMo
                   <span className="mt-1 block text-[11px] leading-5 text-vpos-muted">
                     KHQRPay did not return the QR image.
                   </span>
-                  <a
-                    href={qrImageUrl}
-                    target="_blank"
-                    rel="noreferrer"
-                    className="mt-3 inline-flex items-center gap-1.5 text-[12px] font-bold text-vpos-primary"
-                  >
-                    <Icon name="external-link-line" /> Open QR image
-                  </a>
+                  {qrImageUrl ? (
+                    <a
+                      href={qrImageUrl}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="mt-3 inline-flex items-center gap-1.5 text-[12px] font-bold text-vpos-primary"
+                    >
+                      <Icon name="external-link-line" /> Open QR image
+                    </a>
+                  ) : null}
                 </span>
               )}
               {!qrImageLoaded && !qrImageFailed ? (

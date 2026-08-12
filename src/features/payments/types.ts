@@ -51,7 +51,32 @@ export interface QrPaymentResponse {
   transactionId: string
   qrPayload?: string | null
   qrImageUrl?: string | null
+  qrImageDataUrl?: string | null
   checkoutUrl?: string | null
   expiresAt?: string | null
   reused: boolean
+}
+
+export interface CreatePosQrCheckoutInput {
+  businessId: number
+  storeId: number
+  customerId: number
+  cashierId: number
+  currencyCode: string
+  taxRate?: number
+  idempotencyKey: string
+  paymentIdempotencyKey: string
+  paymentNote?: string
+  items: Array<{
+    variantId: number
+    quantity: number
+    discountType?: 'PERCENTAGE' | 'FIXED'
+    discountValue?: number
+    discountReason?: string
+  }>
+}
+
+export interface PosQrCheckoutResponse {
+  order: import('../orders/types').PosOrder
+  payment: QrPaymentResponse
 }

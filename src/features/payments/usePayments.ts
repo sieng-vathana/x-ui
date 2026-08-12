@@ -9,6 +9,10 @@ export function useCreateQrPayment() {
   return useMutation({ mutationFn: paymentApi.createQr })
 }
 
+export function useCreatePosQrCheckout() {
+  return useMutation({ mutationFn: paymentApi.createPosQr })
+}
+
 export function usePaymentsForOrder(orderId?: number) {
   return useQuery({
     queryKey: ['payments', { orderId }],

@@ -25,7 +25,7 @@ import type { CustomerPayload } from '../features/customers/types'
 import { useStockBalances } from '../features/inventory/useStockBalances'
 import { useCreatePosOrder, useCompleteOrder } from '../features/orders/useOrders'
 import type { CreatePosOrderInput } from '../features/orders/types'
-import { useCreateCashPayment, useCreateQrPayment } from '../features/payments/usePayments'
+import { useCreateCashPayment, useCreatePosQrCheckout } from '../features/payments/usePayments'
 import type { QrPaymentResponse } from '../features/payments/types'
 import { useProductsList } from '../features/products/useProducts'
 import { useAdminStore } from '../hooks/useAdminStore'
@@ -89,7 +89,7 @@ export function PosPage() {
   const createCustomerMutation = useCreateCustomer()
   const createOrderMutation = useCreatePosOrder()
   const createCashPaymentMutation = useCreateCashPayment()
-  const createQrPaymentMutation = useCreateQrPayment()
+  const createPosQrCheckoutMutation = useCreatePosQrCheckout()
   const completeOrderMutation = useCompleteOrder()
   const [query, setQuery] = useState('')
   const [categoryId, setCategoryId] = useState('all')
@@ -433,8 +433,8 @@ export function PosPage() {
     }
 
     try {
-      const order = await createOrderMutation.mutateAsync(input)
       if (payment === 'cash') {
+        const order = await createOrderMutation.mutateAsync(input)
         await createCashPaymentMutation.mutateAsync({
           orderId: order.id,
           businessId,
@@ -454,29 +454,25 @@ export function PosPage() {
           .map((line) => `${line.product.name} x${line.qty}`)
           .join(', ')
           .slice(0, 500)
-        const qrPayment = await createQrPaymentMutation.mutateAsync({
-          orderId: order.id,
-          businessId,
-          storeId: selectedStoreId,
-          amount: order.grandTotal,
-          currencyCode: order.currencyCode,
-          idempotencyKey: `PAY-${order.id}-${Date.now()}`,
-          note: items,
+        const checkout = await createPosQrCheckoutMutation.mutateAsync({
+          ...input,
+          paymentIdempotencyKey: `PAY-${Date.now()}-${crypto.randomUUID?.() ?? Math.random().toString(36).slice(2)}`,
+          paymentNote: items,
         })
-        if (!qrPayment.qrImageUrl) throw new Error('KHQRPay did not return a QR image.')
-        setQrCheckout({ orderNo: order.orderNo, response: qrPayment })
-        toast(`KHQR payment QR is ready for ${order.orderNo}.`, 'info')
+        if (!checkout.payment.qrImageDataUrl) throw new Error('KHQRPay did not return a QR image.')
+        setQrCheckout({ orderNo: checkout.order.orderNo, response: checkout.payment })
+        toast(`KHQR payment QR is ready for ${checkout.order.orderNo}.`, 'info')
       }
       setCart({})
       setDiscountTargetId(null)
     } catch (error) {
       toast(error instanceof Error ? error.message : 'Checkout could not be completed.', 'error')
     }
-  }, [completeOrderMutation, createCashPaymentMutation, createOrderMutation, createQrPaymentMutation, currencyCode, customerId, lines, payment, storeId, taxRate, toast, user])
+  }, [completeOrderMutation, createCashPaymentMutation, createOrderMutation, createPosQrCheckoutMutation, currencyCode, customerId, lines, payment, storeId, taxRate, toast, user])
 
   const checkoutPending = createOrderMutation.isPending
     || createCashPaymentMutation.isPending
-    || createQrPaymentMutation.isPending
+    || createPosQrCheckoutMutation.isPending
     || completeOrderMutation.isPending
 
   useEffect(() => {

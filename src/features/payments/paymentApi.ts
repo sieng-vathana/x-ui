@@ -1,8 +1,10 @@
 import { API_BASE_URL, ApiClient } from '../../lib/api'
 import type {
   CreateCashPaymentInput,
+  CreatePosQrCheckoutInput,
   CreateQrPaymentInput,
   Payment,
+  PosQrCheckoutResponse,
   QrPaymentResponse,
 } from './types'
 
@@ -34,6 +36,16 @@ export const paymentApi = {
         body: JSON.stringify(input),
       }),
       'The KHQR payment QR could not be created.',
+    )
+  },
+
+  async createPosQr(input: CreatePosQrCheckoutInput): Promise<PosQrCheckoutResponse> {
+    return requireData(
+      await api.request<ApiEnvelope<PosQrCheckoutResponse>>('/payments/pos-qr', {
+        method: 'POST',
+        body: JSON.stringify(input),
+      }),
+      'The POS KHQR checkout could not be created.',
     )
   },
 
