@@ -12,8 +12,13 @@ export interface ApiClientOptions {
   getToken?: () => string | undefined
 }
 
-/** Direct gateway API boundary — the UI does not use a Vite development proxy. */
-const API_GATEWAY_URL = (import.meta.env.VITE_API_GATEWAY_URL?.trim() || 'http://localhost:7555').replace(/\/$/, '')
+/**
+ * Production uses the UI server's same-origin /api proxy. This keeps each
+ * application action to one browser request instead of adding a CORS preflight.
+ */
+const API_GATEWAY_URL = (import.meta.env.DEV
+  ? import.meta.env.VITE_API_GATEWAY_URL?.trim() || 'http://localhost:7555'
+  : '').replace(/\/$/, '')
 export const API_BASE_URL = `${API_GATEWAY_URL}/api/v1`
 
 export function isPlatformApiRequest(input: RequestInfo | URL) {

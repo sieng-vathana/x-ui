@@ -459,7 +459,9 @@ export function PosPage() {
           paymentIdempotencyKey: `PAY-${Date.now()}-${crypto.randomUUID?.() ?? Math.random().toString(36).slice(2)}`,
           paymentNote: items,
         })
-        if (!checkout.payment.qrImageDataUrl) throw new Error('KHQRPay did not return a QR image.')
+        if (!checkout.payment.qrImageDataUrl?.startsWith('data:image/')) {
+          throw new Error('KHQRPay did not return a valid QR image.')
+        }
         setQrCheckout({ orderNo: checkout.order.orderNo, response: checkout.payment })
         toast(`KHQR payment QR is ready for ${checkout.order.orderNo}.`, 'info')
       }

@@ -15,7 +15,6 @@ export function PosQrPaymentModal({ checkout, orderNo, onClose }: PosQrPaymentMo
   const [copied, setCopied] = useState(false)
   const qrImageSource = checkout?.qrImageDataUrl
   const qrImageUrl = checkout?.qrImageUrl
-  const [qrImageLoaded, setQrImageLoaded] = useState(false)
   const [qrImageFailed, setQrImageFailed] = useState(false)
 
   const copyQrData = async () => {
@@ -70,12 +69,7 @@ export function PosQrPaymentModal({ checkout, orderNo, onClose }: PosQrPaymentMo
                   alt={`KHQR payment code for transaction ${checkout.transactionId}`}
                   width="300"
                   height="300"
-                  loading="eager"
-                  fetchPriority="high"
-                  className={qrImageLoaded
-                    ? 'block h-full w-full object-contain [grid-area:1/1]'
-                    : 'invisible h-full w-full [grid-area:1/1]'}
-                  onLoad={() => setQrImageLoaded(true)}
+                  className="block h-full w-full object-contain [grid-area:1/1]"
                   onError={() => setQrImageFailed(true)}
                 />
               ) : (
@@ -97,12 +91,6 @@ export function PosQrPaymentModal({ checkout, orderNo, onClose }: PosQrPaymentMo
                   ) : null}
                 </span>
               )}
-              {!qrImageLoaded && !qrImageFailed ? (
-                <span className="text-center text-vpos-muted [grid-area:1/1]">
-                  <Icon name="loader-4-line" className="animate-spin text-[30px] text-vpos-primary" />
-                  <span className="mt-2 block text-[12px]">Loading QR…</span>
-                </span>
-              ) : null}
             </div>
 
             <strong className="mt-4 block text-[14px] text-vpos-text">Waiting for customer payment</strong>
