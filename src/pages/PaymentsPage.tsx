@@ -44,7 +44,6 @@ export function PaymentsPage() {
   const createQr = useCreateQrPayment()
   const [orderId, setOrderId] = useState('')
   const [amount, setAmount] = useState('1.00')
-  const [items, setItems] = useState('KHQRPay test payment')
   const [checkout, setCheckout] = useState<QrPaymentResponse | null>(null)
   const [logs, setLogs] = useState<TestLog[]>([])
   const lastStatus = useRef<string | null>(null)
@@ -117,7 +116,6 @@ export function PaymentsPage() {
         amount: parsedAmount,
         currencyCode: 'USD',
         idempotencyKey: `QR-TEST-${parsedOrderId}-${Date.now()}`,
-        note: items.trim() || 'KHQRPay test payment',
       })
       if (!result.checkoutUrl) throw new Error('KHQRPay did not return a checkout URL.')
       setCheckout(result)
@@ -209,15 +207,6 @@ export function PaymentsPage() {
                   />
                   <span className="grid w-14 place-items-center text-[11px] font-extrabold text-vpos-muted">USD</span>
                 </label>
-              </Field>
-
-              <Field label="Items / remark" hint="Included in the signed request">
-                <textarea
-                  value={items}
-                  onChange={(event) => setItems(event.target.value.slice(0, 500))}
-                  rows={3}
-                  className="w-full resize-none rounded-[4px] border border-vpos-line bg-white px-3.5 py-3 text-[13px] outline-none focus:border-vpos-primary focus:ring-2 focus:ring-vpos-primary/10"
-                />
               </Field>
 
               <Button type="submit" className="mt-1 min-h-11 w-full" disabled={createQr.isPending}>
