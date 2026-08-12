@@ -116,9 +116,6 @@ export function PosPage() {
       if (product.isSellable === false) return []
       const categoryId = product.category?.id ? String(product.category.id) : 'general'
       const categoryName = product.category?.categoryName || 'General'
-      const image = resolveImageUrl(
-        product.thumbnail || product.variants?.find((variant) => variant.isDefault)?.image || product.images?.[0]?.imageUrl,
-      )
       return (product.variants ?? []).flatMap((variant) => {
         if (!variant.id || variant.posPrice == null || variant.posPrice < 0) return []
         return [{
@@ -128,7 +125,7 @@ export function PosPage() {
           variant: variant.variantName || variant.sku || 'Default',
           price: Number(variant.posPrice),
           oldPrice: variant.compareAtPrice,
-          image: resolveImageUrl(variant.image) || image,
+          image: resolveImageUrl(variant.image),
           categoryId,
           categoryName,
           badge: product.isFeatured ? 'Featured' : undefined,
