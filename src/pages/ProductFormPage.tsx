@@ -153,23 +153,62 @@ export function ProductFormPage() {
     }
 
     if (existingProduct.variants && existingProduct.variants.length > 0) {
-      setVariants(
-        existingProduct.variants.map((v, idx) => ({
-          key: String(v.id || idx),
-          image: v.image || undefined,
-          imagePreviewUrl: v.image || undefined,
-          sku: v.sku || '',
-          barcode: v.barcode || '',
-          variantName: v.variantName || '',
-          costPrice: v.costPrice != null ? String(v.costPrice) : '',
-          posPrice: v.posPrice != null ? String(v.posPrice) : '',
-          compareAtPrice: v.compareAtPrice != null ? String(v.compareAtPrice) : '',
-          onlinePrice: v.onlinePrice != null ? String(v.onlinePrice) : '',
-          stockQuantity: (v as any).quantity != null ? String((v as any).quantity) : ((v as any).stockQuantity != null ? String((v as any).stockQuantity) : ''),
-          stockAlertQty: v.stockAlertQty != null ? String(v.stockAlertQty) : '5',
-          supplierId: v.supplier?.id ? String(v.supplier.id) : '1',
-        })),
-      )
+      const loadedVariants = existingProduct.variants.map((v, idx) => ({
+        key: String(v.id || idx),
+        image: v.image || undefined,
+        imagePreviewUrl: v.image || undefined,
+        sku: v.sku || '',
+        barcode: v.barcode || '',
+        variantName: v.variantName || '',
+        costPrice: v.costPrice != null ? String(v.costPrice) : '',
+        posPrice: v.posPrice != null ? String(v.posPrice) : '',
+        compareAtPrice: v.compareAtPrice != null ? String(v.compareAtPrice) : '',
+        onlinePrice: v.onlinePrice != null ? String(v.onlinePrice) : '',
+        stockQuantity: (v as any).quantity != null ? String((v as any).quantity) : ((v as any).stockQuantity != null ? String((v as any).stockQuantity) : ''),
+        stockAlertQty: v.stockAlertQty != null ? String(v.stockAlertQty) : '5',
+        supplierId: v.supplier?.id ? String(v.supplier.id) : '1',
+      }))
+      setVariants(loadedVariants)
+
+      if (loadedVariants.length > 1) {
+        setHasOptions(true)
+        const hasSlash = loadedVariants.some((v) => v.variantName.includes(' / '))
+        if (hasSlash) {
+          const partsByGroup: string[][] = []
+          loadedVariants.forEach((v) => {
+            const parts = v.variantName.split(' / ')
+            parts.forEach((part, gIdx) => {
+              if (!partsByGroup[gIdx]) partsByGroup[gIdx] = []
+              const trimmed = part.trim()
+              if (trimmed && !partsByGroup[gIdx].includes(trimmed)) {
+                partsByGroup[gIdx].push(trimmed)
+              }
+            })
+          })
+          const defaultNames = ['Size', 'Option', 'Type', 'Flavor']
+          const parsedGroups = partsByGroup.map((vals, gIdx) => ({
+            id: `opt-${Date.now()}-${gIdx}`,
+            name: defaultNames[gIdx] || `Option ${gIdx + 1}`,
+            values: vals,
+            inputValue: '',
+          }))
+          if (parsedGroups.length > 0) {
+            setOptionGroups(parsedGroups)
+          }
+        } else {
+          const distinctNames = Array.from(new Set(loadedVariants.map((v) => v.variantName.trim()).filter(Boolean)))
+          if (distinctNames.length > 0) {
+            setOptionGroups([
+              {
+                id: `opt-${Date.now()}`,
+                name: 'Option',
+                values: distinctNames,
+                inputValue: '',
+              },
+            ])
+          }
+        }
+      }
     }
   }, [existingProduct])
 
@@ -429,26 +468,55 @@ export function ProductFormPage() {
     )
 
     const prefix = productCode ? productCode.trim().toUpperCase() : 'PRD'
+
+    // Look up existing variants by name or sku
+    const existingByName = new Map<string, VariantInput>()
+    const existingBySku = new Map<string, VariantInput>()
+    variants.forEach((v) => {
+      if (v.variantName) existingByName.set(v.variantName.toLowerCase().trim(), v)
+      if (v.sku) existingBySku.set(v.sku.toUpperCase().trim(), v)
+    })
+
+    const templateVariant = variants.find((v) => v.posPrice || v.image || v.imagePreviewUrl) || variants[0]
+
     const newVariants: VariantInput[] = cartesian.map((combo, idx) => {
       const comboName = combo.join(' / ')
       const comboCode = combo.map((c) => c.toUpperCase().replace(/\s+/g, '')).join('-')
+      const targetSku = `${prefix}-${comboCode}`
+
+      // Match existing variant by combination name or SKU
+      const matched = existingByName.get(comboName.toLowerCase().trim()) || existingBySku.get(targetSku)
+
+      if (matched) {
+        return {
+          ...matched,
+          key: matched.key || `gen-${Date.now()}-${idx}`,
+          variantName: comboName,
+          sku: matched.sku || targetSku,
+        }
+      }
+
+      // New variant — inherit baseline defaults without wiping out images
       return {
         key: `gen-${Date.now()}-${idx}`,
-        sku: `${prefix}-${comboCode}`,
+        sku: targetSku,
         barcode: `${Math.floor(100000000000 + Math.random() * 900000000000)}`,
         variantName: comboName,
-        costPrice: '',
-        posPrice: '',
-        compareAtPrice: '',
-        onlinePrice: '',
-        stockQuantity: '',
-        stockAlertQty: '5',
-        supplierId: '',
-        image: undefined,
+        costPrice: templateVariant?.costPrice || '',
+        posPrice: templateVariant?.posPrice || '',
+        compareAtPrice: templateVariant?.compareAtPrice || '',
+        onlinePrice: templateVariant?.onlinePrice || '',
+        stockQuantity: templateVariant?.stockQuantity || '',
+        stockAlertQty: templateVariant?.stockAlertQty || '5',
+        supplierId: templateVariant?.supplierId || '',
+        image: templateVariant?.image,
+        imageFile: templateVariant?.imageFile,
+        imagePreviewUrl: templateVariant?.imagePreviewUrl,
       }
     })
 
     setVariants(newVariants)
+    toast(`Generated ${newVariants.length} variants, preserving existing images and pricing.`, 'info')
   }
   const [images, setImages] = useState<ProductImage[]>([])
   const [cropTarget, setCropTarget] = useState<ProductImage | null>(null)
