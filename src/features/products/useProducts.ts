@@ -2,7 +2,12 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useAuth } from '../../context/AuthContext'
 import { ApiError } from '../../lib/api'
 import { productApi } from './productApi'
-import type { CreateProductCategoryPayload, CreateProductPayload, CreateProductUnitPayload } from './types'
+import type {
+  CreateProductBrandPayload,
+  CreateProductCategoryPayload,
+  CreateProductPayload,
+  CreateProductUnitPayload,
+} from './types'
 
 function normalizeStoreId(storeId?: string | number): number | undefined {
   const numericId = Number(storeId)
@@ -156,6 +161,44 @@ export function useProductBrands(storeId?: string | number) {
     retry: (failureCount, error) => {
       if (error instanceof ApiError && (error.status === 401 || error.status === 403)) return false
       return failureCount < 1
+    },
+  })
+}
+
+export function useCreateBrand() {
+  const queryClient = useQueryClient()
+  const { user } = useAuth()
+
+  return useMutation({
+    mutationFn: (payload: Omit<CreateProductBrandPayload, 'businessId'>) =>
+      productApi.createBrand({ ...payload, businessId: Number(user?.business?.id) }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['product-brands'] })
+    },
+  })
+}
+
+export function useUpdateBrand() {
+  const queryClient = useQueryClient()
+  const { user } = useAuth()
+
+  return useMutation({
+    mutationFn: ({ id, payload }: { id: number; payload: Omit<CreateProductBrandPayload, 'businessId'> }) =>
+      productApi.updateBrand(id, { ...payload, businessId: Number(user?.business?.id) }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['product-brands'] })
+    },
+  })
+}
+
+export function useDeleteBrand() {
+  const queryClient = useQueryClient()
+  const { user } = useAuth()
+
+  return useMutation({
+    mutationFn: (id: number) => productApi.deleteBrand(id, Number(user?.business?.id)),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['product-brands'] })
     },
   })
 }

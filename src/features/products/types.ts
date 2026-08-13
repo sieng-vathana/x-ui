@@ -134,6 +134,18 @@ export interface CreateProductCategoryPayload {
   status?: string
 }
 
+export interface CreateProductBrandPayload {
+  businessId: number
+  storeIds?: number[]
+  brandCode: string
+  brandName: string
+  description?: string
+  logo?: string
+  isFeatured?: boolean
+  isGlobal?: boolean
+  status?: string
+}
+
 export interface CreateProductPayload {
   storeId: number
   productCode?: string

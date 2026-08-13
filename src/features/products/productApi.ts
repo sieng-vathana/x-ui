@@ -1,6 +1,7 @@
 import { API_BASE_URL, ApiClient } from '../../lib/api'
 import type {
   ApiEnvelope,
+  CreateProductBrandPayload,
   CreateProductCategoryPayload,
   CreateProductPayload,
   CreateProductUnitPayload,
@@ -133,6 +134,37 @@ export const productApi = {
       `/products/brands?businessId=${businessId}${storeParam}&size=100`,
     )
     return response.data?.content ?? []
+  },
+
+  async createBrand(payload: CreateProductBrandPayload): Promise<ProductBrand> {
+    const response = await api.request<ApiEnvelope<ProductBrand>>('/products/brands', {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    })
+    if (!response.data) {
+      throw new Error(response.message || 'Failed to create brand.')
+    }
+    return response.data
+  },
+
+  async updateBrand(id: number, payload: CreateProductBrandPayload): Promise<ProductBrand> {
+    const response = await api.request<ApiEnvelope<ProductBrand>>(
+      `/products/brands/${id}?businessId=${payload.businessId}`,
+      {
+        method: 'PUT',
+        body: JSON.stringify(payload),
+      },
+    )
+    if (!response.data) {
+      throw new Error(response.message || 'Failed to update brand.')
+    }
+    return response.data
+  },
+
+  async deleteBrand(id: number, businessId: string | number): Promise<void> {
+    await api.request<ApiEnvelope<void>>(`/products/brands/${id}?businessId=${businessId}`, {
+      method: 'DELETE',
+    })
   },
 
   async getTaxes(businessId: string | number, storeId?: string | number): Promise<ProductTax[]> {

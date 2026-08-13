@@ -92,7 +92,12 @@ export default function App() {
                     element={<ProductCategoriesPage />}
                   />
                 </Route>
-                <Route path="products/brands" element={<ProductBrandsPage />} />
+                <Route element={<RequirePermission permission="x-product:brand" />}>
+                  <Route
+                    path="products/brands"
+                    element={<ProductBrandsPage />}
+                  />
+                </Route>
                 <Route path="products/options" element={<ProductOptionsPage />} />
                 <Route path="products/variants" element={<Navigate to="/products/options" replace />} />
                 <Route path="products/stock-movement" element={<StockMovementPage />} />

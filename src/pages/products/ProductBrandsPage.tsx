@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useMemo, useRef, useState } from 'react'
 import {
   Breadcrumb,
   Button,
@@ -13,153 +13,119 @@ import {
   type DataTableColumn,
 } from '../../components'
 import { ProductsSubnav } from '../../components/products/ProductsSubnav'
-import {
-  productBrands as initialBrands,
-  type ProductBrandReference,
-} from '../../data/product-reference-mockup'
 import { useAdminStore } from '../../hooks/useAdminStore'
 import { cn } from '../../lib/cn'
 import { paths } from '../../lib/paths'
 import { pageContent } from '../../lib/ui'
 import { useToast } from '../../context/ToastContext'
-import { readStoredValue, writeStoredValue } from '../../lib/storage'
-
-const STORAGE_KEY = 'x-ui:product-brands'
-const ID_COUNTER_KEY = 'x-ui:product-brands-id-counter'
-
-function nextId(): string {
-  const counter = readStoredValue<number>(ID_COUNTER_KEY, 0) + 1
-  writeStoredValue(ID_COUNTER_KEY, counter)
-  return `brand-${Date.now()}-${counter}`
-}
+import {
+  useProductBrands,
+  useCreateBrand,
+  useUpdateBrand,
+  useDeleteBrand,
+} from '../../features/products/useProducts'
+import { useStoresRaw } from '../../features/stores/useStores'
+import { fileApi } from '../../features/files/fileApi'
+import type { ProductBrand } from '../../features/products/types'
 
 interface BrandFormData {
   code: string
   name: string
-  icon: string
-  productCount: number
-  storeCount: number
-  sortOrder: number
-  status: 'Active' | 'Inactive'
+  description: string
+  logo: string
+  isGlobal: boolean
+  storeIds: number[]
+  isFeatured: boolean
+  status: string
 }
 
 interface FormErrors {
   code?: string
   name?: string
-  icon?: string
-  productCount?: string
-  storeCount?: string
-  sortOrder?: string
+  storeIds?: string
 }
 
 function validateForm(data: BrandFormData): FormErrors {
   const errors: FormErrors = {}
   if (!data.code.trim()) {
     errors.code = 'Code is required.'
-  } else if (data.code.trim().length > 5) {
-    errors.code = 'Code must be 5 characters or fewer.'
+  } else if (data.code.trim().length > 50) {
+    errors.code = 'Code must be 50 characters or fewer.'
   }
   if (!data.name.trim()) {
     errors.name = 'Name is required.'
   } else if (data.name.trim().length < 2) {
     errors.name = 'Name must be at least 2 characters.'
   }
-  if (!data.icon.trim()) {
-    errors.icon = 'Icon is required.'
-  }
-  if (data.productCount < 0 || !Number.isInteger(data.productCount)) {
-    errors.productCount = 'Must be a whole number (0 or more).'
-  }
-  if (data.storeCount < 0 || !Number.isInteger(data.storeCount)) {
-    errors.storeCount = 'Must be a whole number (0 or more).'
-  }
-  if (data.sortOrder < 0 || !Number.isInteger(data.sortOrder)) {
-    errors.sortOrder = 'Must be a whole number (0 or more).'
+  if (!data.isGlobal && data.storeIds.length === 0) {
+    errors.storeIds = 'Please select at least one store for store-specific coverage.'
   }
   return errors
 }
 
-const brandColumns: DataTableColumn<ProductBrandReference>[] = [
-  {
-    id: 'brand',
-    header: 'Brand',
-    searchable: (brand) => `${brand.name} ${brand.code}`,
-    cell: (brand) => (
-      <div className="flex items-center gap-3">
-        <span className={cn('grid h-10 w-10 place-items-center rounded-[4px] text-[19px] bg-vpos-subtle text-vpos-primary')}>
-          <Icon name={brand.icon as any} />
-        </span>
-        <span>
-          <strong className="block text-[14px]">{brand.name}</strong>
-          <small className="mt-0.5 block font-mono text-[11px] font-bold tracking-[0.06em] text-vpos-muted">
-            {brand.code}
-          </small>
-        </span>
-      </div>
-    ),
-  },
-  {
-    id: 'products',
-    header: 'Products',
-    cell: (brand) => <strong>{brand.productCount}</strong>,
-  },
-  {
-    id: 'stores',
-    header: 'Stores',
-    hideOnMobile: true,
-    cell: (brand) => brand.storeCount,
-  },
-  {
-    id: 'sort',
-    header: 'Sort order',
-    hideOnMobile: true,
-    cell: (brand) => (
-      <span className="inline-flex min-w-8 justify-center rounded-[4px] border border-vpos-line bg-white px-2 py-1 font-mono text-[12px] font-bold">
-        {brand.sortOrder}
-      </span>
-    ),
-  },
-  {
-    id: 'status',
-    header: 'Status',
-    searchable: (brand) => brand.status,
-    cell: (brand) => <Status value={brand.status} />,
-  },
-  {
-    id: 'actions',
-    header: '',
-    cell: () => null,
-  },
-]
+function toFormDefaults(brand: ProductBrand | null): BrandFormData {
+  return {
+    code: brand?.brandCode ?? '',
+    name: brand?.brandName ?? '',
+    description: brand?.description ?? '',
+    logo: brand?.logo ?? '',
+    isGlobal: brand?.isGlobal ?? true,
+    storeIds: brand?.storeIds ? Array.from(brand.storeIds) : [],
+    isFeatured: brand?.isFeatured ?? false,
+    status: brand?.status ?? 'ACTIVE',
+  }
+}
 
 interface BrandFormModalProps {
   open: boolean
-  brand: ProductBrandReference | null
+  brand: ProductBrand | null
   onClose: () => void
-  onSave: (brand: ProductBrandReference, isEdit: boolean) => void
+  onSave: (data: {
+    payload: {
+      brandCode: string
+      brandName: string
+      description?: string
+      logo?: string
+      isGlobal: boolean
+      isFeatured: boolean
+      status: string
+      storeIds?: number[]
+    }
+    isEdit: boolean
+    id?: number
+  }) => Promise<void>
+  isSaving: boolean
 }
 
-function BrandFormModal({ open, brand, onClose, onSave }: BrandFormModalProps) {
+function BrandFormModal({ open, brand, onClose, onSave, isSaving }: BrandFormModalProps) {
+  const { data: stores = [] } = useStoresRaw()
+  const fileInputRef = useRef<HTMLInputElement>(null)
+
+  const defaults = toFormDefaults(brand)
   const isEditing = Boolean(brand)
-  const [code, setCode] = useState(brand?.code ?? '')
-  const [name, setName] = useState(brand?.name ?? '')
-  const [icon, setIcon] = useState(brand?.icon ?? '')
-  const [productCount, setProductCount] = useState(brand?.productCount ?? 0)
-  const [storeCount, setStoreCount] = useState(brand?.storeCount ?? 0)
-  const [sortOrder, setSortOrder] = useState(brand?.sortOrder ?? 10)
-  const [status, setStatus] = useState<'Active' | 'Inactive'>(brand?.status ?? 'Active')
+  const [code, setCode] = useState(defaults.code)
+  const [name, setName] = useState(defaults.name)
+  const [description, setDescription] = useState(defaults.description)
+  const [logo, setLogo] = useState(defaults.logo)
+  const [isGlobal, setIsGlobal] = useState(defaults.isGlobal)
+  const [storeIds, setStoreIds] = useState<number[]>(defaults.storeIds)
+  const [isFeatured, setIsFeatured] = useState(defaults.isFeatured)
+  const [status, setStatus] = useState(defaults.status)
+  const [isUploadingLogo, setIsUploadingLogo] = useState(false)
   const [errors, setErrors] = useState<FormErrors>({})
-  const { toast } = useToast()
 
   const resetForm = () => {
-    setCode(brand?.code ?? '')
-    setName(brand?.name ?? '')
-    setIcon(brand?.icon ?? '')
-    setProductCount(brand?.productCount ?? 0)
-    setStoreCount(brand?.storeCount ?? 0)
-    setSortOrder(brand?.sortOrder ?? 10)
-    setStatus(brand?.status ?? 'Active')
+    const d = toFormDefaults(brand)
+    setCode(d.code)
+    setName(d.name)
+    setDescription(d.description)
+    setLogo(d.logo)
+    setIsGlobal(d.isGlobal)
+    setStoreIds(d.storeIds)
+    setIsFeatured(d.isFeatured)
+    setStatus(d.status)
     setErrors({})
+    setIsUploadingLogo(false)
   }
 
   const handleClose = () => {
@@ -167,20 +133,61 @@ function BrandFormModal({ open, brand, onClose, onSave }: BrandFormModalProps) {
     onClose()
   }
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleFileUpload = async (files: FileList | null) => {
+    if (!files || files.length === 0) return
+    const file = files[0]
+    setIsUploadingLogo(true)
+    try {
+      const response = await fileApi.upload(file)
+      const uploadedUrl = response.url?.trim() || ''
+      if (uploadedUrl) {
+        setLogo(uploadedUrl)
+      }
+    } catch (err: any) {
+      console.error('Logo upload failed', err)
+    } finally {
+      setIsUploadingLogo(false)
+      if (fileInputRef.current) fileInputRef.current.value = ''
+    }
+  }
+
+  const handleToggleStore = (storeId: number) => {
+    setStoreIds((prev) => {
+      const exists = prev.includes(storeId)
+      const updated = exists ? prev.filter((id) => id !== storeId) : [...prev, storeId]
+      if (updated.length > 0 && errors.storeIds) {
+        setErrors((e) => ({ ...e, storeIds: undefined }))
+      }
+      return updated
+    })
+  }
+
+  const handleSelectAllStores = () => {
+    const allIds = stores.map((s) => Number(s.id))
+    setStoreIds(allIds)
+    if (errors.storeIds) setErrors((e) => ({ ...e, storeIds: undefined }))
+  }
+
+  const handleClearStores = () => {
+    setStoreIds([])
+  }
+
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
 
     const trimmedCode = code.trim().toUpperCase()
     const trimmedName = name.trim()
-    const trimmedIcon = icon.trim()
+    const trimmedDesc = description.trim()
+    const trimmedLogo = logo.trim()
 
     const validation = validateForm({
       code: trimmedCode,
       name: trimmedName,
-      icon: trimmedIcon,
-      productCount,
-      storeCount,
-      sortOrder,
+      description: trimmedDesc,
+      logo: trimmedLogo,
+      isGlobal,
+      storeIds,
+      isFeatured,
       status,
     })
     if (Object.keys(validation).length > 0) {
@@ -188,33 +195,22 @@ function BrandFormModal({ open, brand, onClose, onSave }: BrandFormModalProps) {
       return
     }
 
-    if (isEditing && brand) {
-      const updated: ProductBrandReference = {
-        ...brand,
-        code: trimmedCode,
-        name: trimmedName,
-        icon: trimmedIcon,
-        productCount,
-        storeCount,
-        sortOrder,
-        status,
-      }
-      onSave(updated, true)
-      toast(`${trimmedName} was updated.`, 'success')
-    } else {
-      const created: ProductBrandReference = {
-        id: nextId(),
-        code: trimmedCode,
-        name: trimmedName,
-        icon: trimmedIcon,
-        productCount,
-        storeCount,
-        sortOrder,
-        status,
-      }
-      onSave(created, false)
-      toast(`${trimmedName} was created.`, 'success')
+    const payload = {
+      brandCode: trimmedCode,
+      brandName: trimmedName,
+      description: trimmedDesc || undefined,
+      logo: trimmedLogo || undefined,
+      isGlobal,
+      isFeatured,
+      status,
+      storeIds: isGlobal ? [] : storeIds,
     }
+
+    await onSave({
+      payload,
+      isEdit: isEditing,
+      id: brand?.id,
+    })
 
     handleClose()
   }
@@ -224,127 +220,282 @@ function BrandFormModal({ open, brand, onClose, onSave }: BrandFormModalProps) {
       open={open}
       onClose={handleClose}
       title={isEditing ? 'Edit brand' : 'Add brand'}
-      description={isEditing ? 'Update product brand details.' : 'Create a new product brand.'}
-      size="sm"
+      description={isEditing ? 'Update product brand details and store coverage.' : 'Create a new brand for your catalog.'}
+      size="md"
       footer={
         <>
-          <Button variant="secondary" type="button" onClick={handleClose}>
+          <Button variant="secondary" type="button" onClick={handleClose} disabled={isSaving || isUploadingLogo}>
             Cancel
           </Button>
-          <Button variant="primary" type="submit" onClick={handleSubmit}>
-            {isEditing ? 'Save changes' : 'Create brand'}
+          <Button variant="primary" type="submit" onClick={handleSubmit} disabled={isSaving || isUploadingLogo}>
+            {isSaving ? 'Saving…' : isEditing ? 'Save changes' : 'Create brand'}
           </Button>
         </>
       }
     >
       <form onSubmit={handleSubmit} className="flex flex-col gap-4">
-        <FormField
-          label="Code"
-          required
-          name="code"
-          placeholder="e.g. PRM"
-          maxLength={5}
-          value={code}
-          onChange={(e) => {
-            setCode(e.target.value.toUpperCase())
-            if (errors.code) setErrors((prev) => ({ ...prev, code: undefined }))
-          }}
-        />
-        {errors.code ? (
-          <p className="-mt-3 mb-0 text-[12px] font-semibold text-vpos-red">{errors.code}</p>
-        ) : null}
+        {/* Brand Logo Upload / Preview */}
+        <div>
+          <label className="mb-1.5 block text-[13px] font-extrabold uppercase tracking-[.12em] text-vpos-primary">
+            Brand Logo
+          </label>
+          <div className="flex items-start gap-4">
+            {logo ? (
+              <div className="relative group h-20 w-20 shrink-0 overflow-hidden rounded-xl border border-vpos-line bg-vpos-subtle shadow-xs">
+                <img
+                  src={logo}
+                  alt="Brand logo preview"
+                  className="h-full w-full object-cover"
+                  onError={(e) => {
+                    (e.currentTarget as HTMLImageElement).src = 'data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" width="40" height="40" viewBox="0 0 24 24"><text y="20" font-size="20">🏷️</text></svg>'
+                  }}
+                />
+                <button
+                  type="button"
+                  onClick={() => setLogo('')}
+                  className="absolute inset-0 grid place-items-center bg-black/60 text-white opacity-0 transition-opacity group-hover:opacity-100"
+                  title="Remove logo"
+                >
+                  <Icon name="delete-bin-line" className="text-[18px]" />
+                </button>
+              </div>
+            ) : (
+              <div
+                onClick={() => fileInputRef.current?.click()}
+                className={cn(
+                  'flex h-20 w-20 shrink-0 cursor-pointer flex-col items-center justify-center rounded-xl border-2 border-dashed border-vpos-line bg-vpos-subtle transition',
+                  'hover:border-vpos-primary hover:bg-vpos-sand/30',
+                )}
+                role="button"
+                tabIndex={0}
+              >
+                {isUploadingLogo ? (
+                  <Icon name="loader-line" className="animate-spin text-[20px] text-vpos-primary" />
+                ) : (
+                  <>
+                    <Icon name="image-add-line" className="text-[20px] text-vpos-muted" />
+                    <span className="mt-1 text-[10px] font-bold text-vpos-muted">Upload</span>
+                  </>
+                )}
+              </div>
+            )}
+
+            <div className="flex-1 flex flex-col justify-center gap-2">
+              <div className="flex items-center gap-2">
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  accept="image/*"
+                  hidden
+                  onChange={(e) => handleFileUpload(e.target.files)}
+                />
+                <Button
+                  type="button"
+                  variant="secondary"
+                  className="px-3 py-1.5 text-[12px]"
+                  disabled={isUploadingLogo}
+                  onClick={() => fileInputRef.current?.click()}
+                >
+                  <Icon name="upload-2-line" /> {isUploadingLogo ? 'Uploading…' : logo ? 'Replace logo' : 'Upload logo'}
+                </Button>
+                {logo && (
+                  <Button
+                    type="button"
+                    variant="text"
+                    className="px-2 py-1.5 text-[12px] text-vpos-red hover:text-vpos-red"
+                    onClick={() => setLogo('')}
+                  >
+                    Remove
+                  </Button>
+                )}
+              </div>
+              <input
+                type="text"
+                placeholder="Or paste logo URL (https://...)"
+                value={logo}
+                onChange={(e) => setLogo(e.target.value)}
+                className="w-full rounded-[4px] border border-vpos-line bg-white px-3 py-1.5 text-[12px] text-vpos-text placeholder:text-vpos-muted focus:border-vpos-primary focus:outline-none"
+              />
+            </div>
+          </div>
+        </div>
+
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+          <div>
+            <FormField
+              label="Brand Code"
+              required
+              name="code"
+              placeholder="e.g. NIKE, NESPRESSO"
+              maxLength={50}
+              value={code}
+              onChange={(e) => {
+                setCode(e.target.value.toUpperCase())
+                if (errors.code) setErrors((prev) => ({ ...prev, code: undefined }))
+              }}
+            />
+            {errors.code ? (
+              <p className="mt-1 text-[12px] font-semibold text-vpos-red">{errors.code}</p>
+            ) : null}
+          </div>
+
+          <div>
+            <FormField
+              label="Brand Name"
+              required
+              name="name"
+              placeholder="e.g. Nike, Nespresso"
+              value={name}
+              onChange={(e) => {
+                setName(e.target.value)
+                if (errors.name) setErrors((prev) => ({ ...prev, name: undefined }))
+              }}
+            />
+            {errors.name ? (
+              <p className="mt-1 text-[12px] font-semibold text-vpos-red">{errors.name}</p>
+            ) : null}
+          </div>
+        </div>
 
         <FormField
-          label="Name"
-          required
-          name="name"
-          placeholder="e.g. Premium Blend"
-          value={name}
-          onChange={(e) => {
-            setName(e.target.value)
-            if (errors.name) setErrors((prev) => ({ ...prev, name: undefined }))
-          }}
+          label="Description"
+          name="description"
+          placeholder="e.g. High performance athletic products"
+          value={description}
+          onChange={(e) => setDescription(e.target.value)}
         />
-        {errors.name ? (
-          <p className="-mt-3 mb-0 text-[12px] font-semibold text-vpos-red">{errors.name}</p>
-        ) : null}
 
-        <FormField
-          label="Icon"
-          required
-          name="icon"
-          placeholder="e.g. star-line"
-          value={icon}
-          onChange={(e) => {
-            setIcon(e.target.value)
-            if (errors.icon) setErrors((prev) => ({ ...prev, icon: undefined }))
-          }}
-        />
-        {errors.icon ? (
-          <p className="-mt-3 mb-0 text-[12px] font-semibold text-vpos-red">{errors.icon}</p>
-        ) : null}
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+          <SelectField
+            label="Featured"
+            name="isFeatured"
+            value={isFeatured ? 'true' : 'false'}
+            onChange={(e) => setIsFeatured(e.target.value === 'true')}
+            options={[
+              { value: 'false', label: 'No' },
+              { value: 'true', label: 'Yes — show on storefront' },
+            ]}
+          />
 
-        <FormField
-          label="Products"
-          name="productCount"
-          type="number"
-          min={0}
-          step={1}
-          value={productCount}
-          onChange={(e) => {
-            const v = parseInt(e.target.value, 10)
-            setProductCount(Number.isNaN(v) ? 0 : v)
-            if (errors.productCount) setErrors((prev) => ({ ...prev, productCount: undefined }))
-          }}
-        />
-        {errors.productCount ? (
-          <p className="-mt-3 mb-0 text-[12px] font-semibold text-vpos-red">{errors.productCount}</p>
-        ) : null}
+          <SelectField
+            label="Status"
+            name="status"
+            value={status}
+            onChange={(e) => setStatus(e.target.value)}
+            options={[
+              { value: 'ACTIVE', label: 'Active' },
+              { value: 'INACTIVE', label: 'Inactive' },
+            ]}
+          />
+        </div>
 
-        <FormField
-          label="Stores"
-          name="storeCount"
-          type="number"
-          min={0}
-          step={1}
-          value={storeCount}
-          onChange={(e) => {
-            const v = parseInt(e.target.value, 10)
-            setStoreCount(Number.isNaN(v) ? 0 : v)
-            if (errors.storeCount) setErrors((prev) => ({ ...prev, storeCount: undefined }))
-          }}
-        />
-        {errors.storeCount ? (
-          <p className="-mt-3 mb-0 text-[12px] font-semibold text-vpos-red">{errors.storeCount}</p>
-        ) : null}
+        {/* Coverage & Store Selection */}
+        <div className="rounded-xl border border-vpos-line bg-[#fbfcfd] p-4">
+          <label className="mb-2 block text-[13px] font-extrabold uppercase tracking-[.12em] text-vpos-primary">
+            Store Coverage
+          </label>
+          <div className="flex items-center gap-3">
+            <button
+              type="button"
+              onClick={() => {
+                setIsGlobal(true)
+                if (errors.storeIds) setErrors((e) => ({ ...e, storeIds: undefined }))
+              }}
+              className={cn(
+                'flex min-h-11 flex-1 items-center justify-center gap-2 rounded-xl border text-[13px] font-bold transition',
+                isGlobal
+                  ? 'border-vpos-primary bg-vpos-sand/50 text-vpos-primary shadow-xs'
+                  : 'border-vpos-line bg-white text-vpos-muted hover:bg-vpos-subtle',
+              )}
+            >
+              <Icon name="global-line" />
+              <span>All stores (Global)</span>
+            </button>
+            <button
+              type="button"
+              onClick={() => setIsGlobal(false)}
+              className={cn(
+                'flex min-h-11 flex-1 items-center justify-center gap-2 rounded-xl border text-[13px] font-bold transition',
+                !isGlobal
+                  ? 'border-vpos-primary bg-vpos-sand/50 text-vpos-primary shadow-xs'
+                  : 'border-vpos-line bg-white text-vpos-muted hover:bg-vpos-subtle',
+              )}
+            >
+              <Icon name="store-2-line" />
+              <span>Specific stores</span>
+            </button>
+          </div>
 
-        <FormField
-          label="Sort order"
-          name="sortOrder"
-          type="number"
-          min={0}
-          step={10}
-          value={sortOrder}
-          onChange={(e) => {
-            const v = parseInt(e.target.value, 10)
-            setSortOrder(Number.isNaN(v) ? 0 : v)
-            if (errors.sortOrder) setErrors((prev) => ({ ...prev, sortOrder: undefined }))
-          }}
-        />
-        {errors.sortOrder ? (
-          <p className="-mt-3 mb-0 text-[12px] font-semibold text-vpos-red">{errors.sortOrder}</p>
-        ) : null}
+          {!isGlobal && (
+            <div className="mt-3.5 space-y-2 border-t border-vpos-line/80 pt-3">
+              <div className="flex items-center justify-between">
+                <span className="text-[12px] font-bold text-vpos-text">
+                  Select stores assigned to this brand <span className="text-vpos-red">*</span>
+                </span>
+                <div className="flex items-center gap-2 text-[11px]">
+                  <button
+                    type="button"
+                    onClick={handleSelectAllStores}
+                    className="font-bold text-vpos-primary hover:underline"
+                  >
+                    Select all
+                  </button>
+                  <span className="text-vpos-muted">•</span>
+                  <button
+                    type="button"
+                    onClick={handleClearStores}
+                    className="font-bold text-vpos-muted hover:text-vpos-text"
+                  >
+                    Clear
+                  </button>
+                </div>
+              </div>
 
-        <SelectField
-          label="Status"
-          name="status"
-          value={status}
-          onChange={(e) => setStatus(e.target.value as 'Active' | 'Inactive')}
-          options={[
-            { value: 'Active', label: 'Active' },
-            { value: 'Inactive', label: 'Inactive' },
-          ]}
-        />
+              {errors.storeIds ? (
+                <p className="text-[12px] font-semibold text-vpos-red">{errors.storeIds}</p>
+              ) : null}
+
+              <div className="grid max-h-48 grid-cols-1 gap-2 overflow-y-auto rounded-lg border border-vpos-line bg-white p-2 sm:grid-cols-2">
+                {stores.length > 0 ? (
+                  stores.map((store) => {
+                    const sid = Number(store.id)
+                    const isChecked = storeIds.includes(sid)
+                    return (
+                      <label
+                        key={store.id}
+                        className={cn(
+                          'flex cursor-pointer items-center gap-2.5 rounded-lg border px-3 py-2.5 text-[13px] font-medium transition',
+                          isChecked
+                            ? 'border-vpos-primary bg-vpos-sand/30 font-semibold text-vpos-primary'
+                            : 'border-vpos-line bg-white text-vpos-text hover:bg-vpos-subtle',
+                        )}
+                      >
+                        <input
+                          type="checkbox"
+                          checked={isChecked}
+                          onChange={() => handleToggleStore(sid)}
+                          className="h-4 w-4 rounded accent-vpos-primary"
+                        />
+                        <div className="min-w-0 flex-1">
+                          <span className="block truncate text-[13px]">{store.name}</span>
+                          {store.city || store.addressLine1 ? (
+                            <small className="block truncate text-[10px] text-vpos-muted">
+                              {[store.addressLine1, store.city].filter(Boolean).join(', ')}
+                            </small>
+                          ) : null}
+                        </div>
+                      </label>
+                    )
+                  })
+                ) : (
+                  <p className="col-span-full py-4 text-center text-[12px] text-vpos-muted">
+                    No stores available. Please create a store first.
+                  </p>
+                )}
+              </div>
+            </div>
+          )}
+        </div>
       </form>
     </Modal>
   )
@@ -353,83 +504,216 @@ function BrandFormModal({ open, brand, onClose, onSave }: BrandFormModalProps) {
 export function ProductBrandsPage() {
   const { storeId, setStoreId } = useAdminStore()
   const { toast } = useToast()
-  const [brands, setBrands] = useState<ProductBrandReference[]>(
-    () => readStoredValue<ProductBrandReference[]>(STORAGE_KEY, initialBrands)
-  )
-  const [formOpen, setFormOpen] = useState(false)
-  const [editingBrand, setEditingBrand] = useState<ProductBrandReference | null>(null)
-  const [deleteTarget, setDeleteTarget] = useState<ProductBrandReference | null>(null)
-  const [isDeleting, setIsDeleting] = useState(false)
+  const { data: brands = [], isLoading } = useProductBrands(storeId)
+  const { data: stores = [] } = useStoresRaw()
+  const createBrandMutation = useCreateBrand()
+  const updateBrandMutation = useUpdateBrand()
+  const deleteBrandMutation = useDeleteBrand()
 
-  const activeBrands = brands.filter((b) => b.status === 'Active').length
-  const assignedProducts = brands.reduce((total, b) => total + b.productCount, 0)
+  const [formOpen, setFormOpen] = useState(false)
+  const [editingBrand, setEditingBrand] = useState<ProductBrand | null>(null)
+  const [deleteTarget, setDeleteTarget] = useState<ProductBrand | null>(null)
+  const [isSaving, setIsSaving] = useState(false)
+
+  const storeMap = useMemo(() => {
+    const map = new Map<number, string>()
+    stores.forEach((s) => map.set(Number(s.id), s.name))
+    return map
+  }, [stores])
+
+  const activeBrands = brands.filter((b) => b.status === 'ACTIVE').length
+  const featuredCount = brands.filter((b) => b.isFeatured).length
+  const globalCount = brands.filter((b) => b.isGlobal).length
 
   const openCreate = () => {
     setEditingBrand(null)
     setFormOpen(true)
   }
 
-  const openEdit = (brand: ProductBrandReference) => {
+  const openEdit = (brand: ProductBrand) => {
     setEditingBrand(brand)
     setFormOpen(true)
   }
 
-  const handleSave = (saved: ProductBrandReference, isEdit: boolean) => {
-    setBrands((prev) => {
-      const next = isEdit
-        ? prev.map((b) => (b.id === saved.id ? saved : b))
-        : [...prev, saved]
-      writeStoredValue(STORAGE_KEY, next)
-      return next
-    })
+  const handleSave = async (data: {
+    payload: {
+      brandCode: string
+      brandName: string
+      description?: string
+      logo?: string
+      isGlobal: boolean
+      isFeatured: boolean
+      status: string
+      storeIds?: number[]
+    }
+    isEdit: boolean
+    id?: number
+  }) => {
+    setIsSaving(true)
+    try {
+      if (data.isEdit && data.id !== undefined) {
+        await updateBrandMutation.mutateAsync({ id: data.id, payload: data.payload })
+        toast(`${data.payload.brandName} was updated.`, 'success')
+      } else {
+        await createBrandMutation.mutateAsync(data.payload)
+        toast(`${data.payload.brandName} was created.`, 'success')
+      }
+    } catch (err: any) {
+      toast(err?.message || 'Failed to save brand.', 'error')
+      throw err
+    } finally {
+      setIsSaving(false)
+    }
   }
 
   const confirmDelete = async () => {
     if (!deleteTarget) return
-    setIsDeleting(true)
     try {
-      await new Promise((resolve) => setTimeout(resolve, 300))
-      setBrands((prev) => {
-        const next = prev.filter((b) => b.id !== deleteTarget.id)
-        writeStoredValue(STORAGE_KEY, next)
-        return next
-      })
-      toast(`${deleteTarget.name} was deleted.`, 'success')
+      await deleteBrandMutation.mutateAsync(deleteTarget.id)
+      toast(`${deleteTarget.brandName} was deleted.`, 'success')
       setDeleteTarget(null)
-    } catch {
-      toast('Failed to delete brand.', 'error')
-    } finally {
-      setIsDeleting(false)
+    } catch (err: any) {
+      toast(err?.message || 'Failed to delete brand.', 'error')
     }
   }
 
-  const columns: DataTableColumn<ProductBrandReference>[] = brandColumns.map((col) => {
-    if (col.id === 'actions') {
-      return {
-        ...col,
-        cell: (brand: ProductBrandReference) => (
-          <div className="flex items-center gap-1">
-            <Button
-              variant="text"
-              onClick={() => openEdit(brand)}
-              aria-label={`Edit ${brand.name}`}
+  const columns: DataTableColumn<ProductBrand>[] = [
+    {
+      id: 'brand',
+      header: 'Brand',
+      searchable: (brand) => `${brand.brandName} ${brand.brandCode}`,
+      cell: (brand) => {
+        const hasLogo = Boolean(brand.logo?.trim())
+
+        return (
+          <div className="flex items-center gap-3">
+            {hasLogo ? (
+              <img
+                src={brand.logo}
+                alt={brand.brandName}
+                className="h-10 w-10 shrink-0 rounded-lg object-cover border border-vpos-line/60 bg-vpos-subtle shadow-xs"
+                onError={(e) => {
+                  (e.currentTarget as HTMLImageElement).style.display = 'none';
+                  const fallback = e.currentTarget.nextElementSibling as HTMLElement | null;
+                  if (fallback) fallback.style.removeProperty('display');
+                }}
+              />
+            ) : null}
+            <span
+              style={hasLogo ? { display: 'none' } : undefined}
+              className="grid h-10 w-10 shrink-0 place-items-center rounded-lg bg-vpos-sand text-[19px] text-vpos-primary"
             >
-              Edit
-            </Button>
+              <Icon name="award-line" />
+            </span>
+            <div className="min-w-0">
+              <strong className="block truncate text-[14px] text-vpos-text">{brand.brandName}</strong>
+              <small className="mt-0.5 block font-mono text-[11px] font-bold tracking-[0.06em] text-vpos-muted">
+                {brand.brandCode}
+              </small>
+            </div>
+          </div>
+        )
+      },
+    },
+    {
+      id: 'description',
+      header: 'Description',
+      hideOnMobile: true,
+      cell: (brand) => (
+        <span className="max-w-[200px] truncate block text-[13px] text-vpos-muted">
+          {brand.description || '—'}
+        </span>
+      ),
+    },
+    {
+      id: 'featured',
+      header: 'Featured',
+      hideOnMobile: true,
+      cell: (brand) =>
+        brand.isFeatured ? (
+          <span className="inline-flex items-center gap-1 rounded-full bg-vpos-sand px-2.5 py-0.5 text-[12px] font-bold text-vpos-primary">
+            <Icon name="star-fill" />
+            Featured
+          </span>
+        ) : (
+          <span className="text-[13px] text-vpos-muted">—</span>
+        ),
+    },
+    {
+      id: 'stores',
+      header: 'Stores / Coverage',
+      hideOnMobile: true,
+      cell: (brand) => {
+        if (brand.isGlobal) {
+          return (
+            <span className="inline-flex items-center gap-1.5 rounded-full bg-vpos-sand px-2.5 py-0.5 text-[12px] font-bold text-vpos-primary">
+              <Icon name="global-line" />
+              All stores
+            </span>
+          )
+        }
+
+        const storeIdList = brand.storeIds ? Array.from(brand.storeIds) : []
+        if (storeIdList.length === 0) {
+          return <span className="text-[12px] text-vpos-muted">No stores</span>
+        }
+
+        if (storeIdList.length === 1) {
+          const sName = storeMap.get(Number(storeIdList[0])) || `Store #${storeIdList[0]}`
+          return (
+            <span className="inline-flex items-center gap-1 rounded-full bg-vpos-subtle px-2.5 py-0.5 text-[12px] font-semibold text-vpos-text" title={sName}>
+              <Icon name="store-2-line" className="text-vpos-muted text-[13px]" />
+              <span className="max-w-[140px] truncate">{sName}</span>
+            </span>
+          )
+        }
+
+        const names = storeIdList.map((id) => storeMap.get(Number(id)) || `#${id}`).join(', ')
+        return (
+          <div className="flex flex-col gap-0.5" title={names}>
+            <span className="inline-flex items-center gap-1 rounded-full bg-vpos-subtle px-2.5 py-0.5 text-[12px] font-semibold text-vpos-text">
+              <Icon name="store-2-line" className="text-vpos-muted text-[13px]" />
+              {storeIdList.length} stores
+            </span>
+            <span className="max-w-[160px] truncate text-[10px] text-vpos-muted font-medium">
+              {names}
+            </span>
+          </div>
+        )
+      },
+    },
+    {
+      id: 'status',
+      header: 'Status',
+      searchable: (brand) => brand.status ?? '',
+      cell: (brand) => <Status value={brand.status ?? 'ACTIVE'} />,
+    },
+    {
+      id: 'actions',
+      header: '',
+      cell: (brand) => (
+        <div className="flex items-center gap-1">
+          <Button
+            variant="text"
+            onClick={() => openEdit(brand)}
+            aria-label={`Edit ${brand.brandName}`}
+          >
+            Edit
+          </Button>
+          {brand.status !== 'DELETED' && (
             <Button
               variant="text"
               className="text-vpos-red hover:text-vpos-red"
               onClick={() => setDeleteTarget(brand)}
-              aria-label={`Delete ${brand.name}`}
+              aria-label={`Delete ${brand.brandName}`}
             >
               Delete
             </Button>
-          </div>
-        ),
-      }
-    }
-    return col
-  })
+          )}
+        </div>
+      ),
+    },
+  ]
 
   return (
     <>
@@ -455,7 +739,7 @@ export function ProductBrandsPage() {
 
         <section className="mb-[18px] grid overflow-hidden rounded-[4px] border border-vpos-line bg-white shadow-vpos sm:grid-cols-[1fr_1fr_1.4fr]">
           <ReferenceStat label="Brands" value={brands.length} detail={`${activeBrands} active`} />
-          <ReferenceStat label="Product placements" value={assignedProducts} detail="Across this catalog" />
+          <ReferenceStat label="Featured brands" value={featuredCount} detail={`${globalCount} global`} />
           <div className="flex items-center gap-3 border-t border-vpos-line bg-vpos-subtle/55 px-5 py-4 sm:border-t-0 sm:border-l">
             <span className="grid h-9 w-9 shrink-0 place-items-center rounded-[4px] bg-white text-vpos-primary shadow-sm">
               <Icon name="information-line" />
@@ -466,16 +750,22 @@ export function ProductBrandsPage() {
           </div>
         </section>
 
-        <DataTable
-          data={brands}
-          columns={columns}
-          rowKey={(brand) => brand.id}
-          title="Product brands"
-          searchPlaceholder="Search brand name or code…"
-          pageSize={10}
-          emptyMessage="No product brands are configured."
-          emptyIcon="folder-open-line"
-        />
+        {isLoading ? (
+          <div className="flex items-center justify-center py-20 text-vpos-muted">
+            <Icon name="loader-line" className="animate-spin text-[20px]" /> <span className="ml-2 text-[14px]">Loading brands…</span>
+          </div>
+        ) : (
+          <DataTable
+            data={brands}
+            columns={columns}
+            rowKey={(brand) => String(brand.id)}
+            title="Product brands"
+            searchPlaceholder="Search brand name or code…"
+            pageSize={10}
+            emptyMessage="No product brands are configured."
+            emptyIcon="folder-open-line"
+          />
+        )}
 
         <BrandFormModal
           open={formOpen}
@@ -485,26 +775,27 @@ export function ProductBrandsPage() {
             setEditingBrand(null)
           }}
           onSave={handleSave}
+          isSaving={isSaving}
         />
 
         <Modal
           open={Boolean(deleteTarget)}
-          onClose={() => !isDeleting && setDeleteTarget(null)}
+          onClose={() => !deleteBrandMutation.isPending && setDeleteTarget(null)}
           title="Delete brand?"
-          description="This brand will be permanently removed from the catalog."
+          description="This brand will be deactivated from the catalog."
           size="sm"
           footer={
             <>
-              <Button variant="secondary" disabled={isDeleting} onClick={() => setDeleteTarget(null)}>
+              <Button variant="secondary" disabled={deleteBrandMutation.isPending} onClick={() => setDeleteTarget(null)}>
                 Cancel
               </Button>
               <Button
                 variant="primary"
                 className="bg-vpos-red hover:bg-vpos-red"
-                disabled={isDeleting}
+                disabled={deleteBrandMutation.isPending}
                 onClick={confirmDelete}
               >
-                {isDeleting ? 'Deleting…' : 'Delete brand'}
+                {deleteBrandMutation.isPending ? 'Deleting…' : 'Delete brand'}
               </Button>
             </>
           }
@@ -513,8 +804,8 @@ export function ProductBrandsPage() {
             {deleteTarget ? (
               <>
                 You are deleting{' '}
-                <strong className="text-vpos-text">{deleteTarget.name}</strong>.
-                This action cannot be undone.
+                <strong className="text-vpos-text">{deleteTarget.brandName}</strong>.
+                This action changes its status to DELETED.
               </>
             ) : null}
           </p>
