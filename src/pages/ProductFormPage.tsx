@@ -247,14 +247,6 @@ export function ProductFormPage() {
     return defaultAttrs
   }, [apiAttributes])
 
-  const DEFAULT_OPTION_VALUES: Record<string, string[]> = {
-    Size: ['Small (12oz)', 'Medium (16oz)', 'Large (20oz)'],
-    Temperature: ['Hot', 'Iced', 'Extra Ice'],
-    'Milk Type': ['Whole Milk', 'Oat Milk', 'Almond Milk'],
-    Color: ['Black', 'White', 'Red', 'Blue'],
-    Flavor: ['Vanilla', 'Caramel', 'Hazelnut'],
-  }
-
   const supplierOptions = useMemo(() => {
     if (apiSuppliers.length > 0) {
       return apiSuppliers.map((s) => ({
@@ -423,7 +415,7 @@ export function ProductFormPage() {
   const [optionGroups, setOptionGroups] = useState<
     { id: string; name: string; values: string[]; inputValue: string }[]
   >([
-    { id: 'opt-1', name: 'Size', values: ['Small', 'Medium', 'Large'], inputValue: '' },
+    { id: 'opt-1', name: '', values: [], inputValue: '' },
   ])
 
   const addOptionGroup = () => {
@@ -836,11 +828,8 @@ export function ProductFormPage() {
 
               {hasOptions && (
                 <div className="space-y-4 pt-3 border-t border-vpos-line">
-                  {optionGroups.map((group, idx) => {
-                    const suggestedVals = group.name ? DEFAULT_OPTION_VALUES[group.name] || [] : []
-
-                    return (
-                      <div key={group.id} className="rounded-xl border border-vpos-line bg-vpos-subtle/30 p-4">
+                  {optionGroups.map((group, idx) => (
+                    <div key={group.id} className="rounded-xl border border-vpos-line bg-vpos-subtle/30 p-4">
                         <div className="mb-3 flex items-center justify-between gap-2">
                           <strong className="text-[13px] text-vpos-primary">Option {idx + 1}</strong>
                           {optionGroups.length > 1 && (
@@ -862,11 +851,9 @@ export function ProductFormPage() {
                               setOptionGroups((prev) =>
                                 prev.map((g) => {
                                   if (g.id !== group.id) return g
-                                  const autoVals = DEFAULT_OPTION_VALUES[val] || []
                                   return {
                                     ...g,
                                     name: val,
-                                    values: autoVals.length > 0 ? autoVals : g.values,
                                   }
                                 }),
                               )
@@ -895,50 +882,13 @@ export function ProductFormPage() {
                                     addOptionValue(group.id)
                                   }
                                 }}
-                                placeholder="Type custom value and press Enter"
+                                placeholder="Type value and press Enter (e.g. Small, Red)"
                                 className="h-[39px] flex-1 rounded-[4px] border border-vpos-line bg-white px-3 text-[13px] text-vpos-text outline-none focus:border-vpos-primary"
                               />
                               <Button type="button" variant="secondary" onClick={() => addOptionValue(group.id)}>
                                 Add
                               </Button>
                             </div>
-
-                            {/* Suggested Values for Selected Option Key Only */}
-                            {suggestedVals.length > 0 && (
-                              <div className="mt-2 flex flex-wrap items-center gap-1.5">
-                                <span className="text-[11px] font-bold text-vpos-muted">Suggestions for {group.name}:</span>
-                                {suggestedVals.map((sug) => {
-                                  const isSelected = group.values.includes(sug)
-                                  return (
-                                    <button
-                                      key={sug}
-                                      type="button"
-                                      onClick={() => {
-                                        if (isSelected) {
-                                          removeOptionValue(group.id, sug)
-                                        } else {
-                                          setOptionGroups((prev) =>
-                                            prev.map((g) =>
-                                              g.id === group.id
-                                                ? { ...g, values: [...g.values, sug] }
-                                                : g,
-                                            ),
-                                          )
-                                        }
-                                      }}
-                                      className={cn(
-                                        'rounded-full px-2.5 py-0.5 text-[11px] font-bold transition-colors',
-                                        isSelected
-                                          ? 'bg-vpos-primary text-white'
-                                          : 'border border-vpos-line bg-white text-vpos-muted hover:border-vpos-primary hover:text-vpos-primary',
-                                      )}
-                                    >
-                                      {isSelected ? `✓ ${sug}` : `+ ${sug}`}
-                                    </button>
-                                  )
-                                })}
-                              </div>
-                            )}
 
                             {/* Active Selected Values Tags */}
                             <div className="mt-2.5 flex flex-wrap items-center gap-1.5">
@@ -951,7 +901,7 @@ export function ProductFormPage() {
                                   <button
                                     type="button"
                                     onClick={() => removeOptionValue(group.id, val)}
-                                    className="border-0 bg-transparent text-vpos-primary hover:text-vpos-red"
+                                    className="border-0 bg-transparent text-vpos-primary hover:text-vpos-red cursor-pointer"
                                   >
                                     ×
                                   </button>
@@ -961,8 +911,7 @@ export function ProductFormPage() {
                           </div>
                         </div>
                       </div>
-                    )
-                  })}
+                    ))}
 
                   <div className="flex items-center justify-between pt-2">
                     <Button type="button" variant="secondary" onClick={addOptionGroup}>
