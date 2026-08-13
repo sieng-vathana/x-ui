@@ -31,6 +31,7 @@ import { BusinessProfilePage } from './pages/BusinessProfilePage'
 import { SignInPage } from './pages/auth/SignInPage'
 import { BusinessRegistrationPage } from './pages/auth/BusinessRegistrationPage'
 import { UsersPage } from './pages/UsersPage'
+import { RoleManagementPage } from './pages/RoleManagementPage'
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -127,6 +128,7 @@ export default function App() {
                 />
                 <Route path="settings" element={<BusinessProfilePage />} />
                 <Route path="users" element={<UsersPage />} />
+                <Route path="roles" element={<RoleManagementPage />} />
               </Route>
             </Route>
 

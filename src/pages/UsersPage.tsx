@@ -1,4 +1,5 @@
 import { useMemo, useState } from 'react'
+import { useNavigate } from 'react-router-dom'
 import {
   useUsers,
   useCreateUser,
@@ -16,6 +17,7 @@ import { ConfirmModal } from '../components/ui/ConfirmModal'
 import { RolePermissionsModal } from '../components/ui/RolePermissionsModal'
 import { useToast } from '../context/ToastContext'
 import { cn } from '../lib/cn'
+import { paths } from '../lib/paths'
 import { useAuth } from '../context/AuthContext'
 import { useStores } from '../features/stores/useStores'
 
@@ -44,6 +46,7 @@ function roleTone(role?: string): string {
 }
 
 export function UsersPage() {
+  const navigate = useNavigate()
   const { toast } = useToast()
   const { user: authenticatedUser } = useAuth()
   const businessId = Number(authenticatedUser?.business.id)
@@ -291,9 +294,16 @@ export function UsersPage() {
             Manage staff accounts, store access permissions, and role authorizations.
           </p>
         </div>
-        {canCreate ? <Button variant="primary" onClick={handleOpenCreate} disabled={!roles.some((role) => role.roleCode.toUpperCase() !== 'OWNER')}>
-          <Icon name="add-line" /> Add Staff User
-        </Button> : null}
+        <div className="flex items-center gap-2.5">
+          <Button variant="secondary" onClick={() => navigate(paths.roles)}>
+            <Icon name="shield-keyhole-line" /> Manage Roles
+          </Button>
+          {canCreate ? (
+            <Button variant="primary" onClick={handleOpenCreate} disabled={!roles.some((role) => role.roleCode.toUpperCase() !== 'OWNER')}>
+              <Icon name="add-line" /> Add Staff User
+            </Button>
+          ) : null}
+        </div>
       </div>
 
       {/* Summary Cards */}
