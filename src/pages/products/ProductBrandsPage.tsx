@@ -221,7 +221,8 @@ function BrandFormModal({ open, brand, onClose, onSave, isSaving }: BrandFormMod
       onClose={handleClose}
       title={isEditing ? 'Edit brand' : 'Add brand'}
       description={isEditing ? 'Update product brand details and store coverage.' : 'Create a new brand for your catalog.'}
-      size="md"
+      size="2xl"
+      panelClassName="max-w-2xl sm:max-w-2xl w-full"
       footer={
         <>
           <Button variant="secondary" type="button" onClick={handleClose} disabled={isSaving || isUploadingLogo}>

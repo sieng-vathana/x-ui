@@ -10,7 +10,7 @@ import { usePresence } from '../../hooks/usePresence'
 import { Icon } from './Icon'
 
 export type ModalTone = 'light' | 'dark'
-export type ModalSize = 'sm' | 'md' | 'lg' | 'xl' | 'shortcut'
+export type ModalSize = 'sm' | 'md' | 'lg' | '2xl' | '3xl' | 'xl' | 'shortcut'
 
 export interface ModalProps {
   open: boolean
@@ -40,7 +40,9 @@ export interface ModalProps {
 const sizeClass: Record<ModalSize, string> = {
   sm: 'max-w-sm',
   md: 'max-w-md',
-  lg: 'max-w-lg',
+  lg: 'max-w-xl',
+  '2xl': 'max-w-2xl',
+  '3xl': 'max-w-3xl',
   xl: 'max-w-5xl',
   shortcut: 'max-w-[452px]',
 }
@@ -207,12 +209,12 @@ export function Modal({
 
         <div
           className={cn(
-            'min-h-0 flex-1 overflow-y-auto px-5',
+            'min-h-0 flex-1 overflow-y-auto px-5 sm:px-6',
             isDark
               ? 'pt-[30px] pb-4'
               : size === 'xl'
                 ? 'max-h-none py-5 sm:px-6'
-                : 'max-h-[min(70vh,520px)] py-4',
+                : 'max-h-[min(84vh,740px)] py-5',
             bodyClassName,
           )}
         >

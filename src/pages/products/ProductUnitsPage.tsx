@@ -143,7 +143,8 @@ function UnitFormModal({ open, unit, onClose, onSave, isSaving }: UnitFormModalP
       onClose={handleClose}
       title={isEditing ? 'Edit unit' : 'Add unit'}
       description={isEditing ? 'Update measurement unit details.' : 'Create a new measurement unit.'}
-      size="sm"
+      size="lg"
+      panelClassName="max-w-xl sm:max-w-xl w-full"
       footer={
         <>
           <Button variant="secondary" type="button" onClick={handleClose} disabled={isSaving}>
