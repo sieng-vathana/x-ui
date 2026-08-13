@@ -150,7 +150,7 @@ export function ProductsPage() {
     setDeleteTarget({ id, name })
   }
 
-  const { data: apiProducts = [] } = useProductsList(storeId)
+  const { data: apiProducts = [], isLoading } = useProductsList(storeId)
   const { data: apiCategories = [] } = useProductCategories(storeId)
 
   const categoryFilterOptions = useMemo(() => {
@@ -384,6 +384,7 @@ export function ProductsPage() {
           title="Product list"
           searchPlaceholder="Search product, SKU, or barcode…"
           pageSize={8}
+          isLoading={isLoading}
           emptyMessage="No products match your filters."
           toolbar={
             <>

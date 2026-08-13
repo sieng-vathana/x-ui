@@ -53,7 +53,7 @@ export function UsersPage() {
   const canCreate = permissions.includes('x-user:create')
   const canUpdate = permissions.includes('x-user:update')
   const canDelete = permissions.includes('x-user:delete')
-  const { data: users = [] } = useUsers()
+  const { data: users = [], isLoading } = useUsers()
   const { data: roles = [] } = useRoles()
   const { data: stores = [] } = useStores()
   const rolesByCode = useMemo(
@@ -358,6 +358,7 @@ export function UsersPage() {
         rowKey={(u) => String(u.id)}
         columns={columns}
         data={filteredUsers}
+        isLoading={isLoading}
         searchPlaceholder="Search staff by name, username, email..."
         search={search}
         onSearchChange={setSearch}

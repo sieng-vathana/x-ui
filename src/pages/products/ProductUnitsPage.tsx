@@ -646,22 +646,17 @@ export function ProductUnitsPage() {
           </div>
         </section>
 
-        {isLoading ? (
-          <div className="flex items-center justify-center py-20 text-vpos-muted">
-            <Icon name="loader-line" className="animate-spin text-[20px]" /> <span className="ml-2 text-[14px]">Loading units…</span>
-          </div>
-        ) : (
-          <DataTable
-            data={units}
-            columns={columns}
-            rowKey={(unit) => String(unit.id)}
-            title="Measurement units"
-            searchPlaceholder="Search unit name or code…"
-            pageSize={10}
-            emptyMessage="No measurement units are configured."
-            emptyIcon="folder-open-line"
-          />
-        )}
+        <DataTable
+          data={units}
+          columns={columns}
+          rowKey={(unit) => String(unit.id)}
+          title="Measurement units"
+          searchPlaceholder="Search unit name or code…"
+          pageSize={10}
+          isLoading={isLoading}
+          emptyMessage="No measurement units are configured."
+          emptyIcon="folder-open-line"
+        />
 
         <UnitDetailsModal
           open={Boolean(viewingUnit)}

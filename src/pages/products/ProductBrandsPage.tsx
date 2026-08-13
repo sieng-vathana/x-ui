@@ -1015,22 +1015,17 @@ export function ProductBrandsPage() {
           </div>
         </section>
 
-        {isLoading ? (
-          <div className="flex items-center justify-center py-20 text-vpos-muted">
-            <Icon name="loader-line" className="animate-spin text-[20px]" /> <span className="ml-2 text-[14px]">Loading brands…</span>
-          </div>
-        ) : (
-          <DataTable
-            data={brands}
-            columns={columns}
-            rowKey={(brand) => String(brand.id)}
-            title="Product brands"
-            searchPlaceholder="Search brand name or code…"
-            pageSize={10}
-            emptyMessage="No product brands are configured."
-            emptyIcon="folder-open-line"
-          />
-        )}
+        <DataTable
+          data={brands}
+          columns={columns}
+          rowKey={(brand) => String(brand.id)}
+          title="Product brands"
+          searchPlaceholder="Search brand name or code…"
+          pageSize={10}
+          isLoading={isLoading}
+          emptyMessage="No product brands are configured."
+          emptyIcon="folder-open-line"
+        />
 
         <BrandDetailsModal
           open={Boolean(viewingBrand)}

@@ -8,6 +8,7 @@ import { cn } from '../../lib/cn'
 import { card, tdClass, thClass } from '../../lib/ui'
 import { Icon } from './Icon'
 import { Select } from './Select'
+import { TableSkeleton } from './Skeleton'
 
 export interface DataTableColumn<T> {
   id: string
@@ -20,19 +21,16 @@ export interface DataTableColumn<T> {
    * Pass a function to control the searchable text for the row/column.
    */
   searchable?: boolean | ((row: T) => string)
-  /** Hide on small screens */
+  /** Hide column on mobile viewports (< 768px) */
   hideOnMobile?: boolean
 }
 
 export interface DataTableProps<T> {
   data: T[]
   columns: DataTableColumn<T>[]
-  /** Unique row id */
-  rowKey: (row: T) => string
+  rowKey: (row: T) => string | number
   title?: ReactNode
-  /** Extra toolbar content (filters, buttons) rendered after search */
   toolbar?: ReactNode
-  /** Header actions (right side of title row) */
   actions?: ReactNode
   searchPlaceholder?: string
   /** Show search field (default true) */
@@ -52,6 +50,8 @@ export interface DataTableProps<T> {
   className?: string
   /** Dense row padding */
   dense?: boolean
+  /** Show skeleton rows during loading */
+  isLoading?: boolean
   /** Called when visible page of rows changes */
   onVisibleRowsChange?: (rows: T[]) => void
 }
@@ -110,6 +110,7 @@ export function DataTable<T>({
   emptyIcon = 'inbox-line',
   className,
   dense = false,
+  isLoading = false,
   onVisibleRowsChange,
 }: DataTableProps<T>) {
   const [internalSearch, setInternalSearch] = useState('')
@@ -241,7 +242,13 @@ export function DataTable<T>({
             </tr>
           </thead>
           <tbody>
-            {pageRows.length === 0 ? (
+            {isLoading ? (
+              <tr className="border-0">
+                <td colSpan={columns.length} className="p-0 border-0">
+                  <TableSkeleton columns={columns.length} rows={pageSize <= 5 ? pageSize : 5} hasHeader={false} />
+                </td>
+              </tr>
+            ) : pageRows.length === 0 ? (
               <tr>
                 <td
                   colSpan={columns.length}

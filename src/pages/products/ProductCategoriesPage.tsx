@@ -1184,22 +1184,17 @@ export function ProductCategoriesPage() {
           </div>
         </section>
 
-        {isLoading ? (
-          <div className="flex items-center justify-center py-20 text-vpos-muted">
-            <Icon name="loader-line" className="animate-spin text-[20px]" /> <span className="ml-2 text-[14px]">Loading categories…</span>
-          </div>
-        ) : (
-          <DataTable
-            data={categories}
-            columns={columns}
-            rowKey={(category) => String(category.id)}
-            title="Product categories"
-            searchPlaceholder="Search category name or code…"
-            pageSize={10}
-            emptyMessage="No product categories are configured."
-            emptyIcon="folder-open-line"
-          />
-        )}
+        <DataTable
+          data={categories}
+          columns={columns}
+          rowKey={(category) => String(category.id)}
+          title="Product categories"
+          searchPlaceholder="Search category name or code…"
+          pageSize={10}
+          isLoading={isLoading}
+          emptyMessage="No product categories are configured."
+          emptyIcon="folder-open-line"
+        />
 
         <CategoryDetailsModal
           open={Boolean(viewingCategory)}
