@@ -1,5 +1,6 @@
 import { useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
+import { Breadcrumb, Button, ConfirmModal, DataTable, Icon, Select, StoreSwitcher, Topbar, type DataTableColumn } from '../components'
 import {
   useUsers,
   useCreateUser,
@@ -8,18 +9,15 @@ import {
 } from '../features/users/useUsers'
 import { useRoleDetails, useRoles } from '../features/roles/useRoles'
 import type { CreateUserPayload, UpdateUserPayload, User, UserRole } from '../features/users/types'
-import { DataTable, type DataTableColumn } from '../components/ui/DataTable'
-import { Button } from '../components/ui/Button'
-import { Icon } from '../components/ui/Icon'
-import { Select } from '../components/ui/Select'
 import { UserModal } from '../components/ui/UserModal'
-import { ConfirmModal } from '../components/ui/ConfirmModal'
 import { RolePermissionsModal } from '../components/ui/RolePermissionsModal'
 import { useToast } from '../context/ToastContext'
 import { cn } from '../lib/cn'
 import { paths } from '../lib/paths'
 import { useAuth } from '../context/AuthContext'
 import { useStores } from '../features/stores/useStores'
+import { useAdminStore } from '../hooks/useAdminStore'
+import { pageContent } from '../lib/ui'
 
 function roleCodes(user: User): string[] {
   const codes = user.roles?.filter(Boolean) ?? []
@@ -47,6 +45,7 @@ function roleTone(role?: string): string {
 
 export function UsersPage() {
   const navigate = useNavigate()
+  const { storeId, setStoreId } = useAdminStore()
   const { toast } = useToast()
   const { user: authenticatedUser } = useAuth()
   const businessId = Number(authenticatedUser?.business.id)
@@ -285,26 +284,31 @@ export function UsersPage() {
   )
 
   return (
-    <div className="p-6 space-y-6">
-      {/* Header */}
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-        <div>
-          <h1 className="text-[22px] font-bold text-vpos-dark">User Management</h1>
-          <p className="mt-1 text-[13px] text-vpos-muted">
-            Manage staff accounts, store access permissions, and role authorizations.
-          </p>
-        </div>
-        <div className="flex items-center gap-2.5">
-          <Button variant="secondary" onClick={() => navigate(paths.roles)}>
-            <Icon name="shield-keyhole-line" /> Manage Roles
-          </Button>
-          {canCreate ? (
-            <Button variant="primary" onClick={handleOpenCreate} disabled={!roles.some((role) => role.roleCode.toUpperCase() !== 'OWNER')}>
-              <Icon name="add-line" /> Add Staff User
+    <>
+      <Topbar
+        title="User Management"
+        subtitle="Manage staff accounts, store access permissions, and role authorizations."
+        actions={<StoreSwitcher value={storeId} onChange={setStoreId} />}
+      />
+      <main className={cn(pageContent, 'space-y-6 pb-12')}>
+        <section className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+          <Breadcrumb
+            items={[
+              { label: 'Management', to: paths.settings },
+              { label: 'User Management' },
+            ]}
+          />
+          <div className="flex items-center gap-2.5">
+            <Button variant="secondary" onClick={() => navigate(paths.roles)}>
+              <Icon name="shield-keyhole-line" /> Manage Roles
             </Button>
-          ) : null}
-        </div>
-      </div>
+            {canCreate ? (
+              <Button variant="primary" onClick={handleOpenCreate} disabled={!roles.some((role) => role.roleCode.toUpperCase() !== 'OWNER')}>
+                <Icon name="add-line" /> Add Staff User
+              </Button>
+            ) : null}
+          </div>
+        </section>
 
       {/* Summary Cards */}
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
@@ -411,6 +415,7 @@ export function UsersPage() {
         variant="danger"
         isLoading={deleteUserMutation.isPending}
       />
-    </div>
+      </main>
+    </>
   )
 }

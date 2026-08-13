@@ -38,7 +38,7 @@ export function Topbar({
 }: TopbarProps) {
   const { sidebarCollapsed, sidebarWidth, toggleSidebar, sidebar } = useAdminStore()
   const { user } = useAuth()
-  const headerOffset = !sidebar.isMobile && sidebar.config.visibility === 'show' && sidebar.config.layout !== 'horizontal' && sidebar.config.layout !== 'semi-box' && sidebar.config.view !== 'detached' ? sidebarWidth : 0
+  const headerOffset = !sidebar.isMobile && sidebar.config.visibility === 'show' && sidebar.config.layout !== 'horizontal' ? sidebarWidth : 0
   const renderBrand = showBrand && sidebar.config.layout === 'horizontal'
   const darkTopbar = sidebar.config.topbar === 'dark'
 

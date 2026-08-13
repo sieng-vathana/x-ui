@@ -1,10 +1,11 @@
 import { useEffect, useMemo, useState } from 'react'
-import { Button } from '../components/ui/Button'
+import { Breadcrumb, Button, StoreSwitcher, Topbar } from '../components'
 import { ConfirmModal } from '../components/ui/ConfirmModal'
 import { FormField, TextAreaField } from '../components/ui/FormField'
 import { Icon } from '../components/ui/Icon'
 import { useAuth } from '../context/AuthContext'
 import { useToast } from '../context/ToastContext'
+import { useAdminStore } from '../hooks/useAdminStore'
 import {
   useCreateRole,
   useDeleteRole,
@@ -15,6 +16,8 @@ import {
 } from '../features/roles/useRoles'
 import type { PermissionCatalogItem, RoleSummary } from '../features/roles/types'
 import { cn } from '../lib/cn'
+import { paths } from '../lib/paths'
+import { pageContent } from '../lib/ui'
 
 const pageAccess = [
   { code: 'x-bff:read', label: 'Overview', icon: 'dashboard-line' },
@@ -34,6 +37,7 @@ function roleInitials(role: RoleSummary) {
 }
 
 export function RoleManagementPage() {
+  const { storeId, setStoreId } = useAdminStore()
   const { user } = useAuth()
   const { toast } = useToast()
   const businessId = Number(user?.business.id)
@@ -161,22 +165,29 @@ export function RoleManagementPage() {
   const selectedCount = permissionIds.size
 
   return (
-    <div className="space-y-5 p-6">
-      <header className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
-        <div>
-          <div className="mb-2 flex items-center gap-2 text-[11px] font-extrabold uppercase tracking-[.15em] text-vpos-primary">
-            <Icon name="shield-keyhole-line" /> Access control
-          </div>
-          <h1 className="text-[24px] font-extrabold tracking-tight text-vpos-dark">Role Management</h1>
-          <p className="mt-1 max-w-2xl text-[13px] text-vpos-muted">
-            Build roles for your team, choose which pages they can enter, then define every action they can perform.
-          </p>
-        </div>
-        {canCreate ? <Button variant="primary" onClick={startCreate}><Icon name="add-line" /> Create role</Button> : null}
-      </header>
+    <>
+      <Topbar
+        title="Role Management"
+        subtitle="Build roles for your team, choose which pages they can enter, then define every action."
+        actions={<StoreSwitcher value={storeId} onChange={setStoreId} />}
+      />
+      <main className={cn(pageContent, 'space-y-5 pb-12')}>
+        <section className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+          <Breadcrumb
+            items={[
+              { label: 'Management', to: paths.settings },
+              { label: 'Role Management' },
+            ]}
+          />
+          {canCreate ? (
+            <Button variant="primary" onClick={startCreate}>
+              <Icon name="add-line" /> Create role
+            </Button>
+          ) : null}
+        </section>
 
-      <div className="grid min-h-[680px] grid-cols-1 overflow-hidden rounded-xl border border-vpos-line bg-white shadow-2xs lg:grid-cols-[280px_minmax(0,1fr)]">
-        <aside className="border-b border-vpos-line bg-[#f8f9fc] lg:border-r lg:border-b-0">
+        <div className="grid min-h-[680px] grid-cols-1 overflow-hidden rounded-xl border border-vpos-line bg-white shadow-2xs lg:grid-cols-[280px_minmax(0,1fr)]">
+          <aside className="border-b border-vpos-line bg-vpos-subtle/30 lg:border-r lg:border-b-0">
           <div className="border-b border-vpos-line px-4 py-4">
             <p className="text-[11px] font-extrabold uppercase tracking-[.13em] text-vpos-muted">Workspace roles</p>
             <p className="mt-1 text-[12px] text-vpos-muted">{roles.length} configured</p>
@@ -205,7 +216,7 @@ export function RoleManagementPage() {
           </div>
         </aside>
 
-        <main className="min-w-0">
+        <div className="min-w-0">
           <div className="flex flex-col gap-4 border-b border-vpos-line px-5 py-5 xl:flex-row xl:items-center xl:justify-between">
             <div className="flex items-center gap-3">
               <span className={cn('grid h-11 w-11 place-items-center rounded-xl text-[19px]', isOwner ? 'bg-vpos-primary text-white' : 'bg-vpos-sand text-vpos-primary')}><Icon name={isOwner ? 'vip-crown-2-fill' : creating ? 'add-circle-line' : 'shield-user-line'} /></span>
@@ -267,10 +278,11 @@ export function RoleManagementPage() {
               </div>
             </section>
           </div>
-        </main>
+        </div>
       </div>
+    </main>
 
       <ConfirmModal open={Boolean(deleteTarget)} onClose={() => setDeleteTarget(null)} onConfirm={deleteRole} title="Delete custom role" description={`Delete ${deleteTarget?.roleName ?? 'this role'}? Roles assigned to staff must be reassigned before deletion.`} confirmText="Delete role" variant="danger" isLoading={deleteMutation.isPending} />
-    </div>
+    </>
   )
 }
