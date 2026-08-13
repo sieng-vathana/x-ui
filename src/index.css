@@ -866,6 +866,31 @@ html[data-bs-theme='dark'] .bg-vpos-subtle\/30 {
   background-color: var(--app-surface-subtle) !important;
 }
 
+html[data-bs-theme='dark'] .app-loader-overlay {
+  background: rgba(21, 25, 33, 0.88) !important;
+  color: var(--app-text) !important;
+}
+
+html[data-bs-theme='dark'] .app-loader-ambient {
+  background: radial-gradient(circle, rgba(104, 124, 254, 0.24), transparent 68%) !important;
+}
+
+html[data-bs-theme='dark'] .app-loader-eyebrow {
+  color: var(--app-muted) !important;
+}
+
+html[data-bs-theme='dark'] .app-loader-title {
+  color: var(--app-heading) !important;
+}
+
+html[data-bs-theme='dark'] .app-loader-progress {
+  background: var(--app-border) !important;
+}
+
+html[data-bs-theme='dark'] .animate-pulse {
+  background-color: var(--app-surface-subtle) !important;
+}
+
 html[data-bs-theme='dark'] [data-sidebar-theme='light'] {
   background-color: #fff !important;
   color: #272a3a !important;
