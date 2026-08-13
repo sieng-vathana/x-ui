@@ -892,7 +892,9 @@ html[data-bs-theme='dark'] .animate-pulse {
 }
 
 .app-loader-wrapper {
-  background-color: rgba(255, 255, 255, 0.92);
+  background-color: rgba(255, 255, 255, 0.45);
+  -webkit-backdrop-filter: blur(10px);
+  backdrop-filter: blur(10px);
   color: var(--app-text, #272a3a);
 }
 
@@ -901,7 +903,9 @@ html[data-bs-theme='dark'] .animate-pulse {
 }
 
 html[data-bs-theme='dark'] .app-loader-wrapper {
-  background-color: rgba(21, 25, 33, 0.95) !important;
+  background-color: rgba(15, 18, 24, 0.55) !important;
+  -webkit-backdrop-filter: blur(10px) !important;
+  backdrop-filter: blur(10px) !important;
   color: var(--app-text, #e9ecef) !important;
 }
 
