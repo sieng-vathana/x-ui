@@ -41,7 +41,7 @@ const productSubItems: Array<{ to: string; label: string; end?: boolean; permiss
   { to: paths.productUnits, label: 'Unit', permission: 'x-product:unit' },
   { to: paths.productBrands, label: 'Brand', permission: 'x-product:brand' },
   { to: paths.productCategories, label: 'Category', permission: 'x-product:category' },
-  { to: paths.productOptions, label: 'Variants' },
+  { to: paths.productOptions, label: 'Options' },
   { to: paths.productStockMovement, label: 'Stock movement' }, { to: paths.productLowStock, label: 'Low stock' },
 ]
 
