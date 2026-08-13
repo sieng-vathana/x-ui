@@ -92,6 +92,8 @@ export interface ProductVariant {
 export interface ProductItem {
   id: number
   storeId: number
+  storeIds?: number[]
+  isGlobal?: boolean
   productCode: string
   productName: string
   shortName?: string

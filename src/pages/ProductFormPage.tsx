@@ -123,7 +123,7 @@ export function ProductFormPage() {
   const createProductMutation = useCreateProduct()
   const updateProductMutation = useUpdateProduct()
   const { storeId, setStoreId, sidebarWidth } = useAdminStore()
-  const { data: rawStores = [], isLoading: loadingStores } = useStoresRaw()
+  const { data: rawStores = [] } = useStoresRaw()
 
   const [step, setStep] = useState(1)
   const [formStoreId, setFormStoreId] = useState<string>(() => (storeId ? String(storeId) : ''))
@@ -140,6 +140,8 @@ export function ProductFormPage() {
   const [isFeatured, setIsFeatured] = useState(false)
   const [isSellable, setIsSellable] = useState(true)
   const [isStockable, setIsStockable] = useState(true)
+  const [isGlobal, setIsGlobal] = useState(false)
+  const [storeIds, setStoreIds] = useState<number[]>(() => (storeId ? [Number(storeId)] : []))
 
   const [variants, setVariants] = useState<VariantInput[]>([emptyVariant(0)])
   const [hasOptions, setHasOptions] = useState(false)
@@ -165,6 +167,12 @@ export function ProductFormPage() {
     if (!existingProduct) return
     if (existingProduct.storeId) {
       setFormStoreId(String(existingProduct.storeId))
+    }
+    if (existingProduct.isGlobal != null) setIsGlobal(existingProduct.isGlobal)
+    if (existingProduct.storeIds && existingProduct.storeIds.length > 0) {
+      setStoreIds(existingProduct.storeIds.map(Number))
+    } else if (existingProduct.storeId) {
+      setStoreIds([Number(existingProduct.storeId)])
     }
     setProductName(existingProduct.productName || '')
     setProductCode(existingProduct.productCode || '')
@@ -312,15 +320,6 @@ export function ProductFormPage() {
     return [{ value: '1', label: 'General' }]
   }, [apiSuppliers])
 
-  const storeOptions = useMemo(() => {
-    return rawStores
-      .filter((s) => s.status === 1 || String(s.id) === formStoreId)
-      .map((s) => ({
-        value: String(s.id),
-        label: `${s.name}${s.city ? ` — ${s.city}` : ''}`,
-      }))
-  }, [rawStores, formStoreId])
-
   const { toast } = useToast()
 
   const handlePublish = async () => {
@@ -330,9 +329,9 @@ export function ProductFormPage() {
     }
 
     try {
-      const numStoreId = Number(formStoreId || storeId)
-      if (!Number.isInteger(numStoreId) || numStoreId <= 0) {
-        toast('Please select a store location before publishing the product.', 'warning')
+      const numStoreId = Number(formStoreId || (storeIds.length > 0 ? storeIds[0] : storeId))
+      if (!isGlobal && storeIds.length === 0) {
+        toast('Please select at least one store location for this product.', 'warning')
         return
       }
       const numSalesChannel = salesChannel === 'POS' ? 1 : salesChannel === 'ONLINE' ? 2 : 3
@@ -369,7 +368,9 @@ export function ProductFormPage() {
       }
 
       const payload = {
-        storeId: numStoreId,
+        storeId: numStoreId > 0 ? numStoreId : (Number(storeId) || 1),
+        isGlobal,
+        storeIds: isGlobal ? [] : storeIds.map(Number),
         productCode: productCode || `PRD-${Date.now()}`,
         productName: productName || 'Untitled Product',
         shortName: shortName || productName,
@@ -691,6 +692,121 @@ export function ProductFormPage() {
         {step === 1 && (
           <div className="grid grid-cols-1 gap-[18px] xl:grid-cols-[minmax(0,1.8fr)_minmax(330px,0.9fr)]">
             <section className="grid content-start gap-[18px]">
+              {/* Store Coverage & Availability */}
+              <article className={cn(card, 'p-[22px]')}>
+                <div className={formSectionTitle}>
+                  <h3 className="m-0 text-[15px]">Store Coverage & Availability</h3>
+                  <p className="mt-1.5 mb-0 text-[12px] text-vpos-muted">
+                    Specify whether this product is global (available across all stores) or restricted to specific stores.
+                  </p>
+                </div>
+
+                <div className="flex items-center gap-3 mb-4">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setIsGlobal(true)
+                    }}
+                    className={cn(
+                      'flex min-h-11 flex-1 items-center justify-center gap-2 rounded-xl border text-[13px] font-bold transition cursor-pointer',
+                      isGlobal
+                        ? 'border-vpos-primary bg-vpos-sand/50 text-vpos-primary shadow-xs'
+                        : 'border-vpos-line bg-white text-vpos-muted hover:bg-vpos-subtle',
+                    )}
+                  >
+                    <Icon name="global-line" />
+                    <span>All stores (Global)</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setIsGlobal(false)}
+                    className={cn(
+                      'flex min-h-11 flex-1 items-center justify-center gap-2 rounded-xl border text-[13px] font-bold transition cursor-pointer',
+                      !isGlobal
+                        ? 'border-vpos-primary bg-vpos-sand/50 text-vpos-primary shadow-xs'
+                        : 'border-vpos-line bg-white text-vpos-muted hover:bg-vpos-subtle',
+                    )}
+                  >
+                    <Icon name="store-2-line" />
+                    <span>Specific stores</span>
+                  </button>
+                </div>
+
+                {!isGlobal && (
+                  <div className="space-y-2 border-t border-vpos-line/80 pt-3">
+                    <div className="flex items-center justify-between">
+                      <span className="text-[12px] font-bold text-vpos-text">
+                        Select assigned stores <span className="text-vpos-red">*</span>
+                      </span>
+                      <div className="flex items-center gap-2 text-[11px]">
+                        <button
+                          type="button"
+                          onClick={() => {
+                            const allIds = rawStores.map((s) => Number(s.id))
+                            setStoreIds(allIds)
+                            if (allIds.length > 0) {
+                              setFormStoreId(String(allIds[0]))
+                              setStoreId(String(allIds[0]))
+                            }
+                          }}
+                          className="font-bold text-vpos-primary hover:underline cursor-pointer"
+                        >
+                          Select all
+                        </button>
+                        <span className="text-vpos-muted">•</span>
+                        <button
+                          type="button"
+                          onClick={() => setStoreIds([])}
+                          className="font-bold text-vpos-muted hover:text-vpos-text cursor-pointer"
+                        >
+                          Clear
+                        </button>
+                      </div>
+                    </div>
+
+                    <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 pt-1">
+                      {rawStores.map((st) => {
+                        const sid = Number(st.id)
+                        const checked = storeIds.map(Number).includes(sid)
+                        return (
+                          <label
+                            key={st.id}
+                            className={cn(
+                              'flex cursor-pointer items-center gap-2.5 rounded-xl border p-3 text-[13px] font-semibold transition-all',
+                              checked
+                                ? 'border-vpos-primary bg-vpos-sand/30 text-vpos-primary shadow-2xs'
+                                : 'border-vpos-line bg-white text-vpos-text hover:border-vpos-line/80 hover:bg-vpos-subtle/50',
+                            )}
+                          >
+                            <input
+                              type="checkbox"
+                              checked={checked}
+                              onChange={() => {
+                                setStoreIds((prev) => {
+                                  const numericPrev = prev.map(Number)
+                                  const exists = numericPrev.includes(sid)
+                                  const updated = exists ? numericPrev.filter((id) => id !== sid) : [...numericPrev, sid]
+                                  if (updated.length > 0) {
+                                    setFormStoreId(String(updated[0]))
+                                    setStoreId(String(updated[0]))
+                                  }
+                                  return updated
+                                })
+                              }}
+                              className="h-4 w-4 rounded border-vpos-line text-vpos-primary focus:ring-vpos-primary/30"
+                            />
+                            <div className="min-w-0 flex-1 truncate">
+                              <span className="block truncate font-bold">{st.name}</span>
+                              {st.city ? <span className="block text-[11px] font-normal text-vpos-muted truncate">{st.city}</span> : null}
+                            </div>
+                          </label>
+                        )
+                      })}
+                    </div>
+                  </div>
+                )}
+              </article>
+
               <article className={cn(card, 'p-[22px]')}>
                 <div className={formSectionTitle}>
                   <h3 className="m-0 text-[15px]">Basic information</h3>
@@ -699,20 +815,6 @@ export function ProductFormPage() {
                   </p>
                 </div>
                 <div className={formGrid}>
-                  <div className="md:col-span-2">
-                    <Select
-                      label="Store Location"
-                      requiredMark
-                      placeholder={loadingStores ? "Loading stores…" : "Select store assignment"}
-                      value={formStoreId}
-                      onChange={(val) => {
-                        setFormStoreId(val)
-                        setStoreId(val)
-                      }}
-                      options={storeOptions}
-                      searchable
-                    />
-                  </div>
                   <div className="md:col-span-2">
                     <FormField label="Product name" required value={productName} onChange={(e) => setProductName(e.target.value)} placeholder="e.g. Iced Americano" />
                   </div>
@@ -1102,10 +1204,17 @@ export function ProductFormPage() {
                 </div>
 
                 <div className="flex flex-wrap items-center gap-2">
-                  <span className="inline-flex items-center gap-1.5 rounded-lg border border-vpos-primary/20 bg-vpos-sand px-3 py-1.5 text-[12px] font-bold text-vpos-primary">
-                    <Icon name="building-2-line" />
-                    {rawStores.find((s) => String(s.id) === effectiveStoreId)?.name || `Store #${effectiveStoreId || '1'}`}
-                  </span>
+                  {isGlobal ? (
+                    <span className="inline-flex items-center gap-1.5 rounded-lg border border-vpos-primary/20 bg-vpos-sand px-3 py-1.5 text-[12px] font-bold text-vpos-primary">
+                      <Icon name="global-line" />
+                      Global (All Stores)
+                    </span>
+                  ) : (
+                    <span className="inline-flex items-center gap-1.5 rounded-lg border border-vpos-primary/20 bg-vpos-sand px-3 py-1.5 text-[12px] font-bold text-vpos-primary">
+                      <Icon name="store-2-line" />
+                      {storeIds.length} Assigned Store{storeIds.length !== 1 ? 's' : ''}
+                    </span>
+                  )}
                   <span className={cn(
                     'inline-flex items-center gap-1 rounded-lg px-3 py-1.5 text-[12px] font-bold',
                     isSellable ? 'bg-vpos-green-bg text-vpos-green' : 'bg-slate-100 text-slate-600',
@@ -1124,9 +1233,9 @@ export function ProductFormPage() {
                 </h3>
                 <dl className="grid grid-cols-2 gap-3 text-[13px]">
                   <div className="rounded-lg bg-vpos-subtle/50 p-3">
-                    <dt className="text-[11px] font-extrabold uppercase tracking-wider text-vpos-muted">Assigned Store</dt>
+                    <dt className="text-[11px] font-extrabold uppercase tracking-wider text-vpos-muted">Store Coverage</dt>
                     <dd className="mt-1 font-bold text-vpos-dark m-0">
-                      {rawStores.find((s) => String(s.id) === effectiveStoreId)?.name || 'Default Store'}
+                      {isGlobal ? 'All Stores (Global)' : storeIds.length > 0 ? `${storeIds.length} Store${storeIds.length !== 1 ? 's' : ''}` : 'None'}
                     </dd>
                   </div>
                   <div className="rounded-lg bg-vpos-subtle/50 p-3">
