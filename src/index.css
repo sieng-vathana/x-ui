@@ -891,6 +891,28 @@ html[data-bs-theme='dark'] .animate-pulse {
   background-color: var(--app-surface-subtle) !important;
 }
 
+@keyframes pop-in-zoom {
+  0% {
+    transform: scale(2.4) translateZ(0);
+    opacity: 0;
+    filter: blur(12px);
+  }
+  65% {
+    transform: scale(0.94) translateZ(0);
+    opacity: 1;
+    filter: blur(0px);
+  }
+  100% {
+    transform: scale(1) translateZ(0);
+    opacity: 1;
+    filter: blur(0px);
+  }
+}
+
+.animate-pop-in-zoom {
+  animation: pop-in-zoom 600ms cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
 html[data-bs-theme='dark'] [data-sidebar-theme='light'] {
   background-color: #fff !important;
   color: #272a3a !important;
