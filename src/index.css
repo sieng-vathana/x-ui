@@ -891,6 +891,16 @@ html[data-bs-theme='dark'] .animate-pulse {
   background-color: var(--app-surface-subtle) !important;
 }
 
+.app-loader-wrapper {
+  background-color: rgba(255, 255, 255, 0.92);
+  color: var(--app-text, #272a3a);
+}
+
+html[data-bs-theme='dark'] .app-loader-wrapper {
+  background-color: rgba(21, 25, 33, 0.95) !important;
+  color: var(--app-text, #e9ecef) !important;
+}
+
 @keyframes pop-in-zoom {
   0% {
     transform: scale(2.4) translateZ(0);

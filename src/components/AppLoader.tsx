@@ -50,7 +50,7 @@ export function AppLoader({ isLoading, isStarting }: AppLoaderProps) {
 
   return (
     <div
-      className={`fixed inset-0 z-[9999] flex flex-col items-center justify-center bg-white/90 dark:bg-[#0f1217]/95 backdrop-blur-xl transition-all duration-200 ${
+      className={`app-loader-wrapper fixed inset-0 z-[9999] flex flex-col items-center justify-center backdrop-blur-xl transition-all duration-200 ${
         isExiting ? 'opacity-0 scale-95' : 'opacity-100 scale-100'
       }`}
       role="status"
@@ -61,7 +61,7 @@ export function AppLoader({ isLoading, isStarting }: AppLoaderProps) {
       <div className="absolute h-72 w-72 rounded-full bg-vpos-primary/15 blur-3xl animate-pulse" />
 
       <div className="relative flex flex-col items-center justify-center p-8 text-center z-10">
-        {/* Pop-in Icon (No border box or outer circles) */}
+        {/* Pop-in Icon */}
         <div className="relative mb-5 flex items-center justify-center animate-pop-in-zoom">
           <img
             src={loaderMark}
@@ -71,15 +71,15 @@ export function AppLoader({ isLoading, isStarting }: AppLoaderProps) {
         </div>
 
         {/* Text Details */}
-        <h3 className="m-0 text-[17px] font-extrabold tracking-tight text-vpos-dark dark:text-white">
+        <h3 className="m-0 text-[17px] font-extrabold tracking-tight text-vpos-dark">
           {isStarting ? 'Setting up workspace…' : 'Syncing data…'}
         </h3>
-        <p className="mt-1 mb-5 text-[12px] font-semibold text-vpos-muted dark:text-gray-400">
+        <p className="mt-1 mb-5 text-[12px] font-semibold text-vpos-muted">
           {isStarting ? 'Preparing stores, catalog & user session' : 'Fetching your latest business data'}
         </p>
 
         {/* Bottom Loading Progress Line */}
-        <div className="h-1.5 w-44 overflow-hidden rounded-full bg-vpos-subtle dark:bg-gray-800">
+        <div className="h-1.5 w-44 overflow-hidden rounded-full bg-vpos-subtle">
           <div className="h-full w-full bg-gradient-to-r from-vpos-primary via-indigo-500 to-emerald-500 animate-pulse" />
         </div>
       </div>
