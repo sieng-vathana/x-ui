@@ -78,6 +78,43 @@ function emptyVariant(id: number): VariantInput {
   }
 }
 
+function inferOptionName(values: string[], apiAttributes: { attributeName?: string }[] = [], groupIndex = 0): string {
+  const colorKeywords = [
+    'black', 'white', 'red', 'blue', 'green', 'yellow', 'purple', 'pink',
+    'orange', 'grey', 'gray', 'brown', 'gold', 'silver', 'navy', 'beige',
+    'cyan', 'magenta', 'charcoal', 'olive', 'maroon', 'teal', 'violet',
+  ]
+  const sizeKeywords = [
+    'small', 'medium', 'large', 'xs', 's', 'm', 'l', 'xl', 'xxl', '2xl',
+    '3xl', '4xl', '12oz', '16oz', '20oz', '24oz', 'oz', 'ml', 'liter', 'kg', 'g', 'lb',
+  ]
+  const tempKeywords = [
+    'hot', 'iced', 'ice', 'extra ice', 'warm', 'cold', 'room temperature', 'frozen', 'less ice', 'no ice',
+  ]
+  const flavorKeywords = [
+    'vanilla', 'caramel', 'hazelnut', 'chocolate', 'strawberry', 'mocha', 'matcha', 'taro', 'mango', 'coconut', 'mint', 'cinnamon',
+  ]
+  const milkKeywords = [
+    'whole milk', 'oat milk', 'almond milk', 'soy milk', 'skim milk', 'coconut milk', 'condensed milk', 'fresh milk', 'lactose free',
+  ]
+
+  const lowerVals = values.map((v) => v.toLowerCase().trim())
+  if (lowerVals.some((v) => colorKeywords.some((c) => v.includes(c)))) return 'Color'
+  if (lowerVals.some((v) => sizeKeywords.some((s) => v === s || v.startsWith(s)))) return 'Size'
+  if (lowerVals.some((v) => tempKeywords.some((t) => v.includes(t)))) return 'Temperature'
+  if (lowerVals.some((v) => flavorKeywords.some((f) => v.includes(f)))) return 'Flavor'
+  if (lowerVals.some((v) => milkKeywords.some((m) => v.includes(m)))) return 'Milk Type'
+
+  for (const attr of apiAttributes) {
+    if (attr.attributeName && lowerVals.includes(attr.attributeName.toLowerCase().trim())) {
+      return attr.attributeName
+    }
+  }
+
+  const defaultFallbackOrder = ['Size', 'Color', 'Flavor', 'Temperature', 'Milk Type']
+  return defaultFallbackOrder[groupIndex] || `Option ${groupIndex + 1}`
+}
+
 export function ProductFormPage() {
   const navigate = useNavigate()
   const { sku } = useParams()
@@ -103,6 +140,26 @@ export function ProductFormPage() {
   const [isFeatured, setIsFeatured] = useState(false)
   const [isSellable, setIsSellable] = useState(true)
   const [isStockable, setIsStockable] = useState(true)
+
+  const [variants, setVariants] = useState<VariantInput[]>([emptyVariant(0)])
+  const [hasOptions, setHasOptions] = useState(false)
+  const [optionGroups, setOptionGroups] = useState<
+    { id: string; name: string; values: string[]; inputValue: string }[]
+  >([
+    { id: 'opt-1', name: '', values: [], inputValue: '' },
+  ])
+  const [images, setImages] = useState<ProductImage[]>([])
+  const [cropTarget, setCropTarget] = useState<ProductImage | null>(null)
+  const fileInputRef = useRef<HTMLInputElement>(null)
+
+  const effectiveStoreId = formStoreId || storeId
+
+  const { data: apiCategories = [], isLoading: loadingCategories } = useProductCategories(effectiveStoreId)
+  const { data: apiBrands = [], isLoading: loadingBrands } = useProductBrands(effectiveStoreId)
+  const { data: apiUnits = [], isLoading: loadingUnits } = useProductUnits(effectiveStoreId)
+  const { data: apiTaxes = [], isLoading: loadingTaxes } = useProductTaxes(effectiveStoreId)
+  const { data: apiSuppliers = [] } = useProductSuppliers(effectiveStoreId)
+  const { data: apiAttributes = [] } = useProductAttributes()
 
   useEffect(() => {
     if (!existingProduct) return
@@ -170,7 +227,7 @@ export function ProductFormPage() {
       }))
       setVariants(loadedVariants)
 
-      if (loadedVariants.length > 1) {
+      if (loadedVariants.length > 1 || (loadedVariants.length === 1 && loadedVariants[0].variantName && loadedVariants[0].variantName !== 'Default' && loadedVariants[0].variantName !== 'Standard')) {
         setHasOptions(true)
         const hasSlash = loadedVariants.some((v) => v.variantName.includes(' / '))
         if (hasSlash) {
@@ -185,10 +242,9 @@ export function ProductFormPage() {
               }
             })
           })
-          const defaultNames = ['Size', 'Option', 'Type', 'Flavor']
           const parsedGroups = partsByGroup.map((vals, gIdx) => ({
             id: `opt-${Date.now()}-${gIdx}`,
-            name: defaultNames[gIdx] || `Option ${gIdx + 1}`,
+            name: inferOptionName(vals, apiAttributes, gIdx),
             values: vals,
             inputValue: '',
           }))
@@ -201,7 +257,7 @@ export function ProductFormPage() {
             setOptionGroups([
               {
                 id: `opt-${Date.now()}`,
-                name: 'Option',
+                name: inferOptionName(distinctNames, apiAttributes, 0),
                 values: distinctNames,
                 inputValue: '',
               },
@@ -210,7 +266,7 @@ export function ProductFormPage() {
         }
       }
     }
-  }, [existingProduct])
+  }, [existingProduct, apiAttributes])
 
   useEffect(() => {
     if (!formStoreId && storeId) {
@@ -218,34 +274,33 @@ export function ProductFormPage() {
     }
   }, [storeId, formStoreId])
 
-  const effectiveStoreId = formStoreId || storeId
-
-  const { data: apiCategories = [], isLoading: loadingCategories } = useProductCategories(effectiveStoreId)
-  const { data: apiBrands = [], isLoading: loadingBrands } = useProductBrands(effectiveStoreId)
-  const { data: apiUnits = [], isLoading: loadingUnits } = useProductUnits(effectiveStoreId)
-  const { data: apiTaxes = [], isLoading: loadingTaxes } = useProductTaxes(effectiveStoreId)
-  const { data: apiSuppliers = [] } = useProductSuppliers(effectiveStoreId)
-  const { data: apiAttributes = [] } = useProductAttributes()
-
   const attributeSelectOptions = useMemo(() => {
     const defaultAttrs = [
       { value: 'Size', label: 'Size' },
-      { value: 'Temperature', label: 'Temperature' },
-      { value: 'Milk Type', label: 'Milk Type' },
       { value: 'Color', label: 'Color' },
       { value: 'Flavor', label: 'Flavor' },
+      { value: 'Temperature', label: 'Temperature' },
+      { value: 'Milk Type', label: 'Milk Type' },
+      { value: 'Material', label: 'Material' },
+      { value: 'Style', label: 'Style' },
     ]
-    if (apiAttributes.length > 0) {
-      const liveOpts = apiAttributes.map((a) => ({ value: a.attributeName, label: a.attributeName }))
-      const names = new Set(liveOpts.map((o) => o.value))
-      const merged = [...liveOpts]
-      for (const def of defaultAttrs) {
-        if (!names.has(def.value)) merged.push(def)
+    const liveOpts = apiAttributes.map((a) => ({ value: a.attributeName, label: a.attributeName }))
+    const names = new Set(liveOpts.map((o) => o.value))
+    const merged = [...liveOpts]
+    for (const def of defaultAttrs) {
+      if (!names.has(def.value)) {
+        merged.push(def)
+        names.add(def.value)
       }
-      return merged
     }
-    return defaultAttrs
-  }, [apiAttributes])
+    optionGroups.forEach((g) => {
+      if (g.name && !names.has(g.name)) {
+        merged.push({ value: g.name, label: g.name })
+        names.add(g.name)
+      }
+    })
+    return merged
+  }, [apiAttributes, optionGroups])
 
   const supplierOptions = useMemo(() => {
     if (apiSuppliers.length > 0) {
@@ -410,14 +465,6 @@ export function ProductFormPage() {
     }))
   }, [apiTaxes])
 
-  const [variants, setVariants] = useState<VariantInput[]>([emptyVariant(0)])
-  const [hasOptions, setHasOptions] = useState(false)
-  const [optionGroups, setOptionGroups] = useState<
-    { id: string; name: string; values: string[]; inputValue: string }[]
-  >([
-    { id: 'opt-1', name: '', values: [], inputValue: '' },
-  ])
-
   const addOptionGroup = () => {
     setOptionGroups((prev) => [
       ...prev,
@@ -510,9 +557,6 @@ export function ProductFormPage() {
     setVariants(newVariants)
     toast(`Generated ${newVariants.length} variants, preserving existing images and pricing.`, 'info')
   }
-  const [images, setImages] = useState<ProductImage[]>([])
-  const [cropTarget, setCropTarget] = useState<ProductImage | null>(null)
-  const fileInputRef = useRef<HTMLInputElement>(null)
 
   const updateVariant = useCallback(
     (key: string, field: keyof VariantInput, value: string) => {
@@ -860,6 +904,7 @@ export function ProductFormPage() {
                             }}
                             options={attributeSelectOptions}
                             searchable
+                            allowCustom
                           />
                           <div className="md:col-span-2">
                             <label className="mb-2 block text-[12px] font-semibold text-vpos-dark">

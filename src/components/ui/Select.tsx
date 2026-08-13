@@ -20,6 +20,7 @@ export interface SelectProps {
   className?: string
   searchable?: boolean
   searchAction?: ReactNode
+  allowCustom?: boolean
 }
 
 const labelClass =
@@ -37,6 +38,7 @@ export function Select({
   className,
   searchable = false,
   searchAction,
+  allowCustom = false,
 }: SelectProps) {
   const [open, setOpen] = useState(false)
   const [query, setQuery] = useState('')
@@ -50,6 +52,10 @@ export function Select({
     if (!query.trim()) return true
     return o.label.toLowerCase().includes(query.toLowerCase())
   })
+
+  const hasExactMatch = options.some(
+    (o) => o.label.toLowerCase() === query.trim().toLowerCase() || o.value.toLowerCase() === query.trim().toLowerCase()
+  )
 
   useEffect(() => {
     if (!open) return
@@ -98,10 +104,10 @@ export function Select({
         <span
           className={cn(
             'min-w-0 flex-1 truncate font-semibold',
-            selected ? 'text-vpos-text' : 'text-vpos-muted',
+            selected || value ? 'text-vpos-text' : 'text-vpos-muted',
           )}
         >
-          {selected?.label ?? placeholder}
+          {selected?.label || value || placeholder}
         </span>
         <svg
           className={cn(
@@ -147,7 +153,7 @@ export function Select({
             </div>
           ) : null}
           <div className="max-h-[220px] overflow-y-auto py-1">
-            {filtered.length === 0 ? (
+            {filtered.length === 0 && !allowCustom ? (
               <p className="px-4 py-3 text-[13px] text-vpos-muted">No results</p>
             ) : (
               filtered.map((opt) => {
@@ -183,6 +189,21 @@ export function Select({
                   </button>
                 )
               })
+            )}
+
+            {allowCustom && query.trim() && !hasExactMatch && (
+              <button
+                type="button"
+                className="flex w-full items-center gap-2 border-0 border-t border-vpos-line bg-vpos-sand/40 px-4 py-2.5 text-left text-[13px] font-bold text-vpos-primary hover:bg-vpos-sand transition-colors"
+                onClick={() => {
+                  onChange(query.trim())
+                  setOpen(false)
+                  setQuery('')
+                }}
+              >
+                <Icon name="add-line" className="text-[15px]" />
+                <span>Use "{query.trim()}"</span>
+              </button>
             )}
           </div>
         </div>
