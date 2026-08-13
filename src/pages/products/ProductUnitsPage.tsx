@@ -215,7 +215,7 @@ function UnitDetailsModal({
       title="Unit details"
       description="View full measurement unit information."
       size="2xl"
-      panelClassName="max-w-xl sm:max-w-xl w-full"
+      panelClassName="max-w-2xl sm:max-w-2xl w-full"
       footer={
         <>
           <Button variant="secondary" type="button" onClick={onClose}>
@@ -381,8 +381,8 @@ function UnitFormModal({ open, unit, onClose, onSave, isSaving }: UnitFormModalP
       onClose={handleClose}
       title={isEditing ? 'Edit unit' : 'Add unit'}
       description={isEditing ? 'Update measurement unit details.' : 'Create a new measurement unit.'}
-      size="lg"
-      panelClassName="max-w-xl sm:max-w-xl w-full"
+      size="2xl"
+      panelClassName="max-w-2xl sm:max-w-2xl w-full"
       footer={
         <>
           <Button variant="secondary" type="button" onClick={handleClose} disabled={isSaving}>

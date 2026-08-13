@@ -10,7 +10,7 @@ import { usePresence } from '../../hooks/usePresence'
 import { Icon } from './Icon'
 
 export type ModalTone = 'light' | 'dark'
-export type ModalSize = 'sm' | 'md' | 'lg' | '2xl' | '3xl' | 'xl' | 'shortcut'
+export type ModalSize = 'sm' | 'md' | 'lg' | '2xl' | '3xl' | '4xl' | 'xl' | 'shortcut'
 
 export interface ModalProps {
   open: boolean
@@ -38,12 +38,13 @@ export interface ModalProps {
 }
 
 const sizeClass: Record<ModalSize, string> = {
-  sm: 'max-w-sm',
-  md: 'max-w-md',
-  lg: 'max-w-xl',
-  '2xl': 'max-w-2xl',
-  '3xl': 'max-w-3xl',
-  xl: 'max-w-5xl',
+  sm: 'max-w-md',
+  md: 'max-w-xl',
+  lg: 'max-w-2xl',
+  '2xl': 'max-w-3xl',
+  '3xl': 'max-w-4xl',
+  '4xl': 'max-w-5xl',
+  xl: 'max-w-6xl',
   shortcut: 'max-w-[452px]',
 }
 

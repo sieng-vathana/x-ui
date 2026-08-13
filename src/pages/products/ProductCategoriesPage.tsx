@@ -301,7 +301,7 @@ function CategoryDetailsModal({
       title="Category details"
       description="View full product category information."
       size="2xl"
-      panelClassName="max-w-xl sm:max-w-xl w-full"
+      panelClassName="max-w-3xl sm:max-w-3xl w-full"
       footer={
         <>
           <Button variant="secondary" type="button" onClick={onClose}>
@@ -596,8 +596,8 @@ function CategoryFormModal({ open, category, onClose, onSave, isSaving }: Catego
       onClose={handleClose}
       title={isEditing ? 'Edit category' : 'Add category'}
       description={isEditing ? 'Update product category details and store coverage.' : 'Create a new product category for your catalog.'}
-      size="2xl"
-      panelClassName="max-w-2xl sm:max-w-2xl w-full"
+      size="3xl"
+      panelClassName="max-w-4xl sm:max-w-4xl w-full"
       footer={
         <>
           <Button variant="secondary" type="button" onClick={handleClose} disabled={isSaving || isUploadingImage}>

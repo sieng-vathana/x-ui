@@ -222,7 +222,7 @@ function BrandDetailsModal({
       title="Brand details"
       description="View full product brand information."
       size="2xl"
-      panelClassName="max-w-xl sm:max-w-xl w-full"
+      panelClassName="max-w-3xl sm:max-w-3xl w-full"
       footer={
         <>
           <Button variant="secondary" type="button" onClick={onClose}>
@@ -495,8 +495,8 @@ function BrandFormModal({ open, brand, onClose, onSave, isSaving }: BrandFormMod
       onClose={handleClose}
       title={isEditing ? 'Edit brand' : 'Add brand'}
       description={isEditing ? 'Update product brand details and store coverage.' : 'Create a new brand for your catalog.'}
-      size="2xl"
-      panelClassName="max-w-2xl sm:max-w-2xl w-full"
+      size="3xl"
+      panelClassName="max-w-4xl sm:max-w-4xl w-full"
       footer={
         <>
           <Button variant="secondary" type="button" onClick={handleClose} disabled={isSaving || isUploadingLogo}>
