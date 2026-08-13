@@ -896,9 +896,17 @@ html[data-bs-theme='dark'] .animate-pulse {
   color: var(--app-text, #272a3a);
 }
 
+.app-loader-icon {
+  filter: invert(1);
+}
+
 html[data-bs-theme='dark'] .app-loader-wrapper {
   background-color: rgba(21, 25, 33, 0.95) !important;
   color: var(--app-text, #e9ecef) !important;
+}
+
+html[data-bs-theme='dark'] .app-loader-icon {
+  filter: invert(0) !important;
 }
 
 @keyframes pop-in-zoom {

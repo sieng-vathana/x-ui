@@ -61,15 +61,13 @@ export function AppLoader({ isLoading, isStarting }: AppLoaderProps) {
       <div className="absolute h-72 w-72 rounded-full bg-vpos-primary/15 blur-3xl animate-pulse" />
 
       <div className="relative flex flex-col items-center justify-center p-8 text-center z-10">
-        {/* Pop-in Icon */}
+        {/* Pop-in Icon (Pure icon without any background container) */}
         <div className="relative mb-5 flex items-center justify-center animate-pop-in-zoom">
-          <div className="grid h-20 w-20 place-items-center rounded-2xl bg-[#1b1e23] p-3.5 shadow-xl shadow-vpos-primary/20 border border-white/10">
-            <img
-              src={loaderMark}
-              alt="Logo"
-              className="h-full w-full object-contain"
-            />
-          </div>
+          <img
+            src={loaderMark}
+            alt="Logo"
+            className="app-loader-icon h-20 w-20 object-contain"
+          />
         </div>
 
         {/* Text Details */}
