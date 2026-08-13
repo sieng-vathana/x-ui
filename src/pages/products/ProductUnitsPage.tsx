@@ -66,7 +66,9 @@ function toFormDefaults(unit: ProductUnit | null): UnitFormData {
     name: unit?.unitName ?? '',
     description: unit?.description ?? '',
     isGlobal: unit?.isGlobal ?? true,
-    storeIds: unit?.storeIds ? Array.from(unit.storeIds) : [],
+    storeIds: unit?.storeIds
+      ? Array.from(unit.storeIds).map((id) => Number(id)).filter((id) => !isNaN(id) && id > 0)
+      : [],
     status: unit?.status ?? 'ACTIVE',
   }
 }
@@ -314,6 +316,18 @@ function UnitFormModal({ open, unit, onClose, onSave, isSaving }: UnitFormModalP
   const [isGlobal, setIsGlobal] = useState(defaults.isGlobal)
   const [status, setStatus] = useState(defaults.status)
   const [errors, setErrors] = useState<FormErrors>({})
+
+  useEffect(() => {
+    if (open) {
+      const d = toFormDefaults(unit)
+      setCode(d.code)
+      setName(d.name)
+      setDescription(d.description)
+      setIsGlobal(d.isGlobal)
+      setStatus(d.status)
+      setErrors({})
+    }
+  }, [open, unit])
 
   const resetForm = () => {
     const d = toFormDefaults(unit)
@@ -658,6 +672,7 @@ export function ProductUnitsPage() {
         />
 
         <UnitFormModal
+          key={editingUnit ? `edit-unit-${editingUnit.id}` : 'create-unit'}
           open={formOpen}
           unit={editingUnit}
           onClose={() => {

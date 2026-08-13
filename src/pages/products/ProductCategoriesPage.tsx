@@ -145,7 +145,9 @@ function toFormDefaults(category: ProductCategory | null): CategoryFormData {
     tone: style?.tone ?? (category ? inferToneFromName(category.categoryName) : 'coffee'),
     sortOrder: category?.sortOrder ?? 10,
     isGlobal: category?.isGlobal ?? true,
-    storeIds: category?.storeIds ? Array.from(category.storeIds) : [],
+    storeIds: category?.storeIds
+      ? Array.from(category.storeIds).map((id) => Number(id)).filter((id) => !isNaN(id) && id > 0)
+      : [],
     isFeatured: category?.isFeatured ?? false,
     status: category?.status ?? 'ACTIVE',
   }
@@ -455,6 +457,25 @@ function CategoryFormModal({ open, category, onClose, onSave, isSaving }: Catego
   const [isUploadingImage, setIsUploadingImage] = useState(false)
   const [errors, setErrors] = useState<FormErrors>({})
 
+  useEffect(() => {
+    if (open) {
+      const d = toFormDefaults(category)
+      setCode(d.code)
+      setName(d.name)
+      setDescription(d.description)
+      setImage(d.image)
+      setIcon(d.icon)
+      setTone(d.tone)
+      setSortOrder(d.sortOrder)
+      setIsGlobal(d.isGlobal)
+      setStoreIds(d.storeIds)
+      setIsFeatured(d.isFeatured)
+      setStatus(d.status)
+      setErrors({})
+      setIsUploadingImage(false)
+    }
+  }, [open, category])
+
   const resetForm = () => {
     const d = toFormDefaults(category)
     setCode(d.code)
@@ -496,9 +517,11 @@ function CategoryFormModal({ open, category, onClose, onSave, isSaving }: Catego
   }
 
   const handleToggleStore = (storeId: number) => {
+    const sid = Number(storeId)
     setStoreIds((prev) => {
-      const exists = prev.includes(storeId)
-      const updated = exists ? prev.filter((id) => id !== storeId) : [...prev, storeId]
+      const numericPrev = prev.map(Number)
+      const exists = numericPrev.includes(sid)
+      const updated = exists ? numericPrev.filter((id) => id !== sid) : [...numericPrev, sid]
       if (updated.length > 0 && errors.storeIds) {
         setErrors((e) => ({ ...e, storeIds: undefined }))
       }
@@ -841,7 +864,7 @@ function CategoryFormModal({ open, category, onClose, onSave, isSaving }: Catego
                 {stores.length > 0 ? (
                   stores.map((store) => {
                     const sid = Number(store.id)
-                    const isChecked = storeIds.includes(sid)
+                    const isChecked = storeIds.map(Number).includes(sid)
                     return (
                       <label
                         key={store.id}
@@ -1187,6 +1210,7 @@ export function ProductCategoriesPage() {
         />
 
         <CategoryFormModal
+          key={editingCategory ? `edit-category-${editingCategory.id}` : 'create-category'}
           open={formOpen}
           category={editingCategory}
           onClose={() => {
