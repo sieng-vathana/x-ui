@@ -113,8 +113,8 @@ function validateForm(data: CategoryFormData): FormErrors {
   const errors: FormErrors = {}
   if (!data.code.trim()) {
     errors.code = 'Code is required.'
-  } else if (data.code.trim().length > 5) {
-    errors.code = 'Code must be 5 characters or fewer.'
+  } else if (data.code.trim().length > 50) {
+    errors.code = 'Code must be 50 characters or fewer.'
   }
   if (!data.name.trim()) {
     errors.name = 'Name is required.'
@@ -662,13 +662,6 @@ function CategoryFormModal({ open, category, onClose, onSave, isSaving }: Catego
                   </Button>
                 )}
               </div>
-              <input
-                type="text"
-                placeholder="Or paste image URL (https://...)"
-                value={image}
-                onChange={(e) => setImage(e.target.value)}
-                className="w-full rounded-[4px] border border-vpos-line bg-white px-3 py-1.5 text-[12px] text-vpos-text placeholder:text-vpos-muted focus:border-vpos-primary focus:outline-none"
-              />
             </div>
           </div>
         </div>
@@ -680,7 +673,7 @@ function CategoryFormModal({ open, category, onClose, onSave, isSaving }: Catego
               required
               name="code"
               placeholder="e.g. COF"
-              maxLength={5}
+              maxLength={50}
               value={code}
               onChange={(e) => {
                 setCode(e.target.value.toUpperCase())

@@ -386,7 +386,7 @@ function UnitFormModal({ open, unit, onClose, onSave, isSaving }: UnitFormModalP
           required
           name="code"
           placeholder="e.g. PCS, KG, BOX"
-          maxLength={10}
+          maxLength={50}
           value={code}
           onChange={(e) => {
             setCode(e.target.value.toUpperCase())

@@ -564,13 +564,6 @@ function BrandFormModal({ open, brand, onClose, onSave, isSaving }: BrandFormMod
                   </Button>
                 )}
               </div>
-              <input
-                type="text"
-                placeholder="Or paste logo URL (https://...)"
-                value={logo}
-                onChange={(e) => setLogo(e.target.value)}
-                className="w-full rounded-[4px] border border-vpos-line bg-white px-3 py-1.5 text-[12px] text-vpos-text placeholder:text-vpos-muted focus:border-vpos-primary focus:outline-none"
-              />
             </div>
           </div>
         </div>
