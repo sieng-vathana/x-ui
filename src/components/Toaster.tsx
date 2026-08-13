@@ -1,56 +1,113 @@
 import { Icon } from './ui/Icon'
-import { useToast, type ToastType } from '../context/ToastContext'
+import { useToast, type ToastType, type ToastItem } from '../context/ToastContext'
 import { cn } from '../lib/cn'
 
-const iconMap: Record<ToastType, string> = {
-  success: 'checkbox-circle-line',
-  error: 'error-warning-line',
-  warning: 'error-warning-line',
-  info: 'information-line',
+const defaultTitles: Record<ToastType, string> = {
+  success: 'Success',
+  error: 'Action failed',
+  warning: 'Warning',
+  info: 'Notice',
 }
 
-const toneMap: Record<ToastType, string> = {
-  success:
-    'border-vpos-green/30 bg-white text-vpos-green shadow-vpos',
-  error:
-    'border-vpos-red/30 bg-white text-vpos-red shadow-vpos',
-  warning:
-    'border-vpos-orange/30 bg-white text-vpos-orange shadow-vpos',
-  info:
-    'border-vpos-primary/30 bg-white text-vpos-primary shadow-vpos',
+const typeStyles: Record<
+  ToastType,
+  {
+    icon: string
+    badgeBg: string
+    progressBg: string
+    borderHighlight: string
+  }
+> = {
+  success: {
+    icon: 'checkbox-circle-fill',
+    badgeBg: 'bg-gradient-to-br from-emerald-400 to-emerald-600 text-white shadow-[0_4px_14px_rgba(16,185,129,0.38)]',
+    progressBg: 'bg-gradient-to-r from-emerald-400 to-emerald-600',
+    borderHighlight: 'border-l-4 border-l-emerald-500',
+  },
+  error: {
+    icon: 'error-warning-fill',
+    badgeBg: 'bg-gradient-to-br from-rose-500 to-red-600 text-white shadow-[0_4px_14px_rgba(239,68,68,0.38)]',
+    progressBg: 'bg-gradient-to-r from-rose-500 to-red-600',
+    borderHighlight: 'border-l-4 border-l-rose-500',
+  },
+  warning: {
+    icon: 'alert-fill',
+    badgeBg: 'bg-gradient-to-br from-amber-400 to-amber-600 text-white shadow-[0_4px_14px_rgba(245,158,11,0.38)]',
+    progressBg: 'bg-gradient-to-r from-amber-400 to-amber-600',
+    borderHighlight: 'border-l-4 border-l-amber-500',
+  },
+  info: {
+    icon: 'information-fill',
+    badgeBg: 'bg-gradient-to-br from-blue-500 to-indigo-600 text-white shadow-[0_4px_14px_rgba(79,70,229,0.38)]',
+    progressBg: 'bg-gradient-to-r from-blue-500 to-indigo-600',
+    borderHighlight: 'border-l-4 border-l-indigo-500',
+  },
+}
+
+function ToastCard({ toast, onDismiss }: { toast: ToastItem; onDismiss: () => void }) {
+  const styles = typeStyles[toast.type]
+  const title = toast.title || defaultTitles[toast.type]
+
+  return (
+    <div
+      role="alert"
+      className={cn(
+        'pointer-events-auto relative flex w-full flex-col overflow-hidden rounded-2xl border border-slate-200/90 bg-white/95 p-4 shadow-[0_20px_48px_-10px_rgba(15,23,42,0.18),0_4px_16px_rgba(15,23,42,0.06)] ring-1 ring-black/5 backdrop-blur-xl transition-all duration-200 hover:shadow-[0_24px_56px_-10px_rgba(15,23,42,0.22)]',
+        styles.borderHighlight,
+        toast.isClosing ? 'animate-toast-exit' : 'animate-toast-enter',
+      )}
+    >
+      <div className="flex items-start gap-3.5">
+        {/* Glowing variant badge */}
+        <span className={cn('grid h-9 w-9 shrink-0 place-items-center rounded-xl text-[19px]', styles.badgeBg)}>
+          <Icon name={styles.icon as any} />
+        </span>
+
+        {/* Text content */}
+        <div className="min-w-0 flex-1 pt-0.5">
+          <h4 className="m-0 text-[14px] font-extrabold tracking-tight text-slate-900">{title}</h4>
+          <p className="mt-1 m-0 text-[13px] font-medium leading-relaxed text-slate-600">{toast.message}</p>
+          {toast.description ? (
+            <p className="mt-1.5 m-0 text-[12px] text-slate-500 leading-normal">{toast.description}</p>
+          ) : null}
+        </div>
+
+        {/* Close action */}
+        <button
+          type="button"
+          aria-label="Dismiss notification"
+          onClick={onDismiss}
+          className="-mr-1 -mt-1 grid h-7 w-7 shrink-0 place-items-center rounded-full text-slate-400 transition hover:bg-slate-100 hover:text-slate-700 active:scale-95 border-0 bg-transparent"
+        >
+          <Icon name="close-line" className="text-[16px]" />
+        </button>
+      </div>
+
+      {/* Progress countdown bar */}
+      <div className="absolute bottom-0 left-0 right-0 h-[2.5px] bg-slate-100/80">
+        <div
+          className={cn('h-full', styles.progressBg)}
+          style={{
+            animation: `toast-progress ${toast.duration}ms linear forwards`,
+          }}
+        />
+      </div>
+    </div>
+  )
 }
 
 export function Toaster() {
-  const { toasts, removeToast } = useToast()
+  const { toasts, dismissToast } = useToast()
 
   if (toasts.length === 0) return null
 
   return (
     <div
       aria-label="Notifications"
-      className="pointer-events-none fixed right-4 bottom-4 z-[600] flex flex-col-reverse gap-2.5"
+      className="pointer-events-none fixed top-5 right-5 z-[999999] flex w-[calc(100vw-2.5rem)] max-w-[420px] flex-col gap-3"
     >
       {toasts.map((t) => (
-        <div
-          key={t.id}
-          role="alert"
-          className={cn(
-            'pointer-events-auto flex w-[340px] max-w-[calc(100vw-2rem)] items-start gap-3 rounded-[4px] border px-4 py-3 text-[14px] font-medium',
-            'animate-[vpos-slide-up_300ms_ease-out_both]',
-            toneMap[t.type],
-          )}
-        >
-          <Icon name={iconMap[t.type]} className="mt-0.5 shrink-0 text-[18px]" />
-          <span className="min-w-0 flex-1">{t.message}</span>
-          <button
-            type="button"
-            aria-label="Dismiss"
-            onClick={() => removeToast(t.id)}
-            className="-m-1 ml-auto grid h-7 w-7 shrink-0 place-items-center rounded-[4px] border-0 bg-transparent opacity-50 hover:bg-vpos-subtle hover:opacity-100"
-          >
-            <Icon name="close-line" className="text-[16px]" />
-          </button>
-        </div>
+        <ToastCard key={t.id} toast={t} onDismiss={() => dismissToast(t.id)} />
       ))}
     </div>
   )
