@@ -25,6 +25,7 @@ import {
   useProductUnits,
   useUpdateProduct,
 } from '../features/products/useProducts'
+import { useStoresRaw } from '../features/stores/useStores'
 import { productApi } from '../features/products/productApi'
 import { cn } from '../lib/cn'
 import { paths } from '../lib/paths'
@@ -85,8 +86,10 @@ export function ProductFormPage() {
   const createProductMutation = useCreateProduct()
   const updateProductMutation = useUpdateProduct()
   const { storeId, setStoreId, sidebarWidth } = useAdminStore()
+  const { data: rawStores = [], isLoading: loadingStores } = useStoresRaw()
 
   const [step, setStep] = useState(1)
+  const [formStoreId, setFormStoreId] = useState<string>(() => (storeId ? String(storeId) : ''))
   const [productName, setProductName] = useState('')
   const [productCode, setProductCode] = useState('')
   const [shortName, setShortName] = useState('')
@@ -103,6 +106,9 @@ export function ProductFormPage() {
 
   useEffect(() => {
     if (!existingProduct) return
+    if (existingProduct.storeId) {
+      setFormStoreId(String(existingProduct.storeId))
+    }
     setProductName(existingProduct.productName || '')
     setProductCode(existingProduct.productCode || '')
     setShortName(existingProduct.shortName || '')
@@ -167,11 +173,19 @@ export function ProductFormPage() {
     }
   }, [existingProduct])
 
-  const { data: apiCategories = [], isLoading: loadingCategories } = useProductCategories(storeId)
-  const { data: apiBrands = [], isLoading: loadingBrands } = useProductBrands(storeId)
-  const { data: apiUnits = [], isLoading: loadingUnits } = useProductUnits(storeId)
-  const { data: apiTaxes = [], isLoading: loadingTaxes } = useProductTaxes(storeId)
-  const { data: apiSuppliers = [] } = useProductSuppliers(storeId)
+  useEffect(() => {
+    if (!formStoreId && storeId) {
+      setFormStoreId(String(storeId))
+    }
+  }, [storeId, formStoreId])
+
+  const effectiveStoreId = formStoreId || storeId
+
+  const { data: apiCategories = [], isLoading: loadingCategories } = useProductCategories(effectiveStoreId)
+  const { data: apiBrands = [], isLoading: loadingBrands } = useProductBrands(effectiveStoreId)
+  const { data: apiUnits = [], isLoading: loadingUnits } = useProductUnits(effectiveStoreId)
+  const { data: apiTaxes = [], isLoading: loadingTaxes } = useProductTaxes(effectiveStoreId)
+  const { data: apiSuppliers = [] } = useProductSuppliers(effectiveStoreId)
   const { data: apiAttributes = [] } = useProductAttributes()
 
   const attributeSelectOptions = useMemo(() => {
@@ -212,6 +226,15 @@ export function ProductFormPage() {
     return [{ value: '1', label: 'General' }]
   }, [apiSuppliers])
 
+  const storeOptions = useMemo(() => {
+    return rawStores
+      .filter((s) => s.status === 1 || String(s.id) === formStoreId)
+      .map((s) => ({
+        value: String(s.id),
+        label: `${s.name}${s.city ? ` — ${s.city}` : ''}`,
+      }))
+  }, [rawStores, formStoreId])
+
   const { toast } = useToast()
 
   const handlePublish = async () => {
@@ -221,9 +244,9 @@ export function ProductFormPage() {
     }
 
     try {
-      const numStoreId = Number(storeId)
+      const numStoreId = Number(formStoreId || storeId)
       if (!Number.isInteger(numStoreId) || numStoreId <= 0) {
-        toast('Select a store before publishing the product.', 'warning')
+        toast('Please select a store location before publishing the product.', 'warning')
         return
       }
       const numSalesChannel = salesChannel === 'POS' ? 1 : salesChannel === 'ONLINE' ? 2 : 3
@@ -319,20 +342,28 @@ export function ProductFormPage() {
   }
 
   const categoryOptions = useMemo(() => {
-    return apiCategories.map((c) => ({
-      value: String(c.id),
-      label: c.categoryName,
-      image: c.image || undefined,
-    }))
-  }, [apiCategories])
+    const currentNumStoreId = Number(effectiveStoreId)
+    return apiCategories
+      .filter((c) => !c.status || String(c.status) === '1' || c.status === 'ACTIVE' || String(c.id) === categoryId)
+      .filter((c) => c.isGlobal !== false || !c.storeIds?.length || (currentNumStoreId && c.storeIds.map(Number).includes(currentNumStoreId)))
+      .map((c) => ({
+        value: String(c.id),
+        label: c.categoryName,
+        image: c.image || undefined,
+      }))
+  }, [apiCategories, effectiveStoreId, categoryId])
 
   const brandOptions = useMemo(() => {
-    return apiBrands.map((b) => ({
-      value: String(b.id),
-      label: b.brandName,
-      image: b.logo || undefined,
-    }))
-  }, [apiBrands])
+    const currentNumStoreId = Number(effectiveStoreId)
+    return apiBrands
+      .filter((b) => !b.status || String(b.status) === '1' || b.status === 'ACTIVE' || String(b.id) === brandId)
+      .filter((b) => b.isGlobal !== false || !b.storeIds?.length || (currentNumStoreId && b.storeIds.map(Number).includes(currentNumStoreId)) || String(b.id) === brandId)
+      .map((b) => ({
+        value: String(b.id),
+        label: b.brandName,
+        image: b.logo || undefined,
+      }))
+  }, [apiBrands, effectiveStoreId, brandId])
 
   const unitOptions = useMemo(() => {
     return apiUnits.map((u) => ({
@@ -564,6 +595,20 @@ export function ProductFormPage() {
                   </p>
                 </div>
                 <div className={formGrid}>
+                  <div className="md:col-span-2">
+                    <Select
+                      label="Store Location"
+                      requiredMark
+                      placeholder={loadingStores ? "Loading stores…" : "Select store assignment"}
+                      value={formStoreId}
+                      onChange={(val) => {
+                        setFormStoreId(val)
+                        setStoreId(val)
+                      }}
+                      options={storeOptions}
+                      searchable
+                    />
+                  </div>
                   <div className="md:col-span-2">
                     <FormField label="Product name" required value={productName} onChange={(e) => setProductName(e.target.value)} placeholder="e.g. Iced Americano" />
                   </div>
@@ -957,23 +1002,202 @@ export function ProductFormPage() {
         )}
 
         {step === 3 && (
-          <section className="grid grid-cols-1 gap-4 md:grid-cols-3">
-            {[
-              ['Product details', `Name: ${productName || '(not set)'}. Category, brand, unit, tax assigned.`],
-              ['Variants & pricing', `${variants.length} variant${variants.length > 1 ? 's' : ''} with SKU, barcode, pricing, and supplier.`],
-              ['Ready to publish', 'Review once more, then save or publish the product.'],
-            ].map(([title, desc]) => (
-              <article key={title} className={cn(card, 'flex items-start gap-3 p-[22px]')}>
-                <span className="grid h-8 w-8 place-items-center rounded-full bg-vpos-green-bg text-[17px] text-vpos-green">
-                  <Icon name="check-line" />
-                </span>
-                <div>
-                  <strong className="block text-[14px]">{title}</strong>
-                  <small className="mt-1 block text-[12px] text-vpos-muted">{desc}</small>
+          <div className="space-y-6">
+            {/* Overview Summary Banner */}
+            <article className={cn(card, 'p-6')}>
+              <div className="flex flex-col gap-5 sm:flex-row sm:items-center sm:justify-between">
+                <div className="flex items-center gap-4">
+                  {images.find((i) => i.isPrimary)?.previewUrl || images[0]?.previewUrl ? (
+                    <img
+                      src={images.find((i) => i.isPrimary)?.previewUrl || images[0]?.previewUrl}
+                      alt=""
+                      className="h-16 w-16 rounded-xl border border-vpos-line object-cover shadow-2xs"
+                    />
+                  ) : (
+                    <div className="grid h-16 w-16 place-items-center rounded-xl bg-vpos-sand text-vpos-primary">
+                      <Icon name="shopping-bag-3-fill" className="text-[28px]" />
+                    </div>
+                  )}
+                  <div>
+                    <div className="flex flex-wrap items-center gap-2">
+                      <h2 className="m-0 text-[18px] font-extrabold text-vpos-dark">
+                        {productName || 'Untitled Product'}
+                      </h2>
+                      {isFeatured ? (
+                        <span className="rounded-full bg-amber-50 border border-amber-200 px-2 py-0.5 text-[10px] font-extrabold text-amber-700">
+                          ★ FEATURED
+                        </span>
+                      ) : null}
+                    </div>
+                    <div className="mt-1 flex flex-wrap items-center gap-3 text-[12px] text-vpos-muted font-medium">
+                      <span>Code: <strong className="text-vpos-dark">{productCode || 'Auto-generated'}</strong></span>
+                      <span>•</span>
+                      <span>Channel: <strong className="text-vpos-dark">{salesChannel === 'POS' ? 'POS only' : salesChannel === 'ONLINE' ? 'Online only' : 'POS + Online'}</strong></span>
+                      <span>•</span>
+                      <span>Currency: <strong className="text-vpos-dark">{currencyCode}</strong></span>
+                    </div>
+                  </div>
                 </div>
+
+                <div className="flex flex-wrap items-center gap-2">
+                  <span className="inline-flex items-center gap-1.5 rounded-lg border border-vpos-primary/20 bg-vpos-sand px-3 py-1.5 text-[12px] font-bold text-vpos-primary">
+                    <Icon name="building-2-line" />
+                    {rawStores.find((s) => String(s.id) === effectiveStoreId)?.name || `Store #${effectiveStoreId || '1'}`}
+                  </span>
+                  <span className={cn(
+                    'inline-flex items-center gap-1 rounded-lg px-3 py-1.5 text-[12px] font-bold',
+                    isSellable ? 'bg-vpos-green-bg text-vpos-green' : 'bg-slate-100 text-slate-600',
+                  )}>
+                    ● {isSellable ? 'Active for Sale' : 'Draft / Hidden'}
+                  </span>
+                </div>
+              </div>
+            </article>
+
+            {/* Specifications & Categorization */}
+            <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
+              <article className={cn(card, 'p-6')}>
+                <h3 className="m-0 text-[14px] font-extrabold text-vpos-dark mb-4">
+                  Categorization & Attributes
+                </h3>
+                <dl className="grid grid-cols-2 gap-3 text-[13px]">
+                  <div className="rounded-lg bg-vpos-subtle/50 p-3">
+                    <dt className="text-[11px] font-extrabold uppercase tracking-wider text-vpos-muted">Assigned Store</dt>
+                    <dd className="mt-1 font-bold text-vpos-dark m-0">
+                      {rawStores.find((s) => String(s.id) === effectiveStoreId)?.name || 'Default Store'}
+                    </dd>
+                  </div>
+                  <div className="rounded-lg bg-vpos-subtle/50 p-3">
+                    <dt className="text-[11px] font-extrabold uppercase tracking-wider text-vpos-muted">Category</dt>
+                    <dd className="mt-1 font-bold text-vpos-dark m-0">
+                      {apiCategories.find((c) => String(c.id) === categoryId)?.categoryName || 'None'}
+                    </dd>
+                  </div>
+                  <div className="rounded-lg bg-vpos-subtle/50 p-3">
+                    <dt className="text-[11px] font-extrabold uppercase tracking-wider text-vpos-muted">Brand</dt>
+                    <dd className="mt-1 font-bold text-vpos-dark m-0">
+                      {apiBrands.find((b) => String(b.id) === brandId)?.brandName || 'None'}
+                    </dd>
+                  </div>
+                  <div className="rounded-lg bg-vpos-subtle/50 p-3">
+                    <dt className="text-[11px] font-extrabold uppercase tracking-wider text-vpos-muted">Unit of Measurement</dt>
+                    <dd className="mt-1 font-bold text-vpos-dark m-0">
+                      {apiUnits.find((u) => String(u.id) === unitId)?.unitName || 'None'}
+                    </dd>
+                  </div>
+                  <div className="rounded-lg bg-vpos-subtle/50 p-3">
+                    <dt className="text-[11px] font-extrabold uppercase tracking-wider text-vpos-muted">Tax Rate</dt>
+                    <dd className="mt-1 font-bold text-vpos-dark m-0">
+                      {apiTaxes.find((t) => String(t.id) === taxId)?.taxName || 'None'}
+                    </dd>
+                  </div>
+                  <div className="rounded-lg bg-vpos-subtle/50 p-3">
+                    <dt className="text-[11px] font-extrabold uppercase tracking-wider text-vpos-muted">Inventory Tracking</dt>
+                    <dd className="mt-1 font-bold text-vpos-dark m-0">
+                      {isStockable ? 'Stock tracked' : 'No tracking'}
+                    </dd>
+                  </div>
+                </dl>
+                {description ? (
+                  <div className="mt-4 rounded-lg border border-vpos-line p-3 text-[12px] text-vpos-muted">
+                    <strong className="block font-bold text-vpos-dark mb-1">Description:</strong>
+                    {description}
+                  </div>
+                ) : null}
               </article>
-            ))}
-          </section>
+
+              {/* Image Previews */}
+              <article className={cn(card, 'p-6')}>
+                <h3 className="m-0 text-[14px] font-extrabold text-vpos-dark mb-4">
+                  Product Gallery ({images.length} image{images.length !== 1 ? 's' : ''})
+                </h3>
+                {images.length > 0 ? (
+                  <div className="grid grid-cols-3 gap-3">
+                    {images.map((img, idx) => (
+                      <div key={img.id} className="relative overflow-hidden rounded-xl border border-vpos-line bg-vpos-subtle aspect-square">
+                        <img src={img.previewUrl} alt="" className="h-full w-full object-cover" />
+                        {img.isPrimary ? (
+                          <span className="absolute top-2 left-2 rounded-md bg-vpos-primary px-1.5 py-0.5 text-[9px] font-extrabold text-white shadow">
+                            PRIMARY
+                          </span>
+                        ) : (
+                          <span className="absolute top-2 left-2 rounded-md bg-black/60 px-1.5 py-0.5 text-[9px] font-bold text-white">
+                            #{idx + 1}
+                          </span>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="grid h-32 place-items-center rounded-xl border border-dashed border-vpos-line bg-vpos-subtle/40 text-center text-[12px] text-vpos-muted">
+                    No images uploaded. A default placeholder will be used.
+                  </div>
+                )}
+              </article>
+            </div>
+
+            {/* Variants Matrix Table */}
+            <article className={cn(card, 'p-6')}>
+              <div className="mb-4 flex items-center justify-between">
+                <div>
+                  <h3 className="m-0 text-[14px] font-extrabold text-vpos-dark">
+                    Variants & Pricing Matrix ({variants.length})
+                  </h3>
+                  <p className="mt-1 m-0 text-[12px] text-vpos-muted">
+                    Every SKU will be synchronized to {rawStores.find((s) => String(s.id) === effectiveStoreId)?.name || 'the selected store'}.
+                  </p>
+                </div>
+              </div>
+
+              <div className="overflow-x-auto rounded-xl border border-vpos-line">
+                <table className="w-full text-left text-[13px]">
+                  <thead className="border-b border-vpos-line bg-[#f8f9fc] text-[11px] font-extrabold uppercase tracking-wider text-vpos-muted">
+                    <tr>
+                      <th className="py-3 px-4">Variant</th>
+                      <th className="py-3 px-4">SKU</th>
+                      <th className="py-3 px-4">Barcode</th>
+                      <th className="py-3 px-4 text-right">POS Price</th>
+                      <th className="py-3 px-4 text-right">Online Price</th>
+                      <th className="py-3 px-4 text-right">Cost Price</th>
+                      <th className="py-3 px-4 text-right">Initial Stock</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-vpos-line bg-white font-medium text-vpos-dark">
+                    {variants.map((v, idx) => (
+                      <tr key={v.key} className="hover:bg-vpos-subtle/30">
+                        <td className="py-3 px-4">
+                          <div className="flex items-center gap-2.5">
+                            {v.imagePreviewUrl ? (
+                              <img src={v.imagePreviewUrl} alt="" className="h-7 w-7 rounded-md object-cover border border-vpos-line" />
+                            ) : (
+                              <span className="grid h-7 w-7 place-items-center rounded-md bg-vpos-sand text-vpos-primary text-[11px] font-bold">
+                                {idx + 1}
+                              </span>
+                            )}
+                            <span className="font-bold">{v.variantName || `Default`}</span>
+                          </div>
+                        </td>
+                        <td className="py-3 px-4 font-mono text-[12px] text-vpos-muted">{v.sku || '—'}</td>
+                        <td className="py-3 px-4 font-mono text-[12px] text-vpos-muted">{v.barcode || '—'}</td>
+                        <td className="py-3 px-4 text-right font-bold text-vpos-primary">
+                          ${Number(v.posPrice || 0).toFixed(2)}
+                        </td>
+                        <td className="py-3 px-4 text-right text-vpos-muted">
+                          {v.onlinePrice ? `$${Number(v.onlinePrice).toFixed(2)}` : '—'}
+                        </td>
+                        <td className="py-3 px-4 text-right text-vpos-muted">
+                          {v.costPrice ? `$${Number(v.costPrice).toFixed(2)}` : '—'}
+                        </td>
+                        <td className="py-3 px-4 text-right font-bold text-vpos-dark">
+                          {v.stockQuantity !== '' ? v.stockQuantity : '0'}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </article>
+          </div>
         )}
 
         <footer
