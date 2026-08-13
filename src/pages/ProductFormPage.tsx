@@ -657,36 +657,87 @@ export function ProductFormPage() {
           </div>
         </section>
 
-        <div className="relative mx-auto mb-[26px] grid max-w-[850px] grid-cols-3">
-          <div className="absolute top-[18px] right-[15%] left-[15%] z-0 h-0.5 bg-[#c8d3dd]" />
-          {['Product details', 'Variants & pricing', 'Review'].map((label, i) => {
-            const n = i + 1
-            const active = step === n
-            const done = step > n
-            return (
-              <button
-                key={label}
-                type="button"
-                className={cn(
-                  'relative z-[1] flex items-center justify-center gap-2 border-0 bg-transparent text-[13px] font-bold',
-                  active || done ? 'text-vpos-primary' : 'text-vpos-muted',
-                )}
-                onClick={() => setStep(n)}
-              >
-                <i
-                  className={cn(
-                    'grid h-9 w-9 place-items-center rounded-full not-italic',
-                    active || done
-                      ? 'bg-vpos-primary text-white'
-                      : 'bg-[#d8e1e9] text-vpos-dark',
-                  )}
-                >
-                  {done ? <Icon name="check-line" /> : n}
-                </i>
-                <span className="hidden sm:inline">{label}</span>
-              </button>
-            )
-          })}
+        {/* Segmented Progress Stepper Header */}
+        <div className="mx-auto mb-8 max-w-[920px]">
+          <div className="overflow-hidden rounded-2xl border border-vpos-line/80 bg-white shadow-xs">
+            <div className="grid grid-cols-3 divide-x divide-vpos-line/60">
+              {[
+                {
+                  step: 1,
+                  title: '1. Basic Details',
+                  subtitle: 'Coverage, info & media',
+                  icon: 'file-text-line',
+                },
+                {
+                  step: 2,
+                  title: '2. Variants & Pricing',
+                  subtitle: 'SKUs, options & matrix',
+                  icon: 'price-tag-3-line',
+                },
+                {
+                  step: 3,
+                  title: '3. Final Review',
+                  subtitle: 'Overview & publish',
+                  icon: 'checkbox-circle-line',
+                },
+              ].map((item) => {
+                const active = step === item.step
+                const done = step > item.step
+                return (
+                  <button
+                    key={item.step}
+                    type="button"
+                    onClick={() => setStep(item.step)}
+                    className={cn(
+                      'group relative flex items-center gap-3.5 p-3.5 sm:p-4 text-left transition-all duration-200 cursor-pointer outline-none',
+                      active
+                        ? 'bg-vpos-sand/40'
+                        : done
+                          ? 'bg-white hover:bg-vpos-subtle/50'
+                          : 'bg-vpos-subtle/20 hover:bg-vpos-subtle/40',
+                    )}
+                  >
+                    <div
+                      className={cn(
+                        'grid h-10 w-10 shrink-0 place-items-center rounded-xl font-extrabold text-[14px] transition-all duration-200',
+                        done
+                          ? 'bg-emerald-500 text-white shadow-xs'
+                          : active
+                            ? 'bg-vpos-primary text-white shadow-md shadow-vpos-primary/20 scale-105'
+                            : 'bg-slate-100 text-vpos-muted group-hover:bg-slate-200 group-hover:text-vpos-dark',
+                      )}
+                    >
+                      {done ? <Icon name="check-line" className="text-[18px]" /> : <Icon name={item.icon} className="text-[18px]" />}
+                    </div>
+                    <div className="min-w-0 flex-1">
+                      <span
+                        className={cn(
+                          'block truncate text-[13px] font-extrabold tracking-tight',
+                          active ? 'text-vpos-primary' : done ? 'text-vpos-dark' : 'text-vpos-muted',
+                        )}
+                      >
+                        {item.title}
+                      </span>
+                      <span className="hidden sm:block truncate text-[11px] font-medium text-vpos-muted mt-0.5">
+                        {item.subtitle}
+                      </span>
+                    </div>
+                    {active && (
+                      <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-vpos-primary" />
+                    )}
+                  </button>
+                )
+              })}
+            </div>
+
+            {/* Animated Progress Line */}
+            <div className="h-1 w-full bg-vpos-subtle overflow-hidden">
+              <div
+                className="h-full bg-gradient-to-r from-vpos-primary via-indigo-500 to-emerald-500 transition-all duration-300 ease-out"
+                style={{ width: `${(step / 3) * 100}%` }}
+              />
+            </div>
+          </div>
         </div>
 
         {step === 1 && (
@@ -1372,28 +1423,36 @@ export function ProductFormPage() {
         )}
 
         <footer
-          className="fixed right-0 bottom-0 z-[9] flex h-[76px] items-center justify-between border-t border-vpos-line bg-white px-[clamp(24px,2.5vw,48px)] shadow-[0_-8px_25px_#0c2b4e12] transition-[left] duration-200 ease-out"
+          className="fixed right-0 bottom-0 z-[9] flex h-[76px] items-center justify-between border-t border-vpos-line bg-white/95 backdrop-blur-md px-[clamp(24px,2.5vw,48px)] shadow-[0_-8px_25px_#0c2b4e12] transition-[left] duration-200 ease-out"
           style={{ left: sidebarWidth }}
         >
-          <Button variant="secondary" onClick={() => (step === 1 ? navigate(paths.products) : setStep((s) => s - 1))}>
-            {step === 1 ? 'Cancel' : 'Back'}
-          </Button>
-          <div className="flex gap-2.5">
+          <div className="flex items-center gap-3">
+            <Button variant="secondary" onClick={() => (step === 1 ? navigate(paths.products) : setStep((s) => s - 1))}>
+              {step === 1 ? 'Cancel' : '← Back'}
+            </Button>
+            <span className="hidden sm:inline-flex items-center gap-1.5 rounded-lg border border-vpos-line bg-vpos-subtle/50 px-3 py-1.5 text-[12px] font-bold text-vpos-muted">
+              Step {step} of 3: {step === 1 ? 'Basic Details' : step === 2 ? 'Variants & Pricing' : 'Final Review'}
+            </span>
+          </div>
+          <div className="flex items-center gap-2.5">
             <Button variant="soft">Save draft</Button>
             <Button
               variant="primary"
               disabled={createProductMutation.isPending || updateProductMutation.isPending}
               onClick={handlePublish}
+              className="gap-2 font-extrabold shadow-md shadow-vpos-primary/20"
             >
               {createProductMutation.isPending || updateProductMutation.isPending
                 ? isEdit
-                  ? 'Updating…'
-                  : 'Publishing…'
-                : step < 3
-                  ? 'Continue →'
-                  : isEdit
-                    ? 'Update product'
-                    : 'Publish product'}
+                  ? 'Updating product…'
+                  : 'Publishing product…'
+                : step === 1
+                  ? 'Continue to Step 2 →'
+                  : step === 2
+                    ? 'Continue to Step 3 →'
+                    : isEdit
+                      ? '✓ Update product'
+                      : '✓ Publish product'}
             </Button>
           </div>
         </footer>
