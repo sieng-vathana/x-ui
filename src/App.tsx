@@ -3,6 +3,7 @@ import { useEffect, useState } from 'react'
 import { BrowserRouter, Navigate, Route, Routes } from 'react-router-dom'
 import { AdminLayout } from './layouts/AdminLayout'
 import { DashboardPage } from './pages/DashboardPage'
+import { CustomersPage } from './pages/CustomersPage'
 import { PlaceholderPage } from './pages/PlaceholderPage'
 import { PosPage } from './pages/PosPage'
 import { ProductDetailPage } from './pages/ProductDetailPage'
@@ -118,10 +119,9 @@ export default function App() {
                 <Route path="purchases/receive" element={<ReceiveGoodsPage />} />
                 <Route path="purchases/suppliers" element={<SuppliersPage />} />
                 <Route path="purchases/returns" element={<SupplierReturnsPage />} />
-                <Route
-                  path="customers"
-                  element={<PlaceholderPage title="Customers" description="Customer directory." />}
-                />
+                <Route element={<RequirePermission permission="x-customer:read" />}>
+                  <Route path="customers" element={<CustomersPage />} />
+                </Route>
                 <Route
                   path="reports"
                   element={<PlaceholderPage title="Reports" description="Business reports." />}

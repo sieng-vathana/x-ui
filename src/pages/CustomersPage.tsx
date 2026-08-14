@@ -21,10 +21,12 @@ import {
   useDeactivateCustomer,
   useUpdateCustomer,
 } from '../features/customers/useCustomers'
-import type { Customer, CustomerPayload } from '../features/customers/types'
+import type { Customer, CustomerAddress, CustomerPayload } from '../features/customers/types'
 import { cn } from '../lib/cn'
 import { paths } from '../lib/paths'
 import { pageContent } from '../lib/ui'
+
+const EMPTY_CUSTOMERS: Customer[] = []
 
 function formatDate(value?: string) {
   if (!value) return '—'
@@ -33,6 +35,18 @@ function formatDate(value?: string) {
     month: 'short',
     year: 'numeric',
   }).format(new Date(value))
+}
+
+function formatCustomerAddress(address: CustomerAddress) {
+  return [
+    address.streetAddress,
+    address.village,
+    address.commune,
+    address.district,
+    address.provinceCity,
+  ]
+    .filter(Boolean)
+    .join(', ')
 }
 
 function CustomerDetailsModal({
@@ -116,6 +130,36 @@ function CustomerDetailsModal({
           </div>
         </div>
 
+        {customer.addresses?.length ? (
+          <section>
+            <div className="flex items-center justify-between gap-3">
+              <div>
+                <span className="text-[11px] font-extrabold uppercase tracking-wider text-vpos-muted">Delivery</span>
+                <h3 className="mt-1 text-[15px] font-bold text-vpos-dark">Shipping addresses</h3>
+              </div>
+              <span className="rounded-full bg-vpos-sand px-2.5 py-1 text-[10px] font-bold uppercase tracking-wide text-vpos-primary">
+                {customer.addresses.length} saved
+              </span>
+            </div>
+            <div className="mt-3 space-y-2">
+              {customer.addresses.map((address, index) => (
+                <div key={address.id ?? `customer-address-${index}`} className="flex items-start gap-3 rounded-xl border border-vpos-line bg-vpos-subtle/35 p-3.5">
+                  <Icon name="map-pin-2-line" className="mt-0.5 text-vpos-primary" />
+                  <div className="min-w-0">
+                    <div className="flex flex-wrap items-center gap-2">
+                      <p className="text-[13px] font-bold text-vpos-dark">{address.addressName || `Address ${index + 1}`}</p>
+                      {address.isDefault ? <span className="rounded-full bg-vpos-sand px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-vpos-primary">Default shipping</span> : null}
+                    </div>
+                    <p className="mt-1 text-[12px] font-semibold text-vpos-text">{address.receiverName} · {address.phone}</p>
+                    <p className="mt-0.5 text-[12px] leading-relaxed text-vpos-muted">{formatCustomerAddress(address)}</p>
+                    {address.deliveryInstructions ? <p className="mt-1 text-[12px] italic text-vpos-muted">Note: {address.deliveryInstructions}</p> : null}
+                  </div>
+                </div>
+              ))}
+            </div>
+          </section>
+        ) : null}
+
         {/* Note */}
         {customer.note ? (
           <div className="rounded-xl border border-vpos-line bg-amber-50/50 p-4">
@@ -148,7 +192,7 @@ export function CustomersPage() {
   const [deleteTarget, setDeleteTarget] = useState<Customer | null>(null)
 
   const storeNames = useMemo(() => new Map(stores.map((store) => [Number(store.id), store.name])), [stores])
-  const customers = customerPage?.content ?? []
+  const customers = customerPage?.content ?? EMPTY_CUSTOMERS
   const permissions = user?.permissions ?? []
   const canCreate = permissions.includes('x-customer:create')
   const canUpdate = permissions.includes('x-customer:update')

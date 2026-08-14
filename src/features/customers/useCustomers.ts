@@ -10,15 +10,19 @@ export const customerQueryKeys = {
 
 function useBusinessId() {
   const { user } = useAuth()
-  return Number(user?.business.id)
+  const businessId = Number(user?.business?.id)
+  return Number.isInteger(businessId) && businessId > 0 ? businessId : null
 }
 
 export function useCustomers() {
   const businessId = useBusinessId()
   return useQuery({
-    queryKey: customerQueryKeys.list(businessId),
-    queryFn: () => customerApi.list(businessId),
-    enabled: businessId > 0,
+    queryKey: customerQueryKeys.list(businessId ?? 0),
+    queryFn: () => {
+      if (businessId === null) throw new Error('A valid business is required to load customers.')
+      return customerApi.list(businessId)
+    },
+    enabled: businessId !== null,
     staleTime: 30 * 1000,
     refetchOnMount: 'always',
     retry: (failureCount, error) => {
