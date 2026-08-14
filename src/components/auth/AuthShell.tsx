@@ -16,53 +16,90 @@ export function AuthShell({
   singleColumn?: boolean
 }) {
   return (
-    <main className="min-h-screen bg-vpos-bg p-4 sm:p-6 lg:p-8">
-      <div className={`mx-auto grid min-h-[calc(100vh-2rem)] max-w-[1180px] overflow-hidden rounded-[6px] border border-vpos-line bg-white shadow-vpos ${singleColumn ? 'max-w-[780px]' : 'lg:grid-cols-[.93fr_1.07fr]'}`}>
-        {!singleColumn ? <section className="relative hidden overflow-hidden bg-vpos-primary p-10 text-white lg:flex lg:flex-col">
-          <div className="absolute inset-0 bg-[radial-gradient(circle_at_88%_10%,rgba(50,182,145,.34),transparent_31%),radial-gradient(circle_at_8%_88%,rgba(255,205,112,.18),transparent_28%)]" />
-          <Link to="/sign-in" className="relative z-10 flex items-center gap-3 self-start no-underline">
-            <span className="grid h-11 w-11 place-items-center rounded-[4px] bg-white/15 text-[22px] text-white">
-              <Icon name="store-3-fill" />
-            </span>
-            <span>
-              <strong className="block text-[19px] tracking-tight text-white">V-POS</strong>
-              <small className="block text-[11px] font-bold tracking-[1.5px] text-white/55">SMART BUSINESS</small>
-            </span>
-          </Link>
-
-          <div className="relative z-10 my-auto max-w-sm">
-            <p className="mb-4 text-[12px] font-extrabold tracking-[.16em] text-[#9ce7cf]">ONE PLACE TO RUN YOUR BUSINESS</p>
-            <h1 className="m-0 text-[43px] leading-[1.08] tracking-[-.045em] text-white">Today’s decisions, made simpler.</h1>
-            <p className="mt-5 mb-0 max-w-[320px] text-[16px] leading-7 text-white/68">Bring sales, inventory, stores, and your team into one focused workspace.</p>
-          </div>
-
-          <div className="relative z-10 grid grid-cols-3 gap-3">
-            {[
-              ['store-2-line', 'Locations'],
-              ['shopping-bag-3-line', 'Products'],
-              ['line-chart-line', 'Insights'],
-            ].map(([icon, label]) => (
-              <div key={label} className="rounded-[4px] border border-white/10 bg-white/[.06] p-3">
-                <Icon name={icon} className="text-[19px] text-[#9ce7cf]" />
-                <span className="mt-3 block text-[12px] font-bold text-white/70">{label}</span>
+    <main className="auth-stage">
+      <div className={`auth-frame ${singleColumn ? 'auth-frame--single' : ''}`}>
+        {!singleColumn ? (
+          <aside className="auth-rail" aria-label="V-POS workspace overview">
+            <div className="auth-rail-grid" />
+            <div className="auth-rail-inner">
+              <div className="auth-rail-topline">
+                <Link to="/sign-in" className="auth-brand auth-brand--light">
+                  <span className="auth-brand-mark"><Icon name="store-3-fill" /></span>
+                  <span>
+                    <strong className="auth-brand-name">V-POS</strong>
+                    <small className="auth-brand-caption">OPERATIONS, IN SYNC</small>
+                  </span>
+                </Link>
+                <span className="auth-live-chip"><i /> Workspace online</span>
               </div>
-            ))}
-          </div>
-        </section> : null}
 
-        <section className={`flex justify-center px-5 py-10 sm:px-10 ${singleColumn ? 'items-start' : 'items-center lg:px-[clamp(46px,6vw,92px)]'}`}>
-          <div className={`w-full ${singleColumn ? 'max-w-[620px]' : 'max-w-[440px]'}`}>
-            <Link to="/sign-in" className="mb-12 flex items-center gap-2.5 no-underline lg:hidden">
-              <span className="grid h-10 w-10 place-items-center rounded-[4px] bg-vpos-primary text-[19px] text-white"><Icon name="store-3-fill" /></span>
-              <strong className="text-[18px] text-vpos-text">V-POS</strong>
+              <div className="auth-rail-copy">
+                <p className="auth-rail-kicker">BUILT FOR THE BUSY HOUR</p>
+                <h2>Keep the floor moving.</h2>
+                <p>Sales, stock, stores, and your team — one clear view when the counter gets loud.</p>
+              </div>
+
+              <div className="auth-register-card" aria-label="Sample workspace activity">
+                <div className="auth-register-card__topline">
+                  <span className="auth-mono">TODAY / 09:42</span>
+                  <span className="auth-register-card__signal"><i /> Live</span>
+                </div>
+                <div className="auth-register-card__metric">
+                  <strong>128</strong>
+                  <span>orders moving through your workspace</span>
+                </div>
+                <div className="auth-register-bars" aria-hidden="true">
+                  <span style={{ height: '38%' }} />
+                  <span style={{ height: '62%' }} />
+                  <span style={{ height: '48%' }} />
+                  <span style={{ height: '78%' }} />
+                  <span style={{ height: '57%' }} />
+                  <span style={{ height: '88%' }} />
+                  <span style={{ height: '70%' }} />
+                  <span style={{ height: '96%' }} />
+                </div>
+                <div className="auth-register-card__footer">
+                  <span><b /> Sales steady</span>
+                  <span className="auth-mono">+18.4%</span>
+                </div>
+              </div>
+
+              <div className="auth-rail-footer">
+                <span className="auth-mono">V-POS / COMMAND DESK</span>
+                <span>Make the next decision obvious.</span>
+              </div>
+            </div>
+          </aside>
+        ) : null}
+
+        <section className={`auth-pane ${singleColumn ? 'auth-pane--setup' : ''}`}>
+          <div className="auth-mobile-brand">
+            <Link to="/sign-in" className="auth-brand">
+              <span className="auth-brand-mark"><Icon name="store-3-fill" /></span>
+              <strong className="auth-brand-name">V-POS</strong>
             </Link>
-            <p className="m-0 text-[12px] font-extrabold tracking-[.14em] text-vpos-primary">{eyebrow}</p>
-            <h2 className="mt-3 mb-0 text-[33px] leading-tight tracking-[-.035em] text-vpos-text">{title}</h2>
-            <p className="mt-3 mb-8 text-[15px] leading-6 text-vpos-muted">{description}</p>
+            {singleColumn ? <span className="auth-mobile-meta">WORKSPACE SETUP</span> : null}
+          </div>
+
+          <div className={`auth-content ${singleColumn ? 'auth-content--setup' : ''}`}>
+            {singleColumn ? (
+              <div className="auth-setup-strip">
+                <Link to="/sign-in" className="auth-setup-brand">
+                  <span className="auth-setup-brand-mark"><Icon name="store-3-fill" /></span>
+                  <strong>V-POS</strong>
+                </Link>
+                <span className="auth-setup-badge"><Icon name="sparkling-2-line" /> Workspace setup</span>
+                <span className="auth-mono">3 STEPS / ABOUT 4 MIN</span>
+              </div>
+            ) : null}
+            <p className="auth-eyebrow">{eyebrow}</p>
+            <h1>{title}</h1>
+            <p className="auth-description">{description}</p>
             {children}
           </div>
         </section>
       </div>
+      <p className="auth-stage-note"><Icon name="lock-2-line" /> Private by design · ready when your team is</p>
     </main>
   )
 }
