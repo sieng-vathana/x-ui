@@ -8,7 +8,7 @@ import { Icon } from '../../components/ui/Icon'
 import { useAuth } from '../../context/AuthContext'
 import { useToast } from '../../context/ToastContext'
 
-const inputClass = 'h-11 w-full rounded-lg border border-vpos-line bg-white px-3.5 text-[14px] text-vpos-text outline-none placeholder:text-vpos-muted transition focus:border-vpos-primary focus:shadow-[0_0_0_3px_rgb(22_112_91_/_0.12)]'
+const inputClass = 'auth-input auth-input--compact'
 
 const steps = [
   { label: 'Owner account', icon: 'user-line' },
@@ -173,45 +173,45 @@ export function BusinessRegistrationPage() {
   }
 
   return (
-    <AuthShell eyebrow="CREATE YOUR WORKSPACE" title="Set up your business" description="Three focused steps. Your first store is created with your account." singleColumn>
+    <AuthShell eyebrow="FIRST, MAKE IT YOURS" title="A better shift starts here." description="Create your workspace, add your first store, and be ready to ring up sales in minutes." singleColumn>
       <StepProgress activeStep={step} />
 
-      <form onSubmit={handleSubmit} noValidate className="mt-8">
+      <form onSubmit={handleSubmit} noValidate className="auth-setup-form">
         {step === 0 ? <AccountStep form={form} updateField={updateField} /> : null}
         {step === 1 ? <BusinessStep form={form} updateField={updateField} /> : null}
         {step === 2 ? <StoreStep form={form} updateField={updateField} onLocationChange={updateLocation} /> : null}
 
-        {error ? <p role="alert" className="mt-6 mb-0 rounded-lg border border-vpos-red/20 bg-vpos-red-bg px-3 py-2.5 text-[13px] font-medium text-vpos-red">{error}</p> : null}
+        {error ? <p role="alert" className="auth-alert auth-alert--error auth-alert--setup">{error}</p> : null}
 
-        <div className="mt-7 flex items-center gap-3 border-t border-vpos-line pt-5">
-          {step > 0 ? <Button type="button" variant="secondary" onClick={goBack} className="h-11 rounded-lg px-4"><Icon name="arrow-left-line" /> Back</Button> : <span />}
-          <Button type="submit" disabled={submitting} className="ml-auto h-11 rounded-lg px-5">
+        <div className="auth-setup-actions">
+          {step > 0 ? <Button type="button" variant="secondary" onClick={goBack} className="auth-back-button"><Icon name="arrow-left-line" /> Back</Button> : <span />}
+          <Button type="submit" disabled={submitting} className="auth-setup-submit">
             {submitting ? 'Creating workspace…' : step === steps.length - 1 ? 'Create workspace' : 'Continue'}
             <Icon name={step === steps.length - 1 ? 'checkbox-circle-line' : 'arrow-right-line'} />
           </Button>
         </div>
       </form>
 
-      <p className="mt-7 mb-0 text-center text-[14px] text-vpos-muted">Already have an account? <Link to="/sign-in" className="font-extrabold text-vpos-primary no-underline hover:underline">Sign in</Link></p>
+      <p className="auth-setup-footer">Already have an account? <Link to="/sign-in">Sign in <Icon name="arrow-up-right-line" /></Link></p>
     </AuthShell>
   )
 }
 
 function StepProgress({ activeStep }: { activeStep: number }) {
   return (
-    <ol aria-label="Workspace setup progress" className="m-0 grid list-none grid-cols-3 gap-2 p-0">
+    <ol aria-label="Workspace setup progress" className="auth-step-progress">
       {steps.map((step, index) => {
         const isActive = index === activeStep
         const isComplete = index < activeStep
         return (
-          <li key={step.label} className="min-w-0">
-            <div className={`flex items-center gap-2 ${isActive || isComplete ? 'text-vpos-primary' : 'text-vpos-muted'}`}>
-              <span className={`grid h-8 w-8 shrink-0 place-items-center rounded-full text-[15px] ${isActive ? 'bg-vpos-primary text-white shadow-sm shadow-vpos-primary/25' : isComplete ? 'bg-vpos-sand text-vpos-primary' : 'bg-vpos-subtle text-vpos-muted'}`}>
+          <li key={step.label} className="auth-step-item">
+            <div className={`auth-step-heading ${isActive ? 'auth-step-heading--active' : isComplete ? 'auth-step-heading--complete' : ''}`}>
+              <span className={`auth-step-icon ${isActive ? 'auth-step-icon--active' : isComplete ? 'auth-step-icon--complete' : ''}`}>
                 <Icon name={isComplete ? 'check-line' : step.icon} />
               </span>
-              <span className="hidden text-[12px] font-extrabold sm:block">{step.label}</span>
+              <span className="auth-step-label">{step.label}</span>
             </div>
-            <span className={`mt-2 block h-1 rounded-full ${index <= activeStep ? 'bg-vpos-primary' : 'bg-vpos-line'}`} />
+            <span className={`auth-step-track ${index <= activeStep ? 'auth-step-track--active' : ''}`} />
           </li>
         )
       })}
@@ -221,11 +221,11 @@ function StepProgress({ activeStep }: { activeStep: number }) {
 
 function AccountStep({ form, updateField }: StepProps) {
   return (
-    <section aria-labelledby="account-step-title">
-      <p className="m-0 text-[12px] font-extrabold tracking-[.12em] text-vpos-primary">STEP 1 OF 3</p>
-      <h3 id="account-step-title" className="mt-2 mb-1 text-[21px] font-extrabold tracking-tight text-vpos-text">Create the owner account</h3>
-      <p className="mt-0 mb-5 text-[14px] leading-5 text-vpos-muted">This account owns the workspace and can invite the rest of your team later.</p>
-      <div className="grid gap-4 sm:grid-cols-2">
+    <section className="auth-step-panel" aria-labelledby="account-step-title">
+      <p className="auth-step-kicker">STEP 1 OF 3</p>
+      <h3 id="account-step-title" className="auth-step-title">Create the owner account</h3>
+      <p className="auth-step-description">This account owns the workspace and can invite the rest of your team later.</p>
+      <div className="auth-step-fields">
         <Field label="Full name" value={form.fullName} onChange={(value) => updateField('fullName', value)} required autoComplete="name" />
         <Field label="Username" value={form.username} onChange={(value) => updateField('username', value)} required autoComplete="username" />
         <Field label="Email" type="email" value={form.email} onChange={(value) => updateField('email', value)} autoComplete="email" />
@@ -239,15 +239,16 @@ function AccountStep({ form, updateField }: StepProps) {
 
 function BusinessStep({ form, updateField }: StepProps) {
   return (
-    <section aria-labelledby="business-step-title">
-      <p className="m-0 text-[12px] font-extrabold tracking-[.12em] text-vpos-primary">STEP 2 OF 3</p>
-      <h3 id="business-step-title" className="mt-2 mb-1 text-[21px] font-extrabold tracking-tight text-vpos-text">Describe your business</h3>
-      <p className="mt-0 mb-5 text-[14px] leading-5 text-vpos-muted">These defaults organize prices and reports. You can add currencies and tax rules after setup.</p>
-      <div className="grid gap-4 sm:grid-cols-2">
+    <section className="auth-step-panel" aria-labelledby="business-step-title">
+      <p className="auth-step-kicker">STEP 2 OF 3</p>
+      <h3 id="business-step-title" className="auth-step-title">Describe your business</h3>
+      <p className="auth-step-description">These defaults organize prices and reports. You can add currencies and tax rules after setup.</p>
+      <div className="auth-step-fields">
         <Field label="Business name" value={form.businessName} onChange={(value) => updateField('businessName', value)} required />
         <Field label="Business code" value={form.businessCode} onChange={(value) => updateField('businessCode', value.toUpperCase())} required />
         <Select
           label="Primary currency"
+          className="auth-select"
           value={form.defaultCurrencyCode}
           onChange={(value) => updateField('defaultCurrencyCode', value)}
           options={[
@@ -263,18 +264,18 @@ function BusinessStep({ form, updateField }: StepProps) {
 
 function StoreStep({ form, updateField, onLocationChange }: StepProps & { onLocationChange: (value: { latitude: string; longitude: string }) => void }) {
   return (
-    <section aria-labelledby="store-step-title">
-      <p className="m-0 text-[12px] font-extrabold tracking-[.12em] text-vpos-primary">STEP 3 OF 3</p>
-      <h3 id="store-step-title" className="mt-2 mb-1 text-[21px] font-extrabold tracking-tight text-vpos-text">Add your first store</h3>
-      <p className="mt-0 mb-5 text-[14px] leading-5 text-vpos-muted">Every workspace starts with one store. You can add branches once setup is complete.</p>
-      <div className="grid gap-4 sm:grid-cols-2">
+    <section className="auth-step-panel" aria-labelledby="store-step-title">
+      <p className="auth-step-kicker">STEP 3 OF 3</p>
+      <h3 id="store-step-title" className="auth-step-title">Add your first store</h3>
+      <p className="auth-step-description">Every workspace starts with one store. You can add branches once setup is complete.</p>
+      <div className="auth-step-fields">
         <Field label="Store name" value={form.storeName} onChange={(value) => updateField('storeName', value)} required />
         <Field label="Store code" value={form.storeCode} onChange={(value) => updateField('storeCode', value.toUpperCase())} required />
         <Field label="Street address" value={form.storeAddressLine1} onChange={(value) => updateField('storeAddressLine1', value)} required className="sm:col-span-2" />
         <Field label="City" value={form.storeCity} onChange={(value) => updateField('storeCity', value)} required />
         <Field label="Country code" value={form.storeCountryCode} onChange={(value) => updateField('storeCountryCode', value.toUpperCase())} required />
       </div>
-      <div className="mt-6 border-t border-vpos-line pt-6">
+      <div className="auth-location-section">
         <StoreLocationPicker latitude={form.storeLatitude} longitude={form.storeLongitude} onChange={onLocationChange} />
       </div>
     </section>
@@ -285,7 +286,7 @@ type StepProps = { form: RegistrationForm; updateField: <Key extends keyof Regis
 type FieldProps = { label: string; value: string; onChange: (value: string) => void } & Omit<InputHTMLAttributes<HTMLInputElement>, 'value' | 'onChange'>
 
 function Field({ label, value, onChange, ...props }: FieldProps) {
-  return <label className={`block ${props.className ?? ''}`}><span className="mb-2 block text-[12px] font-[750] text-vpos-primary-2">{label}{props.required ? <b className="text-vpos-red"> *</b> : null}</span><input {...props} value={value} onChange={(event) => onChange(event.target.value)} className={inputClass} /></label>
+  return <label className={`auth-field ${props.className ?? ''}`}><span className="auth-field-label">{label}{props.required ? <b> *</b> : null}</span><input {...props} value={value} onChange={(event) => onChange(event.target.value)} className={inputClass} /></label>
 }
 
 

@@ -39,30 +39,32 @@ export function SignInPage() {
   }
 
   return (
-    <AuthShell eyebrow="WORKSPACE ACCESS" title="Open your register" description="Sign in with the username created for your V-POS workspace.">
-      <form onSubmit={submit} noValidate className="space-y-5">
+    <AuthShell eyebrow="WELCOME BACK" title="Pick up where you left off." description="Sign in to open your workspace and keep the floor moving.">
+      <form onSubmit={submit} noValidate className="auth-form">
         {isSessionExpired ? (
-          <div role="alert" className="m-0 flex items-center gap-3 rounded-lg border border-vpos-gold/30 bg-vpos-sand/60 px-3.5 py-3 text-[13px] font-medium text-vpos-dark">
-            <Icon name="time-line" className="text-[18px] text-vpos-primary shrink-0" />
+          <div role="alert" className="auth-alert auth-alert--notice">
+            <Icon name="time-line" />
             <span>Your session expired after 30 minutes of inactivity. Please sign in again.</span>
           </div>
         ) : null}
-        <Field label="Username" autoComplete="username" value={username} onChange={setUsername} placeholder="e.g. vathana.admin" required />
-        <div>
-          <div className="mb-2 flex items-center justify-between gap-3">
-            <label htmlFor="password" className="text-[12px] font-[750] tracking-[.02em] text-vpos-primary-2">Password <b className="text-vpos-red">*</b></label>
-            <span className="text-[12px] text-vpos-muted">Your workspace password</span>
-          </div>
-          <div className="relative">
-            <input id="password" type={showPassword ? 'text' : 'password'} autoComplete="current-password" value={password} onChange={(event) => setPassword(event.target.value)} placeholder="At least 8 characters" required className={inputClass} />
-            <button type="button" onClick={() => setShowPassword((value) => !value)} aria-label={showPassword ? 'Hide password' : 'Show password'} className="absolute top-1/2 right-3 -translate-y-1/2 border-0 bg-transparent p-1 text-[18px] text-vpos-muted hover:text-vpos-primary"><Icon name={showPassword ? 'eye-off-line' : 'eye-line'} /></button>
+        <div className="auth-form-fields">
+          <Field label="Username" autoComplete="username" value={username} onChange={setUsername} placeholder="e.g. vathana.admin" required />
+          <div className="auth-field">
+            <div className="auth-field-heading">
+              <label htmlFor="password" className="auth-field-label">Password <b>*</b></label>
+              <span className="auth-field-hint">Your workspace password</span>
+            </div>
+            <div className="auth-password-wrap">
+              <input id="password" type={showPassword ? 'text' : 'password'} autoComplete="current-password" value={password} onChange={(event) => setPassword(event.target.value)} placeholder="At least 8 characters" required className="auth-input" />
+              <button type="button" onClick={() => setShowPassword((value) => !value)} aria-label={showPassword ? 'Hide password' : 'Show password'} className="auth-password-toggle"><Icon name={showPassword ? 'eye-off-line' : 'eye-line'} /></button>
+            </div>
           </div>
         </div>
-        {error ? <p role="alert" className="m-0 rounded-lg border border-vpos-red/20 bg-vpos-red-bg px-3 py-2.5 text-[13px] font-medium text-vpos-red">{error}</p> : null}
-        <div className="flex items-start gap-2.5 rounded-xl border border-vpos-line bg-vpos-subtle/60 px-3.5 py-3 text-[12px] leading-5 text-vpos-muted"><Icon name="shield-check-line" className="mt-0.5 text-[16px] text-vpos-primary" /><span>Your session is secured by browser-only access and refresh cookies. V-POS does not save your access token in local storage.</span></div>
-        <Button type="submit" disabled={submitting || isRestoring} className="h-12 w-full rounded-lg">{submitting ? 'Checking access…' : 'Open workspace'} <Icon name="arrow-right-line" /></Button>
+        {error ? <p role="alert" className="auth-alert auth-alert--error">{error}</p> : null}
+        <div className="auth-security-note"><span className="auth-security-icon"><Icon name="shield-check-line" /></span><span><strong>Private session.</strong> Your access stays in secure browser cookies — never local storage.</span></div>
+        <Button type="submit" disabled={submitting || isRestoring} className="auth-submit-button">{submitting ? 'Checking access…' : 'Open workspace'} <Icon name="arrow-right-line" /></Button>
       </form>
-      <div className="mt-7 border-t border-vpos-line pt-5"><p className="m-0 text-[13px] leading-5 text-vpos-muted"><strong className="text-vpos-text">New here?</strong> <Link to="/register-business" className="font-extrabold text-vpos-primary no-underline hover:underline">Create your workspace account</Link>.</p></div>
+      <div className="auth-form-footer"><span>New here?</span> <Link to="/register-business">Create your workspace account <Icon name="arrow-up-right-line" /></Link></div>
     </AuthShell>
   )
 }
@@ -74,7 +76,5 @@ type AuthFieldProps = {
 } & Omit<InputHTMLAttributes<HTMLInputElement>, 'value' | 'onChange'>
 
 function Field({ label, value, onChange, ...props }: AuthFieldProps) {
-  return <label className="block"><span className="mb-2 block text-[12px] font-[750] tracking-[.02em] text-vpos-primary-2">{label} <b className="text-vpos-red">*</b></span><input {...props} value={value} onChange={(event) => onChange(event.target.value)} className={inputClass} /></label>
+  return <label className="auth-field"><span className="auth-field-label">{label} <b>*</b></span><input {...props} value={value} onChange={(event) => onChange(event.target.value)} className="auth-input" /></label>
 }
-
-const inputClass = 'h-12 w-full rounded-lg border border-vpos-line bg-white px-3.5 text-[14px] text-vpos-text outline-none placeholder:text-vpos-muted transition focus:border-vpos-primary focus:shadow-[0_0_0_3px_rgb(22_112_91_/_0.12)]'
