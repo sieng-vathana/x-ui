@@ -62,7 +62,8 @@ export function StoreSwitcher({
     <div
       ref={ref}
       className={cn(
-        'relative min-w-[196px]',
+        'relative w-[196px] min-w-0 max-w-full',
+        !compactOnMobile && 'max-sm:w-[clamp(96px,30vw,196px)]',
         compactOnMobile && 'max-xl:w-10 max-xl:min-w-0',
         className,
       )}
