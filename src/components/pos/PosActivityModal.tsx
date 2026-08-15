@@ -14,6 +14,7 @@ type RecentOrderFilter = 'All' | 'Cash' | 'QR' | 'Card'
 
 export interface HeldOrder {
   id: string
+  orderId: number
   customer: string
   items: string
   itemCount: number
@@ -42,10 +43,23 @@ export interface PosActivityModalProps {
   storeId?: string | number
   customerNames?: ReadonlyMap<number, string>
   heldOrders?: HeldOrder[]
+  heldLoading?: boolean
+  heldError?: string
+  onHeldRetry?: () => void
   onAction?: (action: 'resume' | 'discard' | 'receipt' | 'reorder', id: string) => void
 }
 
-export function PosActivityModal({ mode, onClose, storeId, customerNames, heldOrders = [], onAction }: PosActivityModalProps) {
+export function PosActivityModal({
+  mode,
+  onClose,
+  storeId,
+  customerNames,
+  heldOrders = [],
+  heldLoading = false,
+  heldError,
+  onHeldRetry,
+  onAction,
+}: PosActivityModalProps) {
   const [query, setQuery] = useState('')
   const [recentFilter, setRecentFilter] = useState<RecentOrderFilter>('All')
   const recentQuery = useRecentOrders(storeId, mode === 'recent')
@@ -105,7 +119,7 @@ export function PosActivityModal({ mode, onClose, storeId, customerNames, heldOr
           <span className={cn(
             'ml-auto hidden rounded-full bg-vpos-green-bg px-2.5 py-1 text-[10px] font-extrabold tracking-wide text-vpos-green uppercase sm:inline-flex',
           )}>
-            {isHold ? 'Saved locally' : 'Live data'}
+            {isHold ? 'Server data' : 'Live data'}
           </span>
         </div>
       }
@@ -119,7 +133,10 @@ export function PosActivityModal({ mode, onClose, storeId, customerNames, heldOr
         <HeldOrdersView
           orders={filteredHeldOrders}
           query={query}
+          isLoading={heldLoading}
+          error={heldError}
           onQueryChange={setQuery}
+          onRetry={onHeldRetry}
           onAction={onAction}
         />
       ) : (
@@ -145,12 +162,18 @@ export function PosActivityModal({ mode, onClose, storeId, customerNames, heldOr
 function HeldOrdersView({
   orders,
   query,
+  isLoading,
+  error,
   onQueryChange,
+  onRetry,
   onAction,
 }: {
   orders: HeldOrder[]
   query: string
+  isLoading: boolean
+  error?: string
   onQueryChange: (value: string) => void
+  onRetry?: () => void
   onAction?: PosActivityModalProps['onAction']
 }) {
   const total = orders.reduce((sum, order) => sum + order.total, 0)
@@ -171,7 +194,7 @@ function HeldOrdersView({
         <div className="hidden grid-cols-[1fr_110px_140px_110px] gap-4 border-b border-vpos-line bg-vpos-subtle px-4 py-3 text-[11px] font-extrabold tracking-wide text-vpos-muted uppercase md:grid">
           <span>Checkout</span><span>Items</span><span>Held</span><span className="text-right">Total</span>
         </div>
-        {orders.length === 0 ? <ActivityEmpty label="No held orders match your search." /> : orders.map((order, index) => (
+        {isLoading ? <ActivityEmpty icon="loader-4-line" label="Loading held sales..." /> : error ? <ActivityError message={error} onRetry={() => onRetry?.()} /> : orders.length === 0 ? <ActivityEmpty label="No held orders match your search." /> : orders.map((order, index) => (
           <div
             key={order.id}
             className={cn(
@@ -197,10 +220,10 @@ function HeldOrdersView({
             <div className="flex items-center justify-between gap-2 md:justify-end">
               <strong className="text-[14px] text-vpos-primary">{formatCurrency(order.total, order.currencyCode)}</strong>
               <div className="flex items-center gap-1">
-                <button type="button" aria-label={`Resume ${order.id}`} onClick={() => onAction?.('resume', order.id)} className="grid h-8 w-8 place-items-center rounded-lg border-0 bg-vpos-primary text-white transition hover:bg-vpos-primary-2">
+                <button type="button" aria-label={`Resume ${order.id}`} onClick={() => onAction?.('resume', String(order.orderId))} className="grid h-8 w-8 place-items-center rounded-lg border-0 bg-vpos-primary text-white transition hover:bg-vpos-primary-2">
                   <Icon name="play-line" />
                 </button>
-                <button type="button" aria-label={`Discard ${order.id}`} onClick={() => onAction?.('discard', order.id)} className="grid h-8 w-8 place-items-center rounded-lg border-0 bg-vpos-subtle text-vpos-muted transition hover:bg-vpos-red/10 hover:text-vpos-red">
+                <button type="button" aria-label={`Discard ${order.id}`} onClick={() => onAction?.('discard', String(order.orderId))} className="grid h-8 w-8 place-items-center rounded-lg border-0 bg-vpos-subtle text-vpos-muted transition hover:bg-vpos-red/10 hover:text-vpos-red">
                   <Icon name="delete-bin-line" />
                 </button>
               </div>

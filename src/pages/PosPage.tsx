@@ -22,12 +22,18 @@ import { useAuth } from '../context/AuthContext'
 import { useToast } from '../context/ToastContext'
 import { useCreateCustomer, useCustomers } from '../features/customers/useCustomers'
 import type { CustomerPayload } from '../features/customers/types'
-import { useCreatePosOrder, useCompleteOrder } from '../features/orders/useOrders'
-import type { CreatePosOrderInput } from '../features/orders/types'
+import {
+  useCompleteOrder,
+  useCreateHeldSale,
+  useCreatePosOrder,
+  useDiscardHeldSale,
+  useHeldOrders,
+  useResumeHeldSale,
+} from '../features/orders/useOrders'
+import type { CreateHeldSaleInput, CreatePosOrderInput, PosOrder } from '../features/orders/types'
 import { useCreateCashPayment, useCreatePosQrCheckout, usePaymentStatus } from '../features/payments/usePayments'
 import type { QrPaymentResponse } from '../features/payments/types'
 import { useProductsList } from '../features/products/useProducts'
-import { readHeldSales, writeHeldSales, type HeldSale } from '../features/pos/heldSales'
 import { useAdminStore } from '../hooks/useAdminStore'
 import { resolveImageUrl } from '../lib/api'
 import { cn } from '../lib/cn'
@@ -100,12 +106,15 @@ export function PosPage() {
   const [customerId, setCustomerId] = useState('0')
   const [quickCustomerOpen, setQuickCustomerOpen] = useState(false)
   const [cart, setCart] = useState<Record<string, CartEntry>>({})
-  const [heldSales, setHeldSales] = useState<HeldSale[]>(() => readHeldSales(storeId))
   const [discountTargetId, setDiscountTargetId] = useState<string | null>(null)
   const [shortcutsOpen, setShortcutsOpen] = useState(false)
   const [activityMode, setActivityMode] = useState<'hold' | 'recent' | null>(null)
   const [qrCheckout, setQrCheckout] = useState<{ orderNo: string; response: QrPaymentResponse } | null>(null)
   const [isFullscreen, setIsFullscreen] = useState(false)
+  const createHeldSaleMutation = useCreateHeldSale()
+  const discardHeldSaleMutation = useDiscardHeldSale()
+  const resumeHeldSaleMutation = useResumeHeldSale()
+  const heldOrdersQuery = useHeldOrders(storeId, activityMode === 'hold')
   const completedQrPaymentIdRef = useRef<number | null>(null)
   const qrPaymentQuery = usePaymentStatus(qrCheckout?.response.payment.id)
   const catRef = useRef<HTMLDivElement>(null)
@@ -114,30 +123,30 @@ export function PosPage() {
 
   const handleActivityAction = useCallback((action: 'resume' | 'discard' | 'receipt' | 'reorder', id: string) => {
     if (action === 'resume' || action === 'discard') {
-      const heldSale = heldSales.find((sale) => sale.id === id)
-      if (!heldSale) {
-        toast(`Held sale ${id} is no longer available.`, 'warning')
+      const heldOrderId = Number(id)
+      if (!Number.isInteger(heldOrderId) || heldOrderId <= 0) {
+        toast('The selected held sale is invalid.', 'warning')
         return
       }
 
-      const nextHeldSales = heldSales.filter((sale) => sale.id !== id)
-      setHeldSales(nextHeldSales)
-      writeHeldSales(storeId, nextHeldSales)
-
       if (action === 'resume') {
-        const restoredCart = Object.fromEntries(
-          Object.entries(heldSale.cart).map(([productId, entry]) => [productId, {
-            qty: entry.qty,
-            discount: entry.discount ? { ...entry.discount } : null,
-          }]),
-        ) as Record<string, CartEntry>
-        setCart(restoredCart)
-        setCustomerId(heldSale.customerId || '0')
-        setDiscountTargetId(null)
-        setActivityMode(null)
-        toast(`${id} resumed in the current checkout.`, 'success')
+        void resumeHeldSaleMutation.mutateAsync(heldOrderId)
+          .then((order) => {
+            setCart(toCartEntries(order))
+            setCustomerId(String(order.customerId ?? 0))
+            setDiscountTargetId(null)
+            setActivityMode(null)
+            toast(`${order.orderNo} resumed in the current checkout.`, 'success')
+          })
+          .catch((error) => {
+            toast(error instanceof Error ? error.message : 'The held sale could not be resumed.', 'error')
+          })
       } else {
-        toast(`${id} discarded.`, 'warning')
+        void discardHeldSaleMutation.mutateAsync(heldOrderId)
+          .then((order) => toast(`${order.orderNo} discarded.`, 'warning'))
+          .catch((error) => {
+            toast(error instanceof Error ? error.message : 'The held sale could not be discarded.', 'error')
+          })
       }
       return
     }
@@ -148,7 +157,7 @@ export function PosPage() {
     } as const
     toast(messages[action], 'info')
     setActivityMode(null)
-  }, [heldSales, storeId, toast])
+  }, [discardHeldSaleMutation, resumeHeldSaleMutation, toast])
 
   const products = useMemo<PosProduct[]>(() => {
     return (productsQuery.data ?? []).flatMap((product) => {
@@ -243,23 +252,26 @@ export function PosPage() {
     [customersQuery.data],
   )
 
-  const heldOrders = useMemo<HeldOrder[]>(() => heldSales.map((sale) => {
-    const customerNumber = Number(sale.customerId)
-    const age = formatHeldAge(sale.createdAt)
+  const heldOrders = useMemo<HeldOrder[]>(() => (heldOrdersQuery.data?.content ?? []).map((order) => {
+    const customerNumber = Number(order.customerId)
+    const age = formatHeldAge(order.createdAt)
+    const itemCount = (order.items ?? []).reduce((sum, item) => sum + Math.max(0, Number(item.quantity ?? item.qty ?? 0)), 0)
     return {
-      id: sale.id,
+      id: order.orderNo || `HOLD-${order.id}`,
+      orderId: order.id,
       customer: customerNumber > 0
         ? customerNames.get(customerNumber) ?? `Customer #${customerNumber}`
         : 'Walk-in customer',
-      items: sale.items || `${sale.itemCount} ${sale.itemCount === 1 ? 'item' : 'items'}`,
-      itemCount: sale.itemCount,
-      total: sale.total,
-      currencyCode: sale.currencyCode,
+      items: order.items?.map((item) => `${item.productName || item.variantName || 'Item'} ×${item.quantity ?? item.qty ?? 0}`).join(', ')
+        || `${itemCount} ${itemCount === 1 ? 'item' : 'items'}`,
+      itemCount,
+      total: Number(order.grandTotal ?? 0),
+      currencyCode: (order.currencyCode || 'USD').toUpperCase(),
       age: age.label,
       ageMinutes: age.minutes,
-      note: sale.note,
+      note: order.note || 'Paused from this register',
     }
-  }), [customerNames, heldSales])
+  }), [customerNames, heldOrdersQuery.data?.content])
 
   const canCreateCustomer = user?.permissions?.includes('x-customer:create') ?? false
   const businessId = Number(user?.business.id)
@@ -277,7 +289,6 @@ export function PosPage() {
 
   useEffect(() => {
     setCart({})
-    setHeldSales(readHeldSales(storeId))
     setCategoryId('all')
   }, [storeId])
 
@@ -441,10 +452,12 @@ export function PosPage() {
   const taxVat = Math.round((subTotal * taxRate / 100) * 100) / 100
   const total = Math.round((subTotal + taxVat) * 100) / 100
 
-  const handleHoldSale = useCallback(() => {
+  const handleHoldSale = useCallback(async () => {
+    const selectedBusinessId = Number(user?.business.id)
     const selectedStoreId = Number(storeId)
-    if (!selectedStoreId) {
-      toast('Select a store before holding this sale.', 'warning')
+    const cashierId = Number(user?.id)
+    if (!selectedBusinessId || !selectedStoreId || !cashierId) {
+      toast('Select a store and sign in before holding this sale.', 'warning')
       return
     }
     if (lines.length === 0) {
@@ -452,32 +465,39 @@ export function PosPage() {
       return
     }
 
-    const heldCart = Object.fromEntries(
-      lines.map((line) => [line.product.id, {
-        qty: line.qty,
-        discount: line.discount ? { ...line.discount } : null,
-      }]),
-    )
-    const heldSale: HeldSale = {
-      id: `HOLD-${Date.now()}`,
-      customerId,
-      cart: heldCart,
-      items: lines.map((line) => `${line.product.name} ×${line.qty}`).join(', '),
-      itemCount,
-      total,
+    const input: CreateHeldSaleInput = {
+      businessId: selectedBusinessId,
+      storeId: selectedStoreId,
+      customerId: Number(customerId),
+      cashierId,
       currencyCode,
-      createdAt: new Date().toISOString(),
+      taxRate,
       note: 'Paused from this register',
+      idempotencyKey: `HOLD-${Date.now()}-${crypto.randomUUID?.() ?? Math.random().toString(36).slice(2)}`,
+      items: lines.map((line) => ({
+        variantId: line.product.variantId,
+        quantity: line.qty,
+        ...(line.discount
+          ? {
+              discountType: line.discount.type === 'percent' ? 'PERCENTAGE' as const : 'FIXED' as const,
+              discountValue: line.discount.value,
+              discountReason: 'POS manual item discount',
+            }
+          : {}),
+      })),
     }
-    const nextHeldSales = [heldSale, ...heldSales]
-    setHeldSales(nextHeldSales)
-    writeHeldSales(storeId, nextHeldSales)
-    setCart({})
-    setCustomerId('0')
-    setDiscountTargetId(null)
-    setActivityMode('hold')
-    toast(`${heldSale.id} saved.`, 'success')
-  }, [currencyCode, customerId, heldSales, itemCount, lines, storeId, toast, total])
+
+    try {
+      const heldOrder = await createHeldSaleMutation.mutateAsync(input)
+      setCart({})
+      setCustomerId('0')
+      setDiscountTargetId(null)
+      setActivityMode('hold')
+      toast(`${heldOrder.orderNo} saved.`, 'success')
+    } catch (error) {
+      toast(error instanceof Error ? error.message : 'The sale could not be held.', 'error')
+    }
+  }, [createHeldSaleMutation, currencyCode, customerId, lines, storeId, taxRate, toast, user])
 
   const handlePayNow = useCallback(async () => {
     const businessId = Number(user?.business.id)
@@ -557,6 +577,7 @@ export function PosPage() {
     || createCashPaymentMutation.isPending
     || createPosQrCheckoutMutation.isPending
     || completeOrderMutation.isPending
+    || createHeldSaleMutation.isPending
 
   const liveQrPayment = qrPaymentQuery.data ?? qrCheckout?.response.payment
   const liveQrCheckout = qrCheckout && liveQrPayment
@@ -1258,6 +1279,11 @@ export function PosPage() {
         storeId={storeId}
         customerNames={customerNames}
         heldOrders={heldOrders}
+        heldLoading={heldOrdersQuery.isLoading}
+        heldError={heldOrdersQuery.isError && heldOrders.length === 0
+          ? heldOrdersQuery.error instanceof Error ? heldOrdersQuery.error.message : 'Held sales could not be loaded.'
+          : undefined}
+        onHeldRetry={() => { void heldOrdersQuery.refetch() }}
         onAction={handleActivityAction}
       />
 
@@ -1277,7 +1303,25 @@ function formatStockLabel(stock: number | undefined): string {
   return `${stock} left`
 }
 
-function formatHeldAge(createdAt: string): { label: string; minutes: number } {
+function toCartEntries(order: PosOrder): Record<string, CartEntry> {
+  return (order.items ?? []).reduce<Record<string, CartEntry>>((result, item) => {
+    const quantity = Number(item.quantity ?? item.qty ?? 0)
+    if (!item.variantId || quantity <= 0) return result
+
+    const discountValue = Number(item.discountValue ?? 0)
+    const discount = discountValue > 0 && item.discountType
+      ? {
+          type: item.discountType === 'PERCENTAGE' ? 'percent' as const : 'fixed' as const,
+          value: discountValue,
+        }
+      : null
+    result[String(item.variantId)] = { qty: quantity, discount }
+    return result
+  }, {})
+}
+
+function formatHeldAge(createdAt?: string): { label: string; minutes: number } {
+  if (!createdAt) return { label: 'Time unavailable', minutes: 0 }
   const createdTime = new Date(createdAt).getTime()
   if (Number.isNaN(createdTime)) return { label: 'Time unavailable', minutes: 0 }
 

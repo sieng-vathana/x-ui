@@ -19,6 +19,18 @@ export interface CreatePosOrderInput {
   items: PosOrderItemInput[]
 }
 
+export interface CreateHeldSaleInput {
+  businessId: number
+  storeId: number
+  customerId: number
+  cashierId: number
+  currencyCode: string
+  taxRate?: number
+  note?: string
+  idempotencyKey: string
+  items: PosOrderItemInput[]
+}
+
 export interface OrderItem {
   id: number
   productId: number
@@ -30,6 +42,8 @@ export interface OrderItem {
   qty?: number
   quantity?: number
   unitPrice: number
+  discountType?: OrderDiscountType | null
+  discountValue?: number | null
   total: number
 }
 
@@ -49,6 +63,7 @@ export interface PosOrder {
   discount: number
   tax: number
   grandTotal: number
+  note?: string | null
   items: OrderItem[]
   createdAt?: string
   completedAt?: string

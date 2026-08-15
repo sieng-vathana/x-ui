@@ -28,8 +28,53 @@ export function useRecentOrders(storeId?: string | number, enabled = true) {
   })
 }
 
+export function useHeldOrders(storeId?: string | number, enabled = true) {
+  const normalizedStoreId = normalizeStoreId(storeId)
+
+  return useQuery({
+    queryKey: ['orders', 'held', { storeId: normalizedStoreId }],
+    queryFn: () => {
+      if (normalizedStoreId === undefined) {
+        throw new Error('A valid store must be selected before loading held sales.')
+      }
+      return orderApi.listHeld(normalizedStoreId)
+    },
+    enabled: enabled && normalizedStoreId !== undefined,
+    staleTime: 10 * 1000,
+    refetchOnWindowFocus: false,
+    retry: (failureCount, error) => {
+      if (error instanceof ApiError && (error.status === 401 || error.status === 403)) return false
+      return failureCount < 1
+    },
+  })
+}
+
 export function useCreatePosOrder() {
   return useMutation({ mutationFn: orderApi.createPos })
+}
+
+export function useCreateHeldSale() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: orderApi.createHeld,
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['orders', 'held'] }),
+  })
+}
+
+export function useResumeHeldSale() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: orderApi.resumeHeld,
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['orders', 'held'] }),
+  })
+}
+
+export function useDiscardHeldSale() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: orderApi.discardHeld,
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['orders', 'held'] }),
+  })
 }
 
 export function useCompleteOrder() {
