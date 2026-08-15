@@ -33,6 +33,7 @@ import { SignInPage } from './pages/auth/SignInPage'
 import { BusinessRegistrationPage } from './pages/auth/BusinessRegistrationPage'
 import { UsersPage } from './pages/UsersPage'
 import { RoleManagementPage } from './pages/RoleManagementPage'
+import { TasksPage } from './pages/TasksPage'
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -113,6 +114,7 @@ export default function App() {
                   path="sales"
                   element={<PlaceholderPage title="Sales" description="Sales history and invoices." />}
                 />
+                <Route path="tasks" element={<TasksPage />} />
                 <Route path="purchases" element={<PurchaseOrdersPage />} />
                 <Route path="purchases/orders/new" element={<PurchaseOrderDetailPage />} />
                 <Route path="purchases/orders/:id" element={<PurchaseOrderDetailPage />} />
