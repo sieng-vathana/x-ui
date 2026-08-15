@@ -63,7 +63,7 @@ export function StoreSwitcher({
       ref={ref}
       className={cn(
         'relative min-w-[196px]',
-        compactOnMobile && 'max-md:w-10 max-md:min-w-0',
+        compactOnMobile && 'max-xl:w-10 max-xl:min-w-0',
         className,
       )}
     >
@@ -73,19 +73,19 @@ export function StoreSwitcher({
         aria-controls={listId}
         onClick={() => setOpen((v) => !v)}
         className={cn(
-          'flex h-10 w-full items-center gap-2.5 rounded-md border px-3.5 text-left transition',
+          'flex h-10 w-full min-w-0 items-center gap-2.5 rounded-md border px-3.5 text-left transition',
           variant === 'default' &&
             'border-vpos-line bg-vpos-black/30 text-vpos-text hover:border-vpos-primary/55 hover:bg-vpos-sand/45',
           variant === 'pos' &&
             'border-white/25 bg-white/12 text-white hover:border-white/35 hover:bg-white/18',
-          compactOnMobile && 'max-md:w-10 max-md:justify-center max-md:gap-1 max-md:px-0',
+          compactOnMobile && 'max-xl:w-10 max-xl:justify-center max-xl:gap-1 max-xl:px-0',
         )}
       >
         {selected?.image ? (
           <img
             src={selected.image}
             alt=""
-            className={cn('h-[26px] w-[26px] shrink-0 rounded-[7px] object-cover', compactOnMobile && 'max-md:hidden')}
+            className={cn('h-[26px] w-[26px] shrink-0 rounded-[7px] object-cover', compactOnMobile && 'max-xl:hidden')}
           />
         ) : (
           <span
@@ -94,18 +94,21 @@ export function StoreSwitcher({
               variant === 'default'
                 ? 'bg-vpos-sand text-vpos-primary'
                 : 'bg-vpos-primary text-white',
-              compactOnMobile && 'max-md:hidden',
+              compactOnMobile && 'max-xl:hidden',
             )}
           >
             <Icon name="store-2-line" />
           </span>
         )}
         {compactOnMobile ? (
-          <span className="hidden h-5 w-5 shrink-0 place-items-center rounded-[5px] bg-vpos-sand text-[13px] text-vpos-primary max-md:grid">
+          <span className="hidden h-5 w-5 shrink-0 place-items-center rounded-[5px] bg-vpos-sand text-[13px] text-vpos-primary max-xl:grid">
             <Icon name="store-2-line" />
           </span>
         ) : null}
-        <span className={cn('min-w-0 flex-1 truncate text-[14px] font-bold', compactOnMobile && 'max-md:hidden')}>
+        <span
+          className={cn('min-w-0 flex-1 truncate text-[14px] font-bold', compactOnMobile && 'max-xl:hidden')}
+          title={selected?.name}
+        >
           {showLoadingSkeleton ? <Skeleton className="h-3.5 w-24" /> : isLoading && !storesProp ? 'Loading stores…' : selected?.name ?? 'Select store'}
         </span>
         <Icon
@@ -114,7 +117,7 @@ export function StoreSwitcher({
             'text-[17px] transition-transform',
             open && 'rotate-180',
             variant === 'pos' ? 'text-white/80' : 'text-vpos-muted',
-            compactOnMobile && 'max-md:text-[15px]',
+            compactOnMobile && 'max-xl:text-[15px]',
           )}
         />
       </button>
@@ -123,7 +126,7 @@ export function StoreSwitcher({
         <div
           id={listId}
           role="listbox"
-          className="popover-in absolute top-[calc(100%+8px)] right-0 z-[300] min-w-[260px] overflow-hidden rounded-xl border border-vpos-line bg-vpos-surface py-1 shadow-[0_14px_36px_rgba(0,0,0,.28)]"
+          className="popover-in absolute top-[calc(100%+8px)] right-0 z-[300] w-[min(320px,calc(100vw-24px))] min-w-0 max-w-[calc(100vw-24px)] overflow-hidden rounded-xl border border-vpos-line bg-vpos-surface py-1 shadow-[0_14px_36px_rgba(0,0,0,.28)]"
         >
           <div className="border-b border-vpos-line px-4 pt-2.5 pb-1.5 text-[11px] font-extrabold tracking-wider text-vpos-muted uppercase">
             Switch store
@@ -147,7 +150,7 @@ export function StoreSwitcher({
                 role="option"
                 aria-selected={isSel}
                 className={cn(
-                  'flex w-full items-center gap-3 border-0 px-4 py-2.5 text-left text-[14px] transition-colors',
+                  'flex w-full min-w-0 items-center gap-3 border-0 px-4 py-2.5 text-left text-[14px] transition-colors',
                   isSel ? 'bg-vpos-sand font-bold' : 'bg-vpos-surface hover:bg-vpos-subtle',
                 )}
                 onClick={() => {
@@ -174,17 +177,18 @@ export function StoreSwitcher({
                     <Icon name="store-2-line" />
                   </span>
                 )}
-                <span className="min-w-0 flex-1">
+                <span className="min-w-0 flex-1 truncate">
                   <strong
+                    title={store.name}
                     className={cn(
-                      'block font-bold',
+                      'block truncate font-bold',
                       isSel ? 'text-vpos-primary' : 'text-vpos-text',
                     )}
                   >
                     {store.name}
                   </strong>
                   {store.address ? (
-                    <small className="mt-0.5 block text-[12px] text-vpos-muted">
+                    <small className="mt-0.5 block truncate text-[12px] text-vpos-muted">
                       {store.address}
                     </small>
                   ) : null}
