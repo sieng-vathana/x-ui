@@ -111,6 +111,7 @@ export function PosPage() {
   const [activityMode, setActivityMode] = useState<'hold' | 'recent' | null>(null)
   const [qrCheckout, setQrCheckout] = useState<{ orderNo: string; response: QrPaymentResponse } | null>(null)
   const [isFullscreen, setIsFullscreen] = useState(false)
+  const [mobileOrderOpen, setMobileOrderOpen] = useState(false)
   const createHeldSaleMutation = useCreateHeldSale()
   const discardHeldSaleMutation = useDiscardHeldSale()
   const resumeHeldSaleMutation = useResumeHeldSale()
@@ -312,6 +313,15 @@ export function PosPage() {
   }, [])
 
   useEffect(() => {
+    if (!mobileOrderOpen) return
+    const previousOverflow = document.body.style.overflow
+    document.body.style.overflow = 'hidden'
+    return () => {
+      document.body.style.overflow = previousOverflow
+    }
+  }, [mobileOrderOpen])
+
+  useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       const key = e.key.toLowerCase()
       const typing = isTypingTarget(e.target)
@@ -380,6 +390,11 @@ export function PosPage() {
           setActivityMode(null)
           return
         }
+        if (mobileOrderOpen) {
+          e.preventDefault()
+          setMobileOrderOpen(false)
+          return
+        }
         if (document.fullscreenElement) {
           e.preventDefault()
           void document.exitFullscreen?.()
@@ -392,7 +407,7 @@ export function PosPage() {
     }
     window.addEventListener('keydown', onKey)
     return () => window.removeEventListener('keydown', onKey)
-  }, [activityMode, shortcutsOpen, toggleFullscreen])
+  }, [activityMode, mobileOrderOpen, shortcutsOpen, toggleFullscreen])
 
   const filtered = useMemo(() => {
     let list = products.filter((p) => {
@@ -492,6 +507,7 @@ export function PosPage() {
       setCart({})
       setCustomerId('0')
       setDiscountTargetId(null)
+      setMobileOrderOpen(false)
       setActivityMode('hold')
       toast(`${heldOrder.orderNo} saved.`, 'success')
     } catch (error) {
@@ -566,6 +582,7 @@ export function PosPage() {
         setQrCheckout({ orderNo: checkout.order.orderNo, response: checkout.payment })
         toast(`KHQR payment QR is ready for ${checkout.order.orderNo}.`, 'info')
       }
+      setMobileOrderOpen(false)
       setCart({})
       setDiscountTargetId(null)
     } catch (error) {
@@ -670,19 +687,20 @@ export function PosPage() {
         title="Point of Sale"
         subtitle="Scan or search products to build an order"
         onBack={() => navigate(paths.home)}
-        afterBack={<Calculator />}
-        actions={<StoreSwitcher value={storeId} onChange={setStoreId} />}
+        afterBack={<span className="hidden md:block"><Calculator /></span>}
+        actions={<StoreSwitcher compactOnMobile value={storeId} onChange={setStoreId} />}
+        hideNotificationsOnMobile
       />
 
-      <main className={cn(pageContent, 'pb-6')}>
+      <main className={cn(pageContent, 'pb-24 xl:pb-6')}>
         <section className="mb-5 flex min-h-12 flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           <div className="min-w-0 flex-1">
             <Breadcrumb items={[{ label: 'Point of Sale' }]} />
           </div>
-          <div className="flex shrink-0 flex-wrap items-center gap-2">
+          <div className="grid w-full shrink-0 grid-cols-2 gap-2 sm:flex sm:w-auto sm:flex-wrap sm:items-center">
             <Button
               variant="secondary"
-              className="min-h-[38px]"
+              className="min-h-[38px] w-full justify-center px-2 text-[12px] sm:w-auto sm:px-4 sm:text-[14px]"
               onClick={() => setShortcutsOpen(true)}
               aria-haspopup="dialog"
               aria-expanded={shortcutsOpen}
@@ -692,7 +710,7 @@ export function PosPage() {
             </Button>
             <Button
               variant="secondary"
-              className="min-h-[38px]"
+              className="min-h-[38px] w-full justify-center px-2 text-[12px] sm:w-auto sm:px-4 sm:text-[14px]"
               onClick={() => void toggleFullscreen()}
               title="Fullscreen (F11 or Ctrl+Shift+F)"
             >
@@ -706,7 +724,7 @@ export function PosPage() {
             </Button>
             <Button
               variant="secondary"
-              className="min-h-[38px]"
+              className="min-h-[38px] w-full justify-center px-2 text-[12px] sm:w-auto sm:px-4 sm:text-[14px]"
               onClick={() => setActivityMode('recent')}
               aria-haspopup="dialog"
               aria-expanded={activityMode === 'recent'}
@@ -715,7 +733,7 @@ export function PosPage() {
             </Button>
             <Button
               variant="secondary"
-              className="min-h-[38px]"
+              className="min-h-[38px] w-full justify-center px-2 text-[12px] sm:w-auto sm:px-4 sm:text-[14px]"
               onClick={() => setActivityMode('hold')}
               aria-haspopup="dialog"
               aria-expanded={activityMode === 'hold'}
@@ -728,10 +746,10 @@ export function PosPage() {
         {/* POS body: menu + order panel (new UI, your palette) */}
         <div className="grid grid-cols-1 gap-4 xl:grid-cols-[minmax(0,1fr)_minmax(360px,420px)]">
           {/* ── Menu ── */}
-          <section className={cn(card, 'p-4 sm:p-5')}>
+          <section className={cn(card, 'p-3 sm:p-5')}>
             <div className="mb-4 flex flex-wrap items-end justify-between gap-2">
               <div>
-                <h2 className="m-0 text-[23px] font-extrabold tracking-tight text-vpos-text">
+                <h2 className="m-0 text-[20px] font-extrabold tracking-tight text-vpos-text sm:text-[23px]">
                   Menu
                 </h2>
                 <p className="m-0 mt-1 text-[13px] text-vpos-muted">
@@ -741,8 +759,8 @@ export function PosPage() {
             </div>
 
             {/* Toolbar: search · sort · view · filter */}
-            <div className="mb-4 flex flex-wrap items-center gap-2">
-              <label className={cn(searchField, 'min-w-[200px] flex-1')}>
+            <div className="mb-4 grid grid-cols-2 items-center gap-2 sm:flex sm:flex-wrap">
+              <label className={cn(searchField, 'col-span-2 w-full flex-1 max-sm:min-w-0 sm:min-w-[200px] sm:w-auto')}>
                 <Icon name="search-line" className="shrink-0 text-vpos-muted" />
                 <input
                   ref={searchRef}
@@ -759,19 +777,21 @@ export function PosPage() {
                 </kbd>
               </label>
 
-              <Select
-                variant="toolbar"
-                value={sort}
-                onChange={(v) => setSort(v as SortMode)}
-                options={[
-                  { value: 'name-asc', label: 'Name A-Z' },
-                  { value: 'name-desc', label: 'Name Z-A' },
-                  { value: 'price-asc', label: 'Price low–high' },
-                  { value: 'price-desc', label: 'Price high–low' },
-                ]}
-              />
+              <div className="col-span-2 flex w-full items-center gap-2 sm:contents">
+                <Select
+                  variant="toolbar"
+                  className="min-w-0 flex-1 sm:w-auto sm:flex-none [&>button]:w-full sm:[&>button]:w-auto"
+                  value={sort}
+                  onChange={(v) => setSort(v as SortMode)}
+                  options={[
+                    { value: 'name-asc', label: 'Name A-Z' },
+                    { value: 'name-desc', label: 'Name Z-A' },
+                    { value: 'price-asc', label: 'Price low–high' },
+                    { value: 'price-desc', label: 'Price high–low' },
+                  ]}
+                />
 
-              <div className="flex rounded-[10px] border border-vpos-line bg-vpos-subtle p-0.5">
+                <div className="flex shrink-0 rounded-[10px] border border-vpos-line bg-vpos-subtle p-0.5">
                 <button
                   type="button"
                   aria-label="Grid view"
@@ -798,15 +818,16 @@ export function PosPage() {
                 >
                   <Icon name="list-check-2" />
                 </button>
-              </div>
+                </div>
 
-              <button
-                type="button"
-                aria-label="Filter"
-                className="grid h-[42px] w-[42px] place-items-center rounded-[10px] border border-vpos-line bg-white text-[17px] text-vpos-muted hover:text-vpos-primary"
-              >
-                <Icon name="filter-3-line" />
-              </button>
+                <button
+                  type="button"
+                  aria-label="Filter"
+                  className="grid h-[42px] w-[42px] shrink-0 place-items-center rounded-[10px] border border-vpos-line bg-white text-[17px] text-vpos-muted hover:text-vpos-primary"
+                >
+                  <Icon name="filter-3-line" />
+                </button>
+              </div>
             </div>
 
             {/* Category carousel — new */}
@@ -831,16 +852,16 @@ export function PosPage() {
                       type="button"
                       onClick={() => setCategoryId(cat.id)}
                       className={cn(
-                        'flex min-w-[156px] shrink-0 items-center gap-2.5 rounded-[12px] border p-2.5 text-left transition',
+                        'flex min-w-[140px] shrink-0 items-center gap-2 rounded-[12px] border p-2 text-left transition sm:min-w-[156px] sm:gap-2.5 sm:p-2.5',
                         selected
                           ? 'border-vpos-primary bg-vpos-sand shadow-sm'
                           : 'border-vpos-line bg-white hover:border-vpos-primary/40',
                       )}
                     >
                       {cat.image ? (
-                        <img src={cat.image} alt="" className="h-14 w-14 shrink-0 rounded-lg object-cover" />
+                        <img src={cat.image} alt="" className="h-12 w-12 shrink-0 rounded-lg object-cover sm:h-14 sm:w-14" />
                       ) : (
-                        <span className="grid h-14 w-14 shrink-0 place-items-center rounded-lg bg-vpos-subtle text-vpos-muted">
+                        <span className="grid h-12 w-12 shrink-0 place-items-center rounded-lg bg-vpos-subtle text-vpos-muted sm:h-14 sm:w-14">
                           <Icon name="image-line" />
                         </span>
                       )}
@@ -892,7 +913,7 @@ export function PosPage() {
                 {products.length === 0 ? 'This store has no sellable variants with a POS price.' : 'No products match your search.'}
               </div>
             ) : view === 'grid' ? (
-              <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
+              <div className="grid grid-cols-1 gap-3 min-[420px]:grid-cols-2 sm:grid-cols-3 lg:grid-cols-4">
                 {filtered.map((p) => {
                   const qty = cart[p.id]?.qty ?? 0
                   const stock = stockByVariant.get(p.variantId)
@@ -904,7 +925,7 @@ export function PosPage() {
                       disabled={outOfStock}
                       onClick={() => { if (!outOfStock) addProduct(p.id) }}
                       className={cn(
-                        'relative flex min-h-[300px] flex-col overflow-hidden rounded-[12px] border border-vpos-line bg-white text-left shadow-sm transition hover:-translate-y-0.5 hover:border-vpos-primary/50 hover:shadow-md',
+                        'relative flex min-h-[260px] flex-col overflow-hidden rounded-[12px] border border-vpos-line bg-white text-left shadow-sm transition hover:-translate-y-0.5 hover:border-vpos-primary/50 hover:shadow-md sm:min-h-[300px]',
                         outOfStock && 'cursor-not-allowed opacity-65 hover:translate-y-0 hover:border-vpos-line hover:shadow-sm',
                       )}
                     >
@@ -918,7 +939,7 @@ export function PosPage() {
                           {qty}
                         </span>
                       ) : null}
-                      <div className="flex h-[180px] items-center justify-center bg-vpos-subtle">
+                      <div className="flex h-[150px] items-center justify-center bg-vpos-subtle sm:h-[180px]">
                         {p.image ? (
                           <img
                             src={p.image}
@@ -977,14 +998,14 @@ export function PosPage() {
                       disabled={outOfStock}
                       onClick={() => { if (!outOfStock) addProduct(p.id) }}
                       className={cn(
-                        'flex items-center gap-3 rounded-[12px] border border-vpos-line bg-white p-2.5 text-left hover:border-vpos-primary/40',
+                        'flex flex-wrap items-center gap-2.5 rounded-[12px] border border-vpos-line bg-white p-2.5 text-left hover:border-vpos-primary/40 sm:flex-nowrap sm:gap-3',
                         outOfStock && 'cursor-not-allowed opacity-65 hover:border-vpos-line',
                       )}
                     >
                       {p.image ? (
-                        <img src={p.image} alt="" className="h-14 w-14 rounded-lg object-cover" />
+                        <img src={p.image} alt="" className="h-12 w-12 rounded-lg object-cover sm:h-14 sm:w-14" />
                       ) : (
-                        <span className="grid h-14 w-14 shrink-0 place-items-center rounded-lg bg-vpos-subtle text-vpos-muted">
+                        <span className="grid h-12 w-12 shrink-0 place-items-center rounded-lg bg-vpos-subtle text-vpos-muted sm:h-14 sm:w-14">
                           <Icon name="image-line" />
                         </span>
                       )}
@@ -1024,8 +1045,26 @@ export function PosPage() {
           </section>
 
           {/* ── Order panel — new ── */}
-          <aside className={cn(card, 'flex max-h-[calc(100vh-200px)] flex-col overflow-hidden p-0')}>
-            <div className="border-b border-vpos-line p-4">
+          {mobileOrderOpen ? (
+            <button
+              type="button"
+              aria-label="Close current order"
+              className="fixed inset-0 z-[40] bg-vpos-black/40 xl:hidden"
+              onClick={() => setMobileOrderOpen(false)}
+            />
+          ) : null}
+
+          <aside
+            aria-label="Current order"
+            className={cn(
+              card,
+              'flex-col overflow-hidden p-0 xl:flex xl:h-[calc(100vh-200px)] xl:max-h-none',
+              mobileOrderOpen
+                ? 'fixed inset-x-3 bottom-3 z-[50] flex h-[calc(100dvh-112px)] max-h-[760px] rounded-[12px] shadow-[0_20px_55px_rgba(39,42,58,.24)] xl:static xl:inset-auto xl:z-auto xl:h-[calc(100vh-200px)] xl:rounded-[4px] xl:shadow-vpos'
+                : 'hidden',
+            )}
+          >
+            <div className="border-b border-vpos-line p-3 sm:p-4">
               <h2 className="m-0 mb-2 text-[14px] font-extrabold text-vpos-text">
                 Customer
               </h2>
@@ -1050,7 +1089,7 @@ export function PosPage() {
               />
             </div>
 
-            <div className="flex min-h-0 flex-1 flex-col p-4">
+            <div className="flex min-h-0 flex-1 flex-col p-3 sm:p-4">
               <div className="mb-3 flex items-center justify-between">
                 <h2 className="m-0 text-[14px] font-extrabold text-vpos-text">
                   Order Details{' '}
@@ -1172,7 +1211,7 @@ export function PosPage() {
               </div>
             </div>
 
-            <div className="mt-auto border-t border-vpos-line p-4">
+            <div className="mt-auto border-t border-vpos-line p-3 sm:p-4">
               <h3 className="m-0 mb-2 text-[12px] font-extrabold tracking-wide text-vpos-muted">
                 ORDER SUMMARY
               </h3>
@@ -1241,6 +1280,29 @@ export function PosPage() {
               </div>
             </div>
           </aside>
+
+          {!mobileOrderOpen ? (
+            <div className="fixed right-20 bottom-3 left-3 z-[40] xl:hidden">
+              <button
+                type="button"
+                onClick={() => setMobileOrderOpen(true)}
+                aria-label={`Open current order, ${itemCount} ${itemCount === 1 ? 'item' : 'items'}`}
+                className="flex min-h-[58px] w-full items-center gap-3 rounded-[12px] border border-vpos-primary/20 bg-vpos-primary px-3 text-left text-white shadow-[0_10px_30px_rgba(104,124,254,.28)] transition hover:bg-vpos-primary-2 sm:px-4"
+              >
+                <span className="grid h-8 min-w-8 place-items-center rounded-full bg-white/18 px-1.5 text-[12px] font-extrabold">
+                  {itemCount}
+                </span>
+                <span className="min-w-0 flex-1">
+                  <strong className="block truncate text-[13px] font-extrabold">Current order</strong>
+                  <span className="block truncate text-[11px] text-white/75">
+                    {itemCount === 0 ? 'No items yet' : `${itemCount} ${itemCount === 1 ? 'item' : 'items'} ready to pay`}
+                  </span>
+                </span>
+                <strong className="shrink-0 text-[14px]">{formatCurrency(total, currencyCode)}</strong>
+                <Icon name="arrow-up-s-line" className="shrink-0 text-[18px]" />
+              </button>
+            </div>
+          ) : null}
         </div>
       </main>
 

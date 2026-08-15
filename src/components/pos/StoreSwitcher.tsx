@@ -19,6 +19,7 @@ export interface StoreSwitcherProps {
   value?: string
   onChange?: (id: string) => void
   variant?: 'default' | 'pos'
+  compactOnMobile?: boolean
   className?: string
 }
 
@@ -27,6 +28,7 @@ export function StoreSwitcher({
   value,
   onChange,
   variant = 'default',
+  compactOnMobile = false,
   className,
 }: StoreSwitcherProps) {
   const { data: apiStores, isLoading, isError } = useStores()
@@ -57,7 +59,14 @@ export function StoreSwitcher({
   }, [open])
 
   return (
-    <div ref={ref} className={cn('relative min-w-[196px]', className)}>
+    <div
+      ref={ref}
+      className={cn(
+        'relative min-w-[196px]',
+        compactOnMobile && 'max-md:w-10 max-md:min-w-0',
+        className,
+      )}
+    >
       <button
         type="button"
         aria-expanded={open}
@@ -69,13 +78,14 @@ export function StoreSwitcher({
             'border-vpos-line bg-vpos-black/30 text-vpos-text hover:border-vpos-primary/55 hover:bg-vpos-sand/45',
           variant === 'pos' &&
             'border-white/25 bg-white/12 text-white hover:border-white/35 hover:bg-white/18',
+          compactOnMobile && 'max-md:w-10 max-md:justify-center max-md:gap-1 max-md:px-0',
         )}
       >
         {selected?.image ? (
           <img
             src={selected.image}
             alt=""
-            className="h-[26px] w-[26px] shrink-0 rounded-[7px] object-cover"
+            className={cn('h-[26px] w-[26px] shrink-0 rounded-[7px] object-cover', compactOnMobile && 'max-md:hidden')}
           />
         ) : (
           <span
@@ -84,12 +94,18 @@ export function StoreSwitcher({
               variant === 'default'
                 ? 'bg-vpos-sand text-vpos-primary'
                 : 'bg-vpos-primary text-white',
+              compactOnMobile && 'max-md:hidden',
             )}
           >
             <Icon name="store-2-line" />
           </span>
         )}
-        <span className="min-w-0 flex-1 truncate text-[14px] font-bold">
+        {compactOnMobile ? (
+          <span className="hidden h-5 w-5 shrink-0 place-items-center rounded-[5px] bg-vpos-sand text-[13px] text-vpos-primary max-md:grid">
+            <Icon name="store-2-line" />
+          </span>
+        ) : null}
+        <span className={cn('min-w-0 flex-1 truncate text-[14px] font-bold', compactOnMobile && 'max-md:hidden')}>
           {showLoadingSkeleton ? <Skeleton className="h-3.5 w-24" /> : isLoading && !storesProp ? 'Loading stores…' : selected?.name ?? 'Select store'}
         </span>
         <Icon
@@ -98,6 +114,7 @@ export function StoreSwitcher({
             'text-[17px] transition-transform',
             open && 'rotate-180',
             variant === 'pos' ? 'text-white/80' : 'text-vpos-muted',
+            compactOnMobile && 'max-md:text-[15px]',
           )}
         />
       </button>

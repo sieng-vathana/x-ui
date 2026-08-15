@@ -15,6 +15,7 @@ export interface TopbarProps {
   afterBack?: ReactNode
   className?: string
   showNotifications?: boolean
+  hideNotificationsOnMobile?: boolean
   /** Show brand (logo + company name) — default true */
   showBrand?: boolean
   /**
@@ -32,6 +33,7 @@ export function Topbar({
   afterBack,
   className,
   showNotifications = true,
+  hideNotificationsOnMobile = false,
   showBrand = true,
   onBack,
   backLabel = 'Back',
@@ -48,13 +50,13 @@ export function Topbar({
       <header
         data-app-topbar={sidebar.config.topbar}
         className={cn(
-          'fixed top-0 right-0 left-0 z-30 flex h-[70px] items-center justify-between border-b border-vpos-line bg-white px-[clamp(16px,2vw,32px)]',
+          'fixed top-0 right-0 left-0 z-30 flex h-[70px] items-center justify-between gap-2 border-b border-vpos-line bg-white px-[clamp(16px,2vw,32px)] max-sm:px-3',
           darkTopbar && 'border-[#32363d] bg-vpos-dark text-white',
           className,
         )}
         style={{ left: headerOffset }}
       >
-        <div className="flex min-w-0 items-center gap-3 sm:gap-4">
+        <div className="flex min-w-0 items-center gap-2 sm:gap-4">
           {/* Collapse / expand — top left */}
           <button
             type="button"
@@ -94,20 +96,20 @@ export function Topbar({
           ) : null}
 
           <div className="min-w-0">
-            <h1 className={cn('m-0 text-[15px] font-bold leading-tight', darkTopbar ? 'text-white' : 'text-vpos-dark')}>{title}</h1>
-            {subtitle ? <p className={cn('mt-1 mb-0 text-[12px]', darkTopbar ? 'text-white/65' : 'text-vpos-muted')}>{subtitle}</p> : null}
+            <h1 className={cn('m-0 truncate text-[15px] font-bold leading-tight', darkTopbar ? 'text-white' : 'text-vpos-dark')}>{title}</h1>
+            {subtitle ? <p className={cn('mt-1 mb-0 hidden text-[12px] sm:block', darkTopbar ? 'text-white/65' : 'text-vpos-muted')}>{subtitle}</p> : null}
           </div>
         </div>
 
-        <div className="flex items-center gap-3">
+        <div className="flex shrink-0 items-center gap-1.5 sm:gap-3">
           {onBack ? (
             <button
               type="button"
               onClick={onBack}
-              className="inline-flex h-[38px] shrink-0 items-center gap-1.5 rounded-[4px] border border-vpos-line bg-white px-3.5 text-[13px] font-semibold text-vpos-text transition-colors hover:bg-vpos-subtle"
+              className="inline-flex h-[38px] shrink-0 items-center justify-center gap-1.5 rounded-[4px] border border-vpos-line bg-white px-2 text-[13px] font-semibold text-vpos-text transition-colors hover:bg-vpos-subtle sm:px-3.5"
             >
               <Icon name="arrow-left-line" className="text-[17px]" />
-              {backLabel}
+              <span className="hidden sm:inline">{backLabel}</span>
             </button>
           ) : null}
           {afterBack}
@@ -115,7 +117,10 @@ export function Topbar({
           {showNotifications ? (
             <button
               type="button"
-              className="relative grid h-[38px] w-[38px] place-items-center rounded-[4px] border-0 bg-vpos-subtle text-[19px] text-vpos-text transition-colors hover:bg-vpos-sand hover:text-vpos-primary"
+              className={cn(
+                'relative grid h-[38px] w-[38px] place-items-center rounded-[4px] border-0 bg-vpos-subtle text-[19px] text-vpos-text transition-colors hover:bg-vpos-sand hover:text-vpos-primary',
+                hideNotificationsOnMobile && 'max-md:hidden',
+              )}
               aria-label="Notifications"
             >
               <Icon name="notification-3-line" />
