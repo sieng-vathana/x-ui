@@ -51,7 +51,7 @@ const purchaseSubItems = [
 ]
 
 const staticItems = [
-  { key: 'sales', icon: 'line-chart-line', label: 'Sales' }, { key: 'payments', icon: 'secure-payment-line', label: 'KHQRPay test' }, { key: 'customers', icon: 'user-heart-line', label: 'Customers' },
+  { key: 'sales', icon: 'line-chart-line', label: 'Sales' }, { key: 'customers', icon: 'user-heart-line', label: 'Customers' },
   { key: 'reports', icon: 'bar-chart-box-line', label: 'Reports' },
 ]
 
