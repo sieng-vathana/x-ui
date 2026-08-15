@@ -22,14 +22,13 @@ import { useAuth } from '../context/AuthContext'
 import { useToast } from '../context/ToastContext'
 import { useCreateCustomer, useCustomers } from '../features/customers/useCustomers'
 import type { CustomerPayload } from '../features/customers/types'
-import { useStockBalances } from '../features/inventory/useStockBalances'
 import { useCreatePosOrder, useCompleteOrder } from '../features/orders/useOrders'
 import type { CreatePosOrderInput } from '../features/orders/types'
 import { useCreateCashPayment, useCreatePosQrCheckout, usePaymentStatus } from '../features/payments/usePayments'
 import type { QrPaymentResponse } from '../features/payments/types'
 import { useProductsList } from '../features/products/useProducts'
 import { useAdminStore } from '../hooks/useAdminStore'
-import { ApiError, resolveImageUrl } from '../lib/api'
+import { resolveImageUrl } from '../lib/api'
 import { cn } from '../lib/cn'
 import { formatCurrency, formatKhr } from '../lib/currency'
 import { paths } from '../lib/paths'
@@ -49,6 +48,7 @@ type PosProduct = {
   badge?: string
   currencyCode: string
   taxRate: number
+  catalogQuantity?: number
 }
 type PosCategory = {
   id: string
@@ -141,31 +141,19 @@ export function PosPage() {
           badge: product.isFeatured ? 'Featured' : undefined,
           currencyCode: (product.currencyCode || 'USD').toUpperCase(),
           taxRate: Number(product.tax?.percentage ?? 0),
+          catalogQuantity: variant.quantity == null ? undefined : Math.max(0, Number(variant.quantity)),
         }]
       })
     })
   }, [productsQuery.data])
 
-  const variantIds = useMemo(
-    () => [...new Set(products.map((product) => product.variantId))],
-    [products],
-  )
-  const stockQueries = useStockBalances(storeId, variantIds)
   const stockByVariant = useMemo(() => {
     const stock = new Map<number, number | undefined>()
-    variantIds.forEach((variantId, index) => {
-      const query = stockQueries[index]
-      if (query?.data) {
-        stock.set(variantId, Math.max(0, query.data.availableQuantity))
-      } else if (query?.isError && query.error instanceof ApiError && query.error.status === 404) {
-        // A missing balance means this variant has not received stock for this store.
-        stock.set(variantId, 0)
-      } else {
-        stock.set(variantId, undefined)
-      }
+    products.forEach((product) => {
+      stock.set(product.variantId, product.catalogQuantity)
     })
     return stock
-  }, [products, stockQueries, variantIds])
+  }, [products])
 
   const categories = useMemo<PosCategory[]>(() => {
     const grouped = new Map<string, PosCategory>()
@@ -220,6 +208,11 @@ export function PosPage() {
       }))
     return [{ value: '0', label: 'Walk-in customer' }, ...liveCustomers.filter((customer) => customer.value !== '0')]
   }, [customersQuery.data])
+
+  const customerNames = useMemo(
+    () => new Map((customersQuery.data?.content ?? []).map((customer) => [customer.id, customer.fullName])),
+    [customersQuery.data],
+  )
 
   const canCreateCustomer = user?.permissions?.includes('x-customer:create') ?? false
   const businessId = Number(user?.business.id)
@@ -1171,6 +1164,8 @@ export function PosPage() {
       <PosActivityModal
         mode={activityMode}
         onClose={() => setActivityMode(null)}
+        storeId={storeId}
+        customerNames={customerNames}
         onAction={handleActivityAction}
       />
 

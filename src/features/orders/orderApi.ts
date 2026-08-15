@@ -1,6 +1,7 @@
 import { API_BASE_URL, ApiClient } from '../../lib/api'
 import type {
   CreatePosOrderInput,
+  OrderPage,
   PosOrder,
 } from './types'
 
@@ -15,6 +16,20 @@ function requireData<T>(response: ApiEnvelope<T>, fallback: string): T {
 }
 
 export const orderApi = {
+  async list(storeId: string | number, page = 0, size = 20): Promise<OrderPage> {
+    const numericStoreId = Number(storeId)
+    if (!Number.isInteger(numericStoreId) || numericStoreId <= 0) {
+      throw new Error('A valid store must be selected before loading orders.')
+    }
+
+    return requireData(
+      await api.request<ApiEnvelope<OrderPage>>(
+        `/orders?storeId=${numericStoreId}&page=${page}&size=${size}`,
+      ),
+      'Recent orders could not be loaded.',
+    )
+  },
+
   async createPos(input: CreatePosOrderInput): Promise<PosOrder> {
     return requireData(
       await api.request<ApiEnvelope<PosOrder>>('/orders/pos', {

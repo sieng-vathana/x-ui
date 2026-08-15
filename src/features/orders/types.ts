@@ -25,7 +25,10 @@ export interface OrderItem {
   variantId: number
   productName: string
   variantName?: string
-  qty: number
+  sku?: string
+  barcode?: string
+  qty?: number
+  quantity?: number
   unitPrice: number
   total: number
 }
@@ -37,6 +40,7 @@ export interface PosOrder {
   storeId: number
   customerId: number
   cashierId: number
+  orderChannel?: string
   orderStatus: string
   paymentStatus: string
   currencyCode: string
@@ -45,5 +49,15 @@ export interface PosOrder {
   tax: number
   grandTotal: number
   items: OrderItem[]
+  createdAt?: string
+  completedAt?: string
 }
 
+export interface OrderPage {
+  content: PosOrder[]
+  page: number
+  size: number
+  totalElements: number
+  totalPages: number
+  hasNext: boolean
+}
