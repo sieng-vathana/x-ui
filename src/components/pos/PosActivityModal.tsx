@@ -12,13 +12,15 @@ type ActivityMode = 'hold' | 'recent'
 type RecentOrderStatus = 'Completed' | 'Pending' | 'Cancelled'
 type RecentOrderFilter = 'All' | 'Cash' | 'QR' | 'Card'
 
-interface HeldOrder {
+export interface HeldOrder {
   id: string
   customer: string
   items: string
   itemCount: number
   total: number
+  currencyCode: string
   age: string
+  ageMinutes: number
   note: string
 }
 
@@ -34,45 +36,16 @@ interface RecentOrder {
   time: string
 }
 
-const HELD_ORDERS: HeldOrder[] = [
-  {
-    id: 'HOLD-1042',
-    customer: 'Sokha Market',
-    items: 'Iced latte, croissant, sparkling water',
-    itemCount: 4,
-    total: 18.5,
-    age: '18 min ago',
-    note: 'Customer stepped away to take a call',
-  },
-  {
-    id: 'HOLD-1041',
-    customer: 'Walk-in customer',
-    items: 'Chicken sandwich, Americano',
-    itemCount: 2,
-    total: 9.75,
-    age: '31 min ago',
-    note: 'Waiting for a second order',
-  },
-  {
-    id: 'HOLD-1038',
-    customer: 'Dara V.',
-    items: 'Cold brew, blueberry muffin',
-    itemCount: 2,
-    total: 8.25,
-    age: '52 min ago',
-    note: 'Pickup details to confirm',
-  },
-]
-
 export interface PosActivityModalProps {
   mode: ActivityMode | null
   onClose: () => void
   storeId?: string | number
   customerNames?: ReadonlyMap<number, string>
+  heldOrders?: HeldOrder[]
   onAction?: (action: 'resume' | 'discard' | 'receipt' | 'reorder', id: string) => void
 }
 
-export function PosActivityModal({ mode, onClose, storeId, customerNames, onAction }: PosActivityModalProps) {
+export function PosActivityModal({ mode, onClose, storeId, customerNames, heldOrders = [], onAction }: PosActivityModalProps) {
   const [query, setQuery] = useState('')
   const [recentFilter, setRecentFilter] = useState<RecentOrderFilter>('All')
   const recentQuery = useRecentOrders(storeId, mode === 'recent')
@@ -85,11 +58,11 @@ export function PosActivityModal({ mode, onClose, storeId, customerNames, onActi
 
   const filteredHeldOrders = useMemo(() => {
     const normalized = query.trim().toLowerCase()
-    if (!normalized) return HELD_ORDERS
-    return HELD_ORDERS.filter((order) =>
+    if (!normalized) return heldOrders
+    return heldOrders.filter((order) =>
       [order.id, order.customer, order.items, order.note].some((value) => value.toLowerCase().includes(normalized)),
     )
-  }, [query])
+  }, [heldOrders, query])
 
   const recentOrders = useMemo(
     () => (recentQuery.data?.content ?? []).map((order) => toRecentOrder(order, customerNames)),
@@ -130,10 +103,9 @@ export function PosActivityModal({ mode, onClose, storeId, customerNames, onActi
             </span>
           </span>
           <span className={cn(
-            'ml-auto hidden rounded-full px-2.5 py-1 text-[10px] font-extrabold tracking-wide uppercase sm:inline-flex',
-            isHold ? 'border border-dashed border-vpos-line bg-vpos-subtle text-vpos-muted' : 'bg-vpos-green-bg text-vpos-green',
+            'ml-auto hidden rounded-full bg-vpos-green-bg px-2.5 py-1 text-[10px] font-extrabold tracking-wide text-vpos-green uppercase sm:inline-flex',
           )}>
-            {isHold ? 'Demo records' : 'Live data'}
+            {isHold ? 'Saved locally' : 'Live data'}
           </span>
         </div>
       }
@@ -181,14 +153,16 @@ function HeldOrdersView({
   onQueryChange: (value: string) => void
   onAction?: PosActivityModalProps['onAction']
 }) {
-  const total = HELD_ORDERS.reduce((sum, order) => sum + order.total, 0)
+  const total = orders.reduce((sum, order) => sum + order.total, 0)
+  const oldestMinutes = orders.reduce((oldest, order) => Math.max(oldest, order.ageMinutes), 0)
+  const oldestLabel = orders.length > 0 ? formatAgeMinutes(oldestMinutes) : '—'
 
   return (
     <div className="space-y-5">
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
-        <ActivityStat icon="pause-line" label="On hold" value={String(HELD_ORDERS.length)} detail="active checkouts" tone="orange" />
-        <ActivityStat icon="wallet-3-line" label="Open value" value={formatCurrency(total)} detail="across held orders" tone="blue" />
-        <ActivityStat icon="time-line" label="Oldest hold" value="52 min" detail="needs attention" tone="red" />
+        <ActivityStat icon="pause-line" label="On hold" value={String(orders.length)} detail="active checkouts" tone="orange" />
+        <ActivityStat icon="wallet-3-line" label="Open value" value={formatCurrency(total, orders[0]?.currencyCode)} detail="across held orders" tone="blue" />
+        <ActivityStat icon="time-line" label="Oldest hold" value={oldestLabel} detail={orders.length > 0 ? 'needs attention' : 'no active holds'} tone="red" />
       </div>
 
       <ActivityToolbar query={query} onQueryChange={onQueryChange} placeholder="Search held orders..." />
@@ -221,7 +195,7 @@ function HeldOrdersView({
             <span className="text-[13px] text-vpos-muted"><span className="md:hidden">Items · </span>{order.itemCount}</span>
             <span className="text-[13px] text-vpos-muted"><Icon name="time-line" className="mr-1 align-[-1px]" />{order.age}</span>
             <div className="flex items-center justify-between gap-2 md:justify-end">
-              <strong className="text-[14px] text-vpos-primary">{formatCurrency(order.total)}</strong>
+              <strong className="text-[14px] text-vpos-primary">{formatCurrency(order.total, order.currencyCode)}</strong>
               <div className="flex items-center gap-1">
                 <button type="button" aria-label={`Resume ${order.id}`} onClick={() => onAction?.('resume', order.id)} className="grid h-8 w-8 place-items-center rounded-lg border-0 bg-vpos-primary text-white transition hover:bg-vpos-primary-2">
                   <Icon name="play-line" />
@@ -394,6 +368,14 @@ function ActivityError({ message, onRetry }: { message: string; onRetry: () => v
       <Button variant="secondary" onClick={onRetry}>Try again</Button>
     </div>
   )
+}
+
+function formatAgeMinutes(minutes: number): string {
+  if (minutes < 1) return 'Just now'
+  if (minutes < 60) return `${minutes} min`
+  const hours = Math.floor(minutes / 60)
+  if (hours < 24) return `${hours} hr`
+  return `${Math.floor(hours / 24)} day`
 }
 
 function toRecentOrder(order: PosOrder, customerNames?: ReadonlyMap<number, string>): RecentOrder {

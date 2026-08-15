@@ -14,7 +14,7 @@ import {
   DiscountModal,
   type LineDiscount,
 } from '../components/pos/DiscountModal'
-import { PosActivityModal } from '../components/pos/PosActivityModal'
+import { PosActivityModal, type HeldOrder } from '../components/pos/PosActivityModal'
 import { PosQrPaymentModal } from '../components/pos/PosQrPaymentModal'
 import { ShortcutsModal } from '../components/pos/ShortcutsModal'
 import { QuickCustomerModal } from '../components/customers/QuickCustomerModal'
@@ -27,6 +27,7 @@ import type { CreatePosOrderInput } from '../features/orders/types'
 import { useCreateCashPayment, useCreatePosQrCheckout, usePaymentStatus } from '../features/payments/usePayments'
 import type { QrPaymentResponse } from '../features/payments/types'
 import { useProductsList } from '../features/products/useProducts'
+import { readHeldSales, writeHeldSales, type HeldSale } from '../features/pos/heldSales'
 import { useAdminStore } from '../hooks/useAdminStore'
 import { resolveImageUrl } from '../lib/api'
 import { cn } from '../lib/cn'
@@ -99,6 +100,7 @@ export function PosPage() {
   const [customerId, setCustomerId] = useState('0')
   const [quickCustomerOpen, setQuickCustomerOpen] = useState(false)
   const [cart, setCart] = useState<Record<string, CartEntry>>({})
+  const [heldSales, setHeldSales] = useState<HeldSale[]>(() => readHeldSales(storeId))
   const [discountTargetId, setDiscountTargetId] = useState<string | null>(null)
   const [shortcutsOpen, setShortcutsOpen] = useState(false)
   const [activityMode, setActivityMode] = useState<'hold' | 'recent' | null>(null)
@@ -111,15 +113,42 @@ export function PosPage() {
   const rootRef = useRef<HTMLDivElement>(null)
 
   const handleActivityAction = useCallback((action: 'resume' | 'discard' | 'receipt' | 'reorder', id: string) => {
+    if (action === 'resume' || action === 'discard') {
+      const heldSale = heldSales.find((sale) => sale.id === id)
+      if (!heldSale) {
+        toast(`Held sale ${id} is no longer available.`, 'warning')
+        return
+      }
+
+      const nextHeldSales = heldSales.filter((sale) => sale.id !== id)
+      setHeldSales(nextHeldSales)
+      writeHeldSales(storeId, nextHeldSales)
+
+      if (action === 'resume') {
+        const restoredCart = Object.fromEntries(
+          Object.entries(heldSale.cart).map(([productId, entry]) => [productId, {
+            qty: entry.qty,
+            discount: entry.discount ? { ...entry.discount } : null,
+          }]),
+        ) as Record<string, CartEntry>
+        setCart(restoredCart)
+        setCustomerId(heldSale.customerId || '0')
+        setDiscountTargetId(null)
+        setActivityMode(null)
+        toast(`${id} resumed in the current checkout.`, 'success')
+      } else {
+        toast(`${id} discarded.`, 'warning')
+      }
+      return
+    }
+
     const messages = {
-      resume: `${id} is ready to resume. Live hold storage will replace this demo action.`,
-      discard: `${id} was marked for removal in the demo list.`,
       receipt: `Receipt preview for ${id} will be connected to the order service later.`,
       reorder: `Reorder for ${id} will be connected to the order service later.`,
     } as const
-    toast(messages[action], action === 'discard' ? 'warning' : 'info')
-    if (action === 'resume' || action === 'receipt' || action === 'reorder') setActivityMode(null)
-  }, [toast])
+    toast(messages[action], 'info')
+    setActivityMode(null)
+  }, [heldSales, storeId, toast])
 
   const products = useMemo<PosProduct[]>(() => {
     return (productsQuery.data ?? []).flatMap((product) => {
@@ -214,6 +243,24 @@ export function PosPage() {
     [customersQuery.data],
   )
 
+  const heldOrders = useMemo<HeldOrder[]>(() => heldSales.map((sale) => {
+    const customerNumber = Number(sale.customerId)
+    const age = formatHeldAge(sale.createdAt)
+    return {
+      id: sale.id,
+      customer: customerNumber > 0
+        ? customerNames.get(customerNumber) ?? `Customer #${customerNumber}`
+        : 'Walk-in customer',
+      items: sale.items || `${sale.itemCount} ${sale.itemCount === 1 ? 'item' : 'items'}`,
+      itemCount: sale.itemCount,
+      total: sale.total,
+      currencyCode: sale.currencyCode,
+      age: age.label,
+      ageMinutes: age.minutes,
+      note: sale.note,
+    }
+  }), [customerNames, heldSales])
+
   const canCreateCustomer = user?.permissions?.includes('x-customer:create') ?? false
   const businessId = Number(user?.business.id)
 
@@ -230,6 +277,7 @@ export function PosPage() {
 
   useEffect(() => {
     setCart({})
+    setHeldSales(readHeldSales(storeId))
     setCategoryId('all')
   }, [storeId])
 
@@ -392,6 +440,44 @@ export function PosPage() {
     : 0
   const taxVat = Math.round((subTotal * taxRate / 100) * 100) / 100
   const total = Math.round((subTotal + taxVat) * 100) / 100
+
+  const handleHoldSale = useCallback(() => {
+    const selectedStoreId = Number(storeId)
+    if (!selectedStoreId) {
+      toast('Select a store before holding this sale.', 'warning')
+      return
+    }
+    if (lines.length === 0) {
+      toast('Add at least one product before holding the sale.', 'warning')
+      return
+    }
+
+    const heldCart = Object.fromEntries(
+      lines.map((line) => [line.product.id, {
+        qty: line.qty,
+        discount: line.discount ? { ...line.discount } : null,
+      }]),
+    )
+    const heldSale: HeldSale = {
+      id: `HOLD-${Date.now()}`,
+      customerId,
+      cart: heldCart,
+      items: lines.map((line) => `${line.product.name} ×${line.qty}`).join(', '),
+      itemCount,
+      total,
+      currencyCode,
+      createdAt: new Date().toISOString(),
+      note: 'Paused from this register',
+    }
+    const nextHeldSales = [heldSale, ...heldSales]
+    setHeldSales(nextHeldSales)
+    writeHeldSales(storeId, nextHeldSales)
+    setCart({})
+    setCustomerId('0')
+    setDiscountTargetId(null)
+    setActivityMode('hold')
+    toast(`${heldSale.id} saved.`, 'success')
+  }, [currencyCode, customerId, heldSales, itemCount, lines, storeId, toast, total])
 
   const handlePayNow = useCallback(async () => {
     const businessId = Number(user?.business.id)
@@ -1115,7 +1201,12 @@ export function PosPage() {
               </div>
 
               <div className="grid grid-cols-[1fr_1.6fr] gap-2">
-                <Button variant="secondary" className="h-12 min-h-12 font-extrabold">
+                <Button
+                  variant="secondary"
+                  className="h-12 min-h-12 font-extrabold"
+                  disabled={lines.length === 0 || checkoutPending}
+                  onClick={handleHoldSale}
+                >
                   <Icon name="pause-circle-line" /> HOLD
                 </Button>
                 <Button
@@ -1166,6 +1257,7 @@ export function PosPage() {
         onClose={() => setActivityMode(null)}
         storeId={storeId}
         customerNames={customerNames}
+        heldOrders={heldOrders}
         onAction={handleActivityAction}
       />
 
@@ -1183,6 +1275,19 @@ function formatStockLabel(stock: number | undefined): string {
   if (stock === undefined) return 'Checking stock…'
   if (stock <= 0) return 'Out of stock'
   return `${stock} left`
+}
+
+function formatHeldAge(createdAt: string): { label: string; minutes: number } {
+  const createdTime = new Date(createdAt).getTime()
+  if (Number.isNaN(createdTime)) return { label: 'Time unavailable', minutes: 0 }
+
+  const minutes = Math.max(0, Math.floor((Date.now() - createdTime) / 60000))
+  if (minutes < 1) return { label: 'Just now', minutes }
+  if (minutes < 60) return { label: `${minutes} min ago`, minutes }
+
+  const hours = Math.floor(minutes / 60)
+  if (hours < 24) return { label: `${hours} hr ago`, minutes }
+  return { label: `${Math.floor(hours / 24)} day ago`, minutes }
 }
 
 function IconBtn({
