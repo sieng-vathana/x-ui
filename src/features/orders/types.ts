@@ -41,6 +41,7 @@ export interface PosOrder {
   customerId: number
   cashierId: number
   orderChannel?: string
+  paymentMethod?: string | null
   orderStatus: string
   paymentStatus: string
   currencyCode: string

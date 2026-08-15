@@ -10,7 +10,7 @@ import { cn } from '../../lib/cn'
 
 type ActivityMode = 'hold' | 'recent'
 type RecentOrderStatus = 'Completed' | 'Pending' | 'Cancelled'
-type RecentOrderFilter = 'All' | RecentOrderStatus
+type RecentOrderFilter = 'All' | 'Cash' | 'QR' | 'Card'
 
 interface HeldOrder {
   id: string
@@ -29,6 +29,7 @@ interface RecentOrder {
   total: number
   currencyCode: string
   channel: string
+  method: string
   status: RecentOrderStatus
   time: string
 }
@@ -98,8 +99,8 @@ export function PosActivityModal({ mode, onClose, storeId, customerNames, onActi
   const filteredRecentOrders = useMemo(() => {
     const normalized = query.trim().toLowerCase()
     return recentOrders.filter((order) => {
-      const matchesFilter = recentFilter === 'All' || order.status === recentFilter
-      const matchesQuery = !normalized || [order.id, order.customer, order.items, order.channel, order.status]
+      const matchesFilter = recentFilter === 'All' || order.method === recentFilter
+      const matchesQuery = !normalized || [order.id, order.customer, order.items, order.channel, order.method, order.status]
         .some((value) => value.toLowerCase().includes(normalized))
       return matchesFilter && matchesQuery
     })
@@ -273,7 +274,7 @@ function RecentOrdersView({
 
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div className="flex flex-wrap items-center gap-1.5">
-          {(['All', 'Completed', 'Pending', 'Cancelled'] as const).map((option) => (
+          {(['All', 'Cash', 'QR', 'Card'] as const).map((option) => (
             <Chip key={option} selected={filter === option} onClick={() => onFilterChange(option)}>
               {option}
             </Chip>
@@ -284,7 +285,7 @@ function RecentOrdersView({
 
       <div className="overflow-hidden rounded-[14px] border border-vpos-line bg-white">
         <div className="hidden grid-cols-[1fr_120px_125px_105px_86px] gap-4 border-b border-vpos-line bg-vpos-subtle px-4 py-3 text-[11px] font-extrabold tracking-wide text-vpos-muted uppercase md:grid">
-          <span>Order</span><span>Channel</span><span>Status</span><span>Total</span><span />
+          <span>Order</span><span>Payment</span><span>Status</span><span>Total</span><span />
         </div>
         {isLoading ? <ActivityEmpty icon="loader-4-line" label="Loading recent orders..." /> : error ? <ActivityError message={error} onRetry={onRetry} /> : orders.length === 0 ? <ActivityEmpty label="No recent orders match your filters." /> : orders.map((order, index) => (
           <div
@@ -303,7 +304,7 @@ function RecentOrdersView({
                 <span className="mt-1 block truncate text-[12px] text-vpos-muted">{order.customer} · {order.items} · {order.time}</span>
               </div>
             </div>
-            <span className="text-[13px] text-vpos-muted"><Icon name="store-2-line" className="mr-1 align-[-1px]" />{order.channel}</span>
+            <span className="text-[13px] text-vpos-muted"><Icon name={paymentIcon(order.method)} className="mr-1 align-[-1px]" />{order.method}</span>
             <span className={cn(
               'w-fit rounded-full px-2.5 py-1 text-[11px] font-extrabold',
               order.status === 'Completed'
@@ -409,6 +410,7 @@ function toRecentOrder(order: PosOrder, customerNames?: ReadonlyMap<number, stri
     total: Number(order.grandTotal ?? 0),
     currencyCode: (order.currencyCode || 'USD').toUpperCase(),
     channel: formatOrderChannel(order.orderChannel),
+    method: formatPaymentMethod(order.paymentMethod),
     status: formatOrderStatus(order),
     time: formatOrderTime(order.createdAt),
   }
@@ -437,6 +439,24 @@ function formatOrderChannel(channel?: string): string {
     .replace(/_/g, ' ')
     .toLowerCase()
     .replace(/\b\w/g, (letter) => letter.toUpperCase())
+}
+
+function formatPaymentMethod(method?: string | null): string {
+  const normalized = String(method ?? '').trim().toUpperCase()
+  if (!normalized) return '—'
+  if (normalized === 'CASH') return 'Cash'
+  if (normalized === 'QR') return 'QR'
+  if (normalized === 'CARD') return 'Card'
+  return normalized
+    .replace(/_/g, ' ')
+    .toLowerCase()
+    .replace(/\b\w/g, (letter) => letter.toUpperCase())
+}
+
+function paymentIcon(method: string): string {
+  if (method === 'Cash') return 'money-dollar-circle-line'
+  if (method === 'QR') return 'qr-code-line'
+  return 'wallet-3-line'
 }
 
 function formatOrderTime(createdAt?: string): string {
