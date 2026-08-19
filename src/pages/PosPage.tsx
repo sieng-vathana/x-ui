@@ -80,7 +80,7 @@ type PaymentMethod = 'qr' | 'cash'
 type ViewMode = 'grid' | 'list'
 type SortMode = 'name-asc' | 'name-desc' | 'price-asc' | 'price-desc'
 
-const SIMULATED_QR_CALLBACK_DELAY_MS = 2500
+const SIMULATED_QR_CALLBACK_DELAY_MS = 2000
 
 function isTypingTarget(el: EventTarget | null): boolean {
   if (!(el instanceof HTMLElement)) return false
@@ -118,6 +118,7 @@ export function PosPage() {
   const [shortcutsOpen, setShortcutsOpen] = useState(false)
   const [activityMode, setActivityMode] = useState<'hold' | 'recent' | null>(null)
   const [qrCheckout, setQrCheckout] = useState<{ orderNo: string; response: QrPaymentResponse } | null>(null)
+  const closeQrCheckout = useCallback(() => setQrCheckout(null), [])
   const [isFullscreen, setIsFullscreen] = useState(false)
   const [mobileOrderOpen, setMobileOrderOpen] = useState(false)
   const createHeldSaleMutation = useCreateHeldSale()
@@ -1367,7 +1368,7 @@ export function PosPage() {
         key={liveQrCheckout?.response.transactionId ?? 'no-qr-checkout'}
         checkout={liveQrCheckout?.response ?? null}
         orderNo={liveQrCheckout?.orderNo}
-        onClose={() => setQrCheckout(null)}
+        onClose={closeQrCheckout}
       />
     </div>
   )

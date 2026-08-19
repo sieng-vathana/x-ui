@@ -1,4 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { ApiError } from '../../lib/api'
 import { paymentApi } from './paymentApi'
 
 export function useCreateCashPayment() {
@@ -22,6 +23,13 @@ export function useSimulatePaymentCallback() {
 
   return useMutation({
     mutationFn: paymentApi.simulateCallback,
+    retry: (failureCount, error) => (
+      failureCount < 3
+      && error instanceof ApiError
+      && error.status === 409
+      && error.message.toLowerCase().includes('not ready')
+    ),
+    retryDelay: 200,
     onSuccess: (payment) => {
       queryClient.setQueryData(['payment', payment.id], payment)
     },
