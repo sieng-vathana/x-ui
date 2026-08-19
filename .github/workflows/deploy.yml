@@ -64,7 +64,7 @@ jobs:
 
   deploy:
     needs: build-image
-    runs-on: [self-hosted, linux, x64, x-platform-deploy]
+    runs-on: [self-hosted, linux, x64, x-platform-deploy-new]
     steps:
       - uses: actions/checkout@v4
       - name: Deploy to K3s
