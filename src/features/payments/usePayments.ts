@@ -1,4 +1,4 @@
-import { useMutation, useQuery } from '@tanstack/react-query'
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { paymentApi } from './paymentApi'
 
 export function useCreateCashPayment() {
@@ -11,6 +11,21 @@ export function useCreateQrPayment() {
 
 export function useCreatePosQrCheckout() {
   return useMutation({ mutationFn: paymentApi.createPosQr })
+}
+
+export function useCreateSimulatedPosQrCheckout() {
+  return useMutation({ mutationFn: paymentApi.createSimulatedPosQr })
+}
+
+export function useSimulatePaymentCallback() {
+  const queryClient = useQueryClient()
+
+  return useMutation({
+    mutationFn: paymentApi.simulateCallback,
+    onSuccess: (payment) => {
+      queryClient.setQueryData(['payment', payment.id], payment)
+    },
+  })
 }
 
 export function usePaymentsForOrder(orderId?: number) {

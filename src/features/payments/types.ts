@@ -1,5 +1,5 @@
 export type PaymentMethod = 'CASH' | 'QR'
-export type PaymentProvider = 'NONE' | 'ABA' | 'ACLEDA' | 'BAKONG' | 'KHQRPAY' | 'OTHER'
+export type PaymentProvider = 'NONE' | 'ABA' | 'ACLEDA' | 'BAKONG' | 'KHQRPAY' | 'SIMULATED' | 'OTHER'
 export type PaymentStatus = 'PENDING' | 'PAID' | 'FAILED' | 'CANCELLED' | 'PARTIALLY_REFUNDED' | 'REFUNDED'
 
 export interface Payment {

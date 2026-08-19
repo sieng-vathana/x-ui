@@ -49,6 +49,25 @@ export const paymentApi = {
     )
   },
 
+  async createSimulatedPosQr(input: CreatePosQrCheckoutInput): Promise<PosQrCheckoutResponse> {
+    return requireData(
+      await api.request<ApiEnvelope<PosQrCheckoutResponse>>('/payments/pos-qr-demo', {
+        method: 'POST',
+        body: JSON.stringify(input),
+      }),
+      'The simulated POS QR checkout could not be created.',
+    )
+  },
+
+  async simulateCallback(id: number): Promise<Payment> {
+    return requireData(
+      await api.request<ApiEnvelope<Payment>>(`/payments/${encodeURIComponent(id)}/simulate-callback`, {
+        method: 'POST',
+      }),
+      'The simulated QR payment could not be verified.',
+    )
+  },
+
   async listForOrder(orderId: number): Promise<Payment[]> {
     return requireData(
       await api.request<ApiEnvelope<Payment[]>>(

@@ -31,7 +31,12 @@ import {
   useResumeHeldSale,
 } from '../features/orders/useOrders'
 import type { CreateHeldSaleInput, CreatePosOrderInput, PosOrder } from '../features/orders/types'
-import { useCreateCashPayment, useCreatePosQrCheckout, usePaymentStatus } from '../features/payments/usePayments'
+import {
+  useCreateCashPayment,
+  useCreateSimulatedPosQrCheckout,
+  usePaymentStatus,
+  useSimulatePaymentCallback,
+} from '../features/payments/usePayments'
 import type { QrPaymentResponse } from '../features/payments/types'
 import { useProductsList } from '../features/products/useProducts'
 import { useAdminStore } from '../hooks/useAdminStore'
@@ -75,6 +80,8 @@ type PaymentMethod = 'qr' | 'cash'
 type ViewMode = 'grid' | 'list'
 type SortMode = 'name-asc' | 'name-desc' | 'price-asc' | 'price-desc'
 
+const SIMULATED_QR_CALLBACK_DELAY_MS = 2500
+
 function isTypingTarget(el: EventTarget | null): boolean {
   if (!(el instanceof HTMLElement)) return false
   const tag = el.tagName
@@ -96,7 +103,8 @@ export function PosPage() {
   const createCustomerMutation = useCreateCustomer()
   const createOrderMutation = useCreatePosOrder()
   const createCashPaymentMutation = useCreateCashPayment()
-  const createPosQrCheckoutMutation = useCreatePosQrCheckout()
+  const createPosQrCheckoutMutation = useCreateSimulatedPosQrCheckout()
+  const simulatePaymentCallbackMutation = useSimulatePaymentCallback()
   const completeOrderMutation = useCompleteOrder()
   const [query, setQuery] = useState('')
   const [categoryId, setCategoryId] = useState('all')
@@ -577,10 +585,16 @@ export function PosPage() {
           paymentNote: items,
         })
         if (!checkout.payment.qrImageDataUrl?.startsWith('data:image/')) {
-          throw new Error('KHQRPay did not return a valid QR image.')
+          throw new Error('The simulated payment service did not return a valid QR image.')
         }
         setQrCheckout({ orderNo: checkout.order.orderNo, response: checkout.payment })
-        toast(`KHQR payment QR is ready for ${checkout.order.orderNo}.`, 'info')
+        toast(`Simulated QR payment is ready for ${checkout.order.orderNo}.`, 'info')
+        window.setTimeout(() => {
+          void simulatePaymentCallbackMutation.mutateAsync(checkout.payment.payment.id)
+            .catch((error) => {
+              toast(error instanceof Error ? error.message : 'The simulated QR payment could not be verified.', 'error')
+            })
+        }, SIMULATED_QR_CALLBACK_DELAY_MS)
       }
       setMobileOrderOpen(false)
       setCart({})
@@ -588,7 +602,7 @@ export function PosPage() {
     } catch (error) {
       toast(error instanceof Error ? error.message : 'Checkout could not be completed.', 'error')
     }
-  }, [completeOrderMutation, createCashPaymentMutation, createOrderMutation, createPosQrCheckoutMutation, currencyCode, customerId, lines, payment, storeId, taxRate, toast, user])
+  }, [completeOrderMutation, createCashPaymentMutation, createOrderMutation, createPosQrCheckoutMutation, currencyCode, customerId, lines, payment, simulatePaymentCallbackMutation, storeId, taxRate, toast, user])
 
   const checkoutPending = createOrderMutation.isPending
     || createCashPaymentMutation.isPending

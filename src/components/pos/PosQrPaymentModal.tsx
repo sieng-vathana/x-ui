@@ -18,6 +18,8 @@ export function PosQrPaymentModal({ checkout, orderNo, onClose }: PosQrPaymentMo
   const [qrImageFailed, setQrImageFailed] = useState(false)
   const isPaid = checkout?.payment.status === 'PAID'
   const isFailed = checkout?.payment.status === 'FAILED' || checkout?.payment.status === 'CANCELLED'
+  const isSimulated = checkout?.payment.provider === 'SIMULATED'
+  const paymentTitle = isSimulated ? 'Simulated QR payment' : 'KHQR payment'
 
   const copyQrData = async () => {
     if (!checkout?.qrPayload) return
@@ -30,8 +32,10 @@ export function PosQrPaymentModal({ checkout, orderNo, onClose }: PosQrPaymentMo
       open={Boolean(checkout)}
       onClose={onClose}
       size="md"
-      title={orderNo ? `KHQR payment · ${orderNo}` : 'KHQR payment'}
-      description="Ask the customer to scan this code with a Cambodian banking app."
+      title={orderNo ? `${paymentTitle} · ${orderNo}` : paymentTitle}
+      description={isSimulated
+        ? 'This is a local QR simulation. It will be verified automatically.'
+        : 'Ask the customer to scan this code with a Cambodian banking app.'}
       panelClassName="max-h-[calc(100dvh-2rem)] max-w-[500px]"
       bodyClassName="[@media(min-height:800px)]:!max-h-none [@media(min-height:800px)]:!overflow-y-visible"
       footer={
@@ -53,7 +57,7 @@ export function PosQrPaymentModal({ checkout, orderNo, onClose }: PosQrPaymentMo
               <Icon name="qr-code-line" className="text-[22px]" /> KHQR
             </span>
             <span className="text-[10px] font-extrabold tracking-[0.14em] uppercase">
-              {isPaid ? 'Payment received' : isFailed ? 'Payment failed' : 'Scan to pay'}
+              {isPaid ? 'Payment received' : isFailed ? 'Payment failed' : isSimulated ? 'Simulating payment' : 'Scan to pay'}
             </span>
           </div>
 
@@ -98,14 +102,20 @@ export function PosQrPaymentModal({ checkout, orderNo, onClose }: PosQrPaymentMo
             </div>
 
             <strong className="mt-4 block text-[14px] text-vpos-text">
-              {isPaid ? 'Payment completed' : isFailed ? 'Payment was not completed' : 'Waiting for customer payment'}
+              {isPaid ? 'Payment completed' : isFailed ? 'Payment was not completed' : isSimulated ? 'Verifying simulated payment' : 'Waiting for customer payment'}
             </strong>
             <span className="mt-1 block text-[12px] leading-5 text-vpos-muted">
               {isPaid
-                ? 'KHQRPay confirmed the payment. The POS is completing the order.'
+                ? isSimulated
+                  ? 'The simulated callback confirmed the payment. The POS is completing the order.'
+                  : 'KHQRPay confirmed the payment. The POS is completing the order.'
                 : isFailed
-                  ? 'The provider reported that this payment did not complete.'
-                  : 'Keep this QR visible until the customer finishes in their bank app.'}
+                  ? isSimulated
+                    ? 'The simulated payment could not be verified.'
+                    : 'The provider reported that this payment did not complete.'
+                  : isSimulated
+                    ? 'The payment will be marked successful automatically after a short delay.'
+                    : 'Keep this QR visible until the customer finishes in their bank app.'}
             </span>
             <code
               className="mt-4 block truncate rounded-[4px] bg-vpos-subtle px-3 py-2 font-mono text-[10px] text-vpos-muted"
