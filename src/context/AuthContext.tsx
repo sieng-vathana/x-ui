@@ -13,6 +13,12 @@ import { authApi } from '../features/auth/authApi'
 import type { AuthenticatedUser, RegistrationInput, SignInInput } from '../features/auth/types'
 
 type BusinessBrandInput = { name: string; logoUrl?: string }
+type BusinessSettingsInput = {
+  name?: string
+  defaultCurrencyCode?: string
+  usdToKhrExchangeRate?: number
+  pricesIncludeTax?: boolean
+}
 
 interface AuthContextValue {
   user: AuthenticatedUser | null
@@ -21,6 +27,7 @@ interface AuthContextValue {
   signIn: (input: SignInInput) => Promise<void>
   register: (input: RegistrationInput) => Promise<void>
   updateBusinessBrand: (input: BusinessBrandInput) => Promise<void>
+  updateBusinessSettings: (input: BusinessSettingsInput) => Promise<void>
   signOut: () => Promise<void>
 }
 
@@ -74,6 +81,19 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setUser({ ...user, business })
   }, [user])
 
+  const updateBusinessSettings = useCallback(async (input: BusinessSettingsInput) => {
+    if (!user) return
+    const business = await authApi.updateBusiness({
+      businessId: user.business.id,
+      name: input.name?.trim() || user.business.name,
+      defaultCurrencyCode: input.defaultCurrencyCode,
+      usdToKhrExchangeRate: input.usdToKhrExchangeRate,
+      pricesIncludeTax: input.pricesIncludeTax,
+      logoUrl: user.business.logoUrl,
+    })
+    setUser({ ...user, business })
+  }, [user])
+
   const signOut = useCallback(async () => {
     try {
       await authApi.signOut()
@@ -90,6 +110,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     signIn,
     register,
     updateBusinessBrand,
+    updateBusinessSettings,
     signOut,
   }), [user, isRestoring, signIn, register, updateBusinessBrand, signOut])
 

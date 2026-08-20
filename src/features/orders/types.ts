@@ -17,6 +17,8 @@ export interface CreatePosOrderInput {
   taxRate?: number
   idempotencyKey: string
   items: PosOrderItemInput[]
+  roundingIncrement?: number
+  allowNegativeStock?: boolean
 }
 
 export interface CreateHeldSaleInput {
@@ -29,6 +31,8 @@ export interface CreateHeldSaleInput {
   note?: string
   idempotencyKey: string
   items: PosOrderItemInput[]
+  roundingIncrement?: number
+  allowNegativeStock?: boolean
 }
 
 export interface OrderItem {

@@ -1,6 +1,7 @@
 import { API_BASE_URL, ApiClient } from '../../lib/api'
 import type {
   CreateCashPaymentInput,
+  CreateCardPaymentInput,
   CreatePosQrCheckoutInput,
   CreateQrPaymentInput,
   Payment,
@@ -26,6 +27,16 @@ export const paymentApi = {
         body: JSON.stringify(input),
       }),
       'The cash payment could not be created.',
+    )
+  },
+
+  async createCard(input: CreateCardPaymentInput): Promise<Payment> {
+    return requireData(
+      await api.request<ApiEnvelope<Payment>>('/payments', {
+        method: 'POST',
+        body: JSON.stringify({ ...input, tenderedAmount: input.amount }),
+      }),
+      'The card payment could not be recorded.',
     )
   },
 

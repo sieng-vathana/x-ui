@@ -77,7 +77,7 @@ export function AdminLayout() {
         <button type="button" aria-label="Close navigation" className="fixed inset-0 z-[35] bg-vpos-black/40" onClick={() => sidebar.setMobileOpen(false)} />
       ) : null}
       <div
-        className={cn('min-h-screen overflow-x-hidden transition-[margin,width,padding] duration-200 ease-out', isHorizontal && 'pt-12', sidebar.config.width === 'boxed' && 'mx-auto max-w-[1300px]')}
+        className={cn('min-h-screen overflow-x-clip transition-[margin,width,padding] duration-200 ease-out', isHorizontal && 'pt-12', sidebar.config.width === 'boxed' && 'mx-auto max-w-[1300px]')}
         style={{ marginLeft: contentOffset, width: `calc(100% - ${contentOffset}px)` }}
       >
         <Outlet

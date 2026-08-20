@@ -19,6 +19,8 @@ type BackendBusiness = {
   name: string
   code: string
   defaultCurrencyCode: string
+  usdToKhrExchangeRate?: number
+  pricesIncludeTax?: boolean
   timeZone: string
 }
 type BackendAuthResponse = { user?: BackendUser; business?: BackendBusiness; stores?: BffStore[] }
@@ -37,6 +39,10 @@ function asUser(source: BackendUser, business?: BackendBusiness): AuthenticatedU
         type: business.code,
         phone: '',
         address: business.timeZone,
+        defaultCurrencyCode: business.defaultCurrencyCode || 'USD',
+        usdToKhrExchangeRate: Number(business.usdToKhrExchangeRate ?? 4000),
+        usdToKhrExchangeRateConfigured: business.usdToKhrExchangeRate != null,
+        pricesIncludeTax: business.pricesIncludeTax ?? true,
       }
     : {
         id: 'workspace',
@@ -44,6 +50,10 @@ function asUser(source: BackendUser, business?: BackendBusiness): AuthenticatedU
         type: 'WORKSPACE',
         phone: '',
         address: '',
+        defaultCurrencyCode: 'USD',
+        usdToKhrExchangeRate: 4000,
+        usdToKhrExchangeRateConfigured: false,
+        pricesIncludeTax: true,
       }
   const brand = readStoredValue<BrandCache | null>(BRAND_CACHE_KEY, null)
   const selectedBusiness = brand?.businessId === backendBusiness.id
@@ -115,12 +125,24 @@ export const authApi = {
     return user
   },
 
-  async updateBusiness(input: { businessId: string; name: string; logoUrl?: string }): Promise<BusinessProfile> {
-    const response = await api.request<ApiEnvelope<{ id: number; name: string; code: string; defaultCurrencyCode: string; timeZone: string }>>(
+  async updateBusiness(input: {
+    businessId: string
+    name: string
+    logoUrl?: string
+    defaultCurrencyCode?: string
+    usdToKhrExchangeRate?: number
+    pricesIncludeTax?: boolean
+  }): Promise<BusinessProfile> {
+    const response = await api.request<ApiEnvelope<BackendBusiness & { id: number; name: string; code: string }>>(
       `/businesses/${input.businessId}`,
       {
         method: 'PUT',
-        body: JSON.stringify({ name: input.name }),
+        body: JSON.stringify({
+          name: input.name,
+          ...(input.defaultCurrencyCode ? { defaultCurrencyCode: input.defaultCurrencyCode } : {}),
+          ...(input.usdToKhrExchangeRate !== undefined ? { usdToKhrExchangeRate: input.usdToKhrExchangeRate } : {}),
+          ...(input.pricesIncludeTax !== undefined ? { pricesIncludeTax: input.pricesIncludeTax } : {}),
+        }),
       },
     )
     if (!response.data) throw new Error(response.message || 'Failed to update business.')
@@ -135,6 +157,10 @@ export const authApi = {
       type: response.data.code,
       phone: '',
       address: response.data.timeZone,
+      defaultCurrencyCode: response.data.defaultCurrencyCode || 'USD',
+      usdToKhrExchangeRate: Number(response.data.usdToKhrExchangeRate ?? 4000),
+      usdToKhrExchangeRateConfigured: response.data.usdToKhrExchangeRate != null,
+      pricesIncludeTax: response.data.pricesIncludeTax ?? true,
       logoUrl: input.logoUrl,
     }
   },

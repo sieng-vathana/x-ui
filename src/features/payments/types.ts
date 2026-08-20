@@ -1,4 +1,4 @@
-export type PaymentMethod = 'CASH' | 'QR'
+export type PaymentMethod = 'CASH' | 'QR' | 'CARD'
 export type PaymentProvider = 'NONE' | 'ABA' | 'ACLEDA' | 'BAKONG' | 'KHQRPAY' | 'SIMULATED' | 'OTHER'
 export type PaymentStatus = 'PENDING' | 'PAID' | 'FAILED' | 'CANCELLED' | 'PARTIALLY_REFUNDED' | 'REFUNDED'
 
@@ -32,6 +32,18 @@ export interface CreateCashPaymentInput {
   currencyCode: string
   method: 'CASH'
   provider: 'NONE'
+  idempotencyKey: string
+  note?: string
+}
+
+export interface CreateCardPaymentInput {
+  orderId: number
+  businessId: number
+  storeId: number
+  amount: number
+  currencyCode: string
+  method: 'CARD'
+  provider: 'OTHER'
   idempotencyKey: string
   note?: string
 }

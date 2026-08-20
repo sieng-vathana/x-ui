@@ -6,6 +6,10 @@ export function useCreateCashPayment() {
   return useMutation({ mutationFn: paymentApi.createCash })
 }
 
+export function useCreateCardPayment() {
+  return useMutation({ mutationFn: paymentApi.createCard })
+}
+
 export function useCreateQrPayment() {
   return useMutation({ mutationFn: paymentApi.createQr })
 }

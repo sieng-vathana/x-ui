@@ -28,6 +28,7 @@ type RegistrationForm = {
   businessName: string
   businessCode: string
   defaultCurrencyCode: string
+  usdToKhrExchangeRate: string
   timeZone: string
   storeName: string
   storeCode: string
@@ -48,6 +49,7 @@ const initialForm: RegistrationForm = {
   businessName: '',
   businessCode: '',
   defaultCurrencyCode: 'USD',
+  usdToKhrExchangeRate: '4000',
   timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone || 'Asia/Phnom_Penh',
   storeName: '',
   storeCode: 'MAIN',
@@ -145,6 +147,7 @@ export function BusinessRegistrationPage() {
         businessName: form.businessName,
         businessCode: form.businessCode,
         defaultCurrencyCode: form.defaultCurrencyCode,
+        usdToKhrExchangeRate: Number(form.usdToKhrExchangeRate),
         pricesIncludeTax: true,
         timeZone: form.timeZone,
         fiscalYearStartMonth: 1,
@@ -256,6 +259,16 @@ function BusinessStep({ form, updateField }: StepProps) {
             { value: 'KHR', label: 'KHR — Cambodian Riel' },
           ]}
         />
+        <Field
+          label="USD to KHR exchange rate"
+          type="number"
+          min="0.000001"
+          step="0.000001"
+          value={form.usdToKhrExchangeRate}
+          onChange={(value) => updateField('usdToKhrExchangeRate', value)}
+          required
+        />
+        <p className="auth-field-hint sm:col-span-2">How many riel equal USD 1. Example: 1 USD = 4,000 KHR. This is used when the POS changes currency.</p>
         <Field label="Time zone" value={form.timeZone} onChange={(value) => updateField('timeZone', value)} required />
       </div>
     </section>
@@ -296,6 +309,7 @@ function validateStep(form: RegistrationForm, step: number) {
     if (form.password !== form.confirmPassword) return 'Passwords do not match.'
   }
   if (step === 1 && (!form.businessName.trim() || !form.businessCode.trim() || !form.timeZone.trim())) return 'Complete the required business fields to continue.'
+  if (step === 1 && (!Number.isFinite(Number(form.usdToKhrExchangeRate)) || Number(form.usdToKhrExchangeRate) <= 0)) return 'Enter a positive USD to KHR exchange rate.'
   if (step === 2) {
     if (!form.storeName.trim() || !form.storeCode.trim() || !form.storeAddressLine1.trim() || !form.storeCity.trim() || !form.storeCountryCode.trim()) return 'Complete the required store details to create your workspace.'
     if (!Number.isFinite(Number(form.storeLatitude)) || !Number.isFinite(Number(form.storeLongitude))) return 'Choose your store location on the map or enter valid coordinates.'

@@ -33,16 +33,18 @@ import {
 import type { CreateHeldSaleInput, CreatePosOrderInput, PosOrder } from '../features/orders/types'
 import {
   useCreateCashPayment,
+  useCreateCardPayment,
   useCreateSimulatedPosQrCheckout,
   usePaymentStatus,
   useSimulatePaymentCallback,
 } from '../features/payments/usePayments'
 import type { QrPaymentResponse } from '../features/payments/types'
 import { useProductsList } from '../features/products/useProducts'
+import { usePosSettings, type PosPaymentMethod } from '../features/pos/posSettings'
 import { useAdminStore } from '../hooks/useAdminStore'
 import { resolveImageUrl } from '../lib/api'
 import { cn } from '../lib/cn'
-import { formatCurrency, formatKhr } from '../lib/currency'
+import { canConvertCurrency, convertCurrency, formatCurrency, formatKhr } from '../lib/currency'
 import { paths } from '../lib/paths'
 import { card, pageContent, searchField } from '../lib/ui'
 
@@ -54,6 +56,8 @@ type PosProduct = {
   variant: string
   price: number
   oldPrice?: number
+  sku?: string
+  barcode?: string
   image?: string
   categoryId: string
   categoryName: string
@@ -76,7 +80,7 @@ type CartLine = {
   qty: number
   discount?: LineDiscount | null
 }
-type PaymentMethod = 'qr' | 'cash'
+type PaymentMethod = PosPaymentMethod
 type ViewMode = 'grid' | 'list'
 type SortMode = 'name-asc' | 'name-desc' | 'price-asc' | 'price-desc'
 
@@ -98,19 +102,25 @@ export function PosPage() {
   const { storeId, setStoreId } = useAdminStore()
   const { user } = useAuth()
   const { toast } = useToast()
+  const businessId = Number(user?.business.id)
+  const { settings, updateSettings } = usePosSettings(user?.business.id)
+  const businessCurrency = (user?.business.defaultCurrencyCode || 'USD').toUpperCase()
+  const currencyCode = settings.defaultCurrencyCode === 'BUSINESS' ? businessCurrency : settings.defaultCurrencyCode
+  const usdToKhrRate = Number(user?.business.usdToKhrExchangeRate || 4000)
   const productsQuery = useProductsList(storeId)
   const customersQuery = useCustomers()
   const createCustomerMutation = useCreateCustomer()
   const createOrderMutation = useCreatePosOrder()
   const createCashPaymentMutation = useCreateCashPayment()
+  const createCardPaymentMutation = useCreateCardPayment()
   const createPosQrCheckoutMutation = useCreateSimulatedPosQrCheckout()
   const simulatePaymentCallbackMutation = useSimulatePaymentCallback()
   const completeOrderMutation = useCompleteOrder()
   const [query, setQuery] = useState('')
   const [categoryId, setCategoryId] = useState('all')
-  const [view, setView] = useState<ViewMode>('grid')
+  const [view, setView] = useState<ViewMode>(() => settings.menuView)
   const [sort, setSort] = useState<SortMode>('name-asc')
-  const [payment, setPayment] = useState<PaymentMethod>('qr')
+  const [payment, setPayment] = useState<PaymentMethod>(() => settings.defaultPaymentMethod)
   const [customerId, setCustomerId] = useState('0')
   const [quickCustomerOpen, setQuickCustomerOpen] = useState(false)
   const [cart, setCart] = useState<Record<string, CartEntry>>({})
@@ -130,6 +140,7 @@ export function PosPage() {
   const catRef = useRef<HTMLDivElement>(null)
   const searchRef = useRef<HTMLInputElement>(null)
   const rootRef = useRef<HTMLDivElement>(null)
+  const defaultStoreAppliedRef = useRef(false)
 
   const handleActivityAction = useCallback((action: 'resume' | 'discard' | 'receipt' | 'reorder', id: string) => {
     if (action === 'resume' || action === 'discard') {
@@ -181,19 +192,29 @@ export function PosPage() {
           variantId: variant.id,
           name: product.productName,
           variant: variant.variantName || variant.sku || 'Default',
-          price: Number(variant.posPrice),
-          oldPrice: variant.compareAtPrice,
-          image: resolveImageUrl(variant.image),
+           price: canConvertCurrency((product.currencyCode || 'USD').toUpperCase(), currencyCode)
+             ? convertCurrency(Number(variant.posPrice), (product.currencyCode || 'USD').toUpperCase(), currencyCode, usdToKhrRate)
+             : Number(variant.posPrice),
+           oldPrice: variant.compareAtPrice == null
+             ? undefined
+             : canConvertCurrency((product.currencyCode || 'USD').toUpperCase(), currencyCode)
+               ? convertCurrency(Number(variant.compareAtPrice), (product.currencyCode || 'USD').toUpperCase(), currencyCode, usdToKhrRate)
+               : Number(variant.compareAtPrice),
+           image: resolveImageUrl(variant.image),
+           sku: variant.sku,
+           barcode: variant.barcode,
           categoryId,
           categoryName,
           badge: product.isFeatured ? 'Featured' : undefined,
-          currencyCode: (product.currencyCode || 'USD').toUpperCase(),
+           currencyCode: canConvertCurrency((product.currencyCode || 'USD').toUpperCase(), currencyCode)
+             ? currencyCode
+             : (product.currencyCode || 'USD').toUpperCase(),
           taxRate: Number(product.tax?.percentage ?? 0),
           catalogQuantity: variant.quantity == null ? undefined : Math.max(0, Number(variant.quantity)),
         }]
       })
     })
-  }, [productsQuery.data])
+  }, [currencyCode, productsQuery.data, usdToKhrRate])
 
   const stockByVariant = useMemo(() => {
     const stock = new Map<number, number | undefined>()
@@ -202,6 +223,14 @@ export function PosPage() {
     })
     return stock
   }, [products])
+
+  const enabledPaymentMethods = useMemo<PaymentMethod[]>(() => [
+    settings.qrEnabled ? 'qr' : null,
+    settings.cashEnabled ? 'cash' : null,
+    settings.cardEnabled ? 'card' : null,
+  ].filter(Boolean) as PaymentMethod[], [settings.cardEnabled, settings.cashEnabled, settings.qrEnabled])
+
+  const isPaymentEnabled = (method: PaymentMethod) => enabledPaymentMethods.includes(method)
 
   const categories = useMemo<PosCategory[]>(() => {
     const grouped = new Map<string, PosCategory>()
@@ -284,7 +313,6 @@ export function PosPage() {
   }), [customerNames, heldOrdersQuery.data?.content])
 
   const canCreateCustomer = user?.permissions?.includes('x-customer:create') ?? false
-  const businessId = Number(user?.business.id)
 
   const handleQuickCustomerSave = useCallback(async (payload: CustomerPayload) => {
     try {
@@ -301,6 +329,25 @@ export function PosPage() {
     setCart({})
     setCategoryId('all')
   }, [storeId])
+
+  useEffect(() => {
+    setView(settings.menuView)
+  }, [settings.menuView])
+
+  useEffect(() => {
+    if (defaultStoreAppliedRef.current) return
+    defaultStoreAppliedRef.current = true
+    if (settings.defaultStoreId && settings.defaultStoreId !== storeId) setStoreId(settings.defaultStoreId)
+  }, [setStoreId, settings.defaultStoreId, storeId])
+
+  useEffect(() => {
+    if (isPaymentEnabled(payment)) return
+    setPayment(enabledPaymentMethods[0] ?? 'cash')
+  }, [enabledPaymentMethods, payment])
+
+  useEffect(() => {
+    if (settings.autoFocusSearch) searchRef.current?.focus()
+  }, [settings.autoFocusSearch])
 
   const toggleFullscreen = useCallback(async () => {
     try {
@@ -362,12 +409,12 @@ export function PosPage() {
       if (e.altKey && !e.ctrlKey && !e.metaKey) {
         if (key === 'q') {
           e.preventDefault()
-          setPayment('qr')
+          if (isPaymentEnabled('qr')) setPayment('qr')
           return
         }
         if (key === 'c') {
           e.preventDefault()
-          setPayment('cash')
+          if (isPaymentEnabled('cash')) setPayment('cash')
           return
         }
         if (key === 'r') {
@@ -421,10 +468,13 @@ export function PosPage() {
   const filtered = useMemo(() => {
     let list = products.filter((p) => {
       if (categoryId !== 'all' && p.categoryId !== categoryId) return false
+      if (!settings.showOutOfStock && stockByVariant.get(p.variantId) === 0) return false
       if (!query.trim()) return true
       const q = query.toLowerCase()
       return (
-        p.name.toLowerCase().includes(q) || p.variant.toLowerCase().includes(q)
+        p.name.toLowerCase().includes(q)
+        || p.variant.toLowerCase().includes(q)
+        || (settings.searchIdentifiers && (p.sku?.toLowerCase().includes(q) || p.barcode?.toLowerCase().includes(q)))
       )
     })
     list = [...list].sort((a, b) => {
@@ -440,7 +490,7 @@ export function PosPage() {
       }
     })
     return list
-  }, [categoryId, products, query, sort])
+  }, [categoryId, products, query, settings.searchIdentifiers, settings.showOutOfStock, sort, stockByVariant])
 
   const lines: CartLine[] = useMemo(() => {
     return Object.entries(cart)
@@ -469,12 +519,13 @@ export function PosPage() {
   )
   const subTotal =
     Math.round((grossSubTotal - totalDiscount) * 100) / 100
-  const currencyCode = lines[0]?.product.currencyCode ?? 'USD'
   const taxRate = lines.length > 0 && lines.every((line) => line.product.taxRate === lines[0].product.taxRate)
-    ? lines[0].product.taxRate
+    ? settings.taxEnabled ? lines[0].product.taxRate : 0
     : 0
   const taxVat = Math.round((subTotal * taxRate / 100) * 100) / 100
-  const total = Math.round((subTotal + taxVat) * 100) / 100
+  const rawTotal = Math.round((subTotal + taxVat) * 100) / 100
+  const total = roundPosTotal(rawTotal, settings.roundingIncrement)
+  const roundingAdjustment = Math.round((total - rawTotal) * 100) / 100
 
   const handleHoldSale = useCallback(async () => {
     const selectedBusinessId = Number(user?.business.id)
@@ -496,6 +547,8 @@ export function PosPage() {
       cashierId,
       currencyCode,
       taxRate,
+      roundingIncrement: settings.roundingIncrement,
+      allowNegativeStock: settings.allowNegativeStock,
       note: 'Paused from this register',
       idempotencyKey: `HOLD-${Date.now()}-${crypto.randomUUID?.() ?? Math.random().toString(36).slice(2)}`,
       items: lines.map((line) => ({
@@ -522,7 +575,7 @@ export function PosPage() {
     } catch (error) {
       toast(error instanceof Error ? error.message : 'The sale could not be held.', 'error')
     }
-  }, [createHeldSaleMutation, currencyCode, customerId, lines, storeId, taxRate, toast, user])
+  }, [createHeldSaleMutation, currencyCode, customerId, lines, settings.allowNegativeStock, settings.roundingIncrement, storeId, taxRate, toast, user])
 
   const handlePayNow = useCallback(async () => {
     const businessId = Number(user?.business.id)
@@ -536,6 +589,14 @@ export function PosPage() {
       toast('Add at least one product before taking payment.', 'warning')
       return
     }
+    if (settings.requireCustomer && Number(customerId) <= 0) {
+      toast('Select a customer before taking payment.', 'warning')
+      return
+    }
+    if (!isPaymentEnabled(payment)) {
+      toast('That payment method is disabled in POS settings.', 'warning')
+      return
+    }
 
     const input: CreatePosOrderInput = {
       businessId,
@@ -544,6 +605,8 @@ export function PosPage() {
       cashierId,
       currencyCode,
       taxRate,
+      roundingIncrement: settings.roundingIncrement,
+      allowNegativeStock: settings.allowNegativeStock,
       idempotencyKey: `POS-${Date.now()}-${crypto.randomUUID?.() ?? Math.random().toString(36).slice(2)}`,
       items: lines.map((line) => ({
         variantId: line.product.variantId,
@@ -573,8 +636,25 @@ export function PosPage() {
           idempotencyKey: `PAY-${order.id}-${Date.now()}`,
           note: 'POS cash payment',
         })
-        await completeOrderMutation.mutateAsync(order.id)
+        const completed = await completeOrderMutation.mutateAsync(order.id)
         toast(`Order ${order.orderNo} completed.`, 'success')
+        if (settings.autoPrintReceipt) printReceipt(completed, settings.receiptPaperSize)
+      } else if (payment === 'card') {
+        const order = await createOrderMutation.mutateAsync(input)
+        await createCardPaymentMutation.mutateAsync({
+          orderId: order.id,
+          businessId,
+          storeId: selectedStoreId,
+          amount: order.grandTotal,
+          currencyCode: order.currencyCode,
+          method: 'CARD',
+          provider: 'OTHER',
+          idempotencyKey: `PAY-${order.id}-${Date.now()}`,
+          note: 'POS card payment',
+        })
+        const completed = await completeOrderMutation.mutateAsync(order.id)
+        toast(`Order ${order.orderNo} completed.`, 'success')
+        if (settings.autoPrintReceipt) printReceipt(completed, settings.receiptPaperSize)
       } else {
         const items = lines
           .map((line) => `${line.product.name} x${line.qty}`)
@@ -603,10 +683,11 @@ export function PosPage() {
     } catch (error) {
       toast(error instanceof Error ? error.message : 'Checkout could not be completed.', 'error')
     }
-  }, [completeOrderMutation, createCashPaymentMutation, createOrderMutation, createPosQrCheckoutMutation, currencyCode, customerId, lines, payment, simulatePaymentCallbackMutation, storeId, taxRate, toast, user])
+  }, [completeOrderMutation, createCardPaymentMutation, createCashPaymentMutation, createOrderMutation, createPosQrCheckoutMutation, currencyCode, customerId, lines, payment, settings.allowNegativeStock, settings.autoPrintReceipt, settings.receiptPaperSize, settings.requireCustomer, settings.roundingIncrement, simulatePaymentCallbackMutation, storeId, taxRate, toast, user])
 
   const checkoutPending = createOrderMutation.isPending
     || createCashPaymentMutation.isPending
+    || createCardPaymentMutation.isPending
     || createPosQrCheckoutMutation.isPending
     || completeOrderMutation.isPending
     || createHeldSaleMutation.isPending
@@ -623,12 +704,15 @@ export function PosPage() {
 
     completedQrPaymentIdRef.current = paymentId
     void completeOrderMutation.mutateAsync(qrCheckout.response.payment.orderId)
-      .then(() => toast(`Payment received. Order ${qrCheckout.orderNo} completed.`, 'success'))
+      .then((order) => {
+        toast(`Payment received. Order ${qrCheckout.orderNo} completed.`, 'success')
+        if (settings.autoPrintReceipt) printReceipt(order, settings.receiptPaperSize)
+      })
       .catch((error) => {
         completedQrPaymentIdRef.current = null
         toast(error instanceof Error ? error.message : 'Payment received, but the order could not be completed.', 'error')
       })
-  }, [completeOrderMutation, qrCheckout, qrPaymentQuery.data?.status, toast])
+  }, [completeOrderMutation, qrCheckout, qrPaymentQuery.data?.status, settings.autoPrintReceipt, settings.receiptPaperSize, toast])
 
   useEffect(() => {
     const onKey = (event: KeyboardEvent) => {
@@ -649,8 +733,10 @@ export function PosPage() {
       const product = products.find((item) => item.id === id)
       const available = product ? stockByVariant.get(product.variantId) : undefined
       if (v <= 0) delete next[id]
-      else if (available === 0) return prev
-      else next[id] = { qty: available == null ? v : Math.min(v, available), discount: cur?.discount }
+       else if (available === 0 && !settings.allowNegativeStock) return prev
+       else if (available != null && !settings.allowNegativeStock && v > available) {
+         next[id] = { qty: available, discount: cur?.discount }
+       } else next[id] = { qty: v, discount: cur?.discount }
       return next
     })
     if (delta < 0) {
@@ -664,6 +750,7 @@ export function PosPage() {
   }
 
   const setLineDiscount = (id: string, discount: LineDiscount | null) => {
+    if (!settings.allowDiscounts) return
     setCart((prev) => {
       const cur = prev[id]
       if (!cur) return prev
@@ -683,7 +770,8 @@ export function PosPage() {
     const available = product ? stockByVariant.get(product.variantId) : undefined
     setCart((prev) => {
       const cur = prev[id]
-      if (available === 0 || (available != null && (cur?.qty ?? 0) >= available)) return prev
+       if (available === 0 && !settings.allowNegativeStock) return prev
+       if (!settings.allowNegativeStock && available != null && (cur?.qty ?? 0) >= available) return prev
       return {
         ...prev,
         [id]: { qty: (cur?.qty ?? 0) + 1, discount: cur?.discount },
@@ -693,6 +781,11 @@ export function PosPage() {
 
   const scrollCats = (dir: -1 | 1) => {
     catRef.current?.scrollBy({ left: dir * 220, behavior: 'smooth' })
+  }
+
+  const setMenuView = (nextView: ViewMode) => {
+    setView(nextView)
+    updateSettings({ menuView: nextView })
   }
 
   return (
@@ -750,6 +843,7 @@ export function PosPage() {
               variant="secondary"
               className="min-h-[38px] w-full justify-center px-2 text-[12px] sm:w-auto sm:px-4 sm:text-[14px]"
               onClick={() => setActivityMode('hold')}
+              disabled={!settings.allowHoldOrders}
               aria-haspopup="dialog"
               aria-expanded={activityMode === 'hold'}
             >
@@ -759,10 +853,10 @@ export function PosPage() {
         </section>
 
         {/* POS body: menu + order panel (new UI, your palette) */}
-        <div className="grid grid-cols-1 gap-4 xl:grid-cols-[minmax(0,1fr)_minmax(360px,420px)]">
+        <div className="grid grid-cols-1 gap-4 xl:items-start xl:grid-cols-[minmax(0,1fr)_minmax(360px,420px)]">
           {/* ── Menu ── */}
-          <section className={cn(card, 'p-3 sm:p-5')}>
-            <div className="mb-4 flex flex-wrap items-end justify-between gap-2">
+           <section className={cn(card, 'p-3 sm:p-5')}>
+             <div className={cn('mb-4 flex flex-wrap items-end justify-between gap-2', settings.stickyOrderPanel && 'xl:sticky xl:top-[86px] xl:z-20 xl:-mx-5 xl:border-b xl:border-vpos-line xl:bg-vpos-surface xl:px-5 xl:pt-1 xl:pb-3')}>
               <div>
                 <h2 className="m-0 text-[20px] font-extrabold tracking-tight text-vpos-text sm:text-[23px]">
                   Menu
@@ -781,7 +875,7 @@ export function PosPage() {
                   ref={searchRef}
                   value={query}
                   onChange={(e) => setQuery(e.target.value)}
-                  placeholder="Search product..."
+                   placeholder={settings.searchIdentifiers ? 'Search product, SKU, or barcode...' : 'Search product...'}
                   className="h-full w-full min-w-0 border-none bg-transparent p-0 text-[13px] text-vpos-text outline-none focus:outline-none focus:ring-0 focus-visible:outline-none focus-visible:ring-0 placeholder:text-vpos-muted"
                 />
                 <kbd
@@ -810,7 +904,7 @@ export function PosPage() {
                 <button
                   type="button"
                   aria-label="Grid view"
-                  onClick={() => setView('grid')}
+                   onClick={() => setMenuView('grid')}
                   className={cn(
                     'grid h-9 w-9 place-items-center rounded-lg border-0 text-[17px]',
                     view === 'grid'
@@ -823,7 +917,7 @@ export function PosPage() {
                 <button
                   type="button"
                   aria-label="List view"
-                  onClick={() => setView('list')}
+                   onClick={() => setMenuView('list')}
                   className={cn(
                     'grid h-9 w-9 place-items-center rounded-lg border-0 text-[17px]',
                     view === 'list'
@@ -932,7 +1026,7 @@ export function PosPage() {
                 {filtered.map((p) => {
                   const qty = cart[p.id]?.qty ?? 0
                   const stock = stockByVariant.get(p.variantId)
-                  const outOfStock = stock === 0
+                  const outOfStock = stock === 0 && !settings.allowNegativeStock
                   return (
                     <button
                       key={p.id}
@@ -1005,7 +1099,7 @@ export function PosPage() {
                 {filtered.map((p) => {
                   const qty = cart[p.id]?.qty ?? 0
                   const stock = stockByVariant.get(p.variantId)
-                  const outOfStock = stock === 0
+                  const outOfStock = stock === 0 && !settings.allowNegativeStock
                   return (
                     <button
                       key={p.id}
@@ -1073,9 +1167,10 @@ export function PosPage() {
             aria-label="Current order"
             className={cn(
               card,
-              'flex-col overflow-hidden p-0 xl:flex xl:h-[calc(100vh-200px)] xl:max-h-none',
+              'flex-col overflow-hidden p-0 xl:z-10 xl:flex xl:h-[calc(100vh-200px)] xl:max-h-none xl:self-start',
+              settings.stickyOrderPanel && 'xl:sticky xl:top-[86px]',
               mobileOrderOpen
-                ? 'fixed inset-x-3 bottom-3 z-[50] flex h-[calc(100dvh-112px)] max-h-[760px] rounded-[12px] shadow-[0_20px_55px_rgba(39,42,58,.24)] xl:static xl:inset-auto xl:z-auto xl:h-[calc(100vh-200px)] xl:rounded-[4px] xl:shadow-vpos'
+                ? 'fixed inset-x-3 bottom-3 z-[50] flex h-[calc(100dvh-112px)] max-h-[760px] rounded-[12px] shadow-[0_20px_55px_rgba(39,42,58,.24)] xl:inset-x-auto xl:top-[86px] xl:bottom-auto xl:z-10 xl:h-[calc(100vh-200px)] xl:rounded-[4px] xl:shadow-vpos'
                 : 'hidden',
             )}
           >
@@ -1181,12 +1276,14 @@ export function PosPage() {
                             </div>
                             <div className="mt-2 flex items-center justify-between">
                               <div className="flex items-center gap-1">
-                                <IconBtn
-                                  name="percent-line"
-                                  label="Discount"
-                                  active={lineDisc > 0}
-                                  onClick={() => setDiscountTargetId(p.id)}
-                                />
+                                {settings.allowDiscounts ? (
+                                  <IconBtn
+                                    name="percent-line"
+                                    label="Discount"
+                                    active={lineDisc > 0}
+                                    onClick={() => setDiscountTargetId(p.id)}
+                                  />
+                                ) : null}
                                 <IconBtn name="edit-line" label="Edit" />
                                 <IconBtn
                                   name="delete-bin-line"
@@ -1242,6 +1339,9 @@ export function PosPage() {
                   </div>
                 ) : null}
                 <Row label={`Tax / VAT${taxRate ? ` (${taxRate}%)` : ''}`} value={formatCurrency(taxVat, currencyCode)} />
+                {roundingAdjustment !== 0 ? (
+                  <Row label="Rounding" value={`${roundingAdjustment > 0 ? '+' : '−'}${formatCurrency(Math.abs(roundingAdjustment), currencyCode)}`} />
+                ) : null}
                 <div className="flex items-end justify-between border-t border-vpos-line pt-2">
                   <span className="text-[14px] font-bold text-vpos-text">
                     Total
@@ -1251,35 +1351,48 @@ export function PosPage() {
                       {formatCurrency(total, currencyCode)}
                     </strong>
                     {currencyCode === 'USD' ? (
-                      <small className="text-[12px] text-vpos-muted">{formatKhr(total)}</small>
+                      <small className="text-[12px] text-vpos-muted">{formatKhr(total, usdToKhrRate)}</small>
                     ) : null}
                   </span>
                 </div>
               </div>
 
               {/* Payment methods — new */}
-              <div className="mb-3 grid grid-cols-2 gap-2">
-                <PayMethod
-                  selected={payment === 'qr'}
-                  onClick={() => setPayment('qr')}
-                  icon="qr-code-line"
-                  name="QR Code"
-                  shortcut="ALT+Q"
-                />
-                <PayMethod
-                  selected={payment === 'cash'}
-                  onClick={() => setPayment('cash')}
-                  icon="money-dollar-circle-line"
-                  name="Cash"
-                  shortcut="ALT+C"
-                />
+              <div className="mb-3 grid grid-cols-2 gap-2 sm:grid-cols-3">
+                {settings.qrEnabled ? (
+                  <PayMethod
+                    selected={payment === 'qr'}
+                    onClick={() => setPayment('qr')}
+                    icon="qr-code-line"
+                    name="QR Code"
+                    shortcut="ALT+Q"
+                  />
+                ) : null}
+                {settings.cashEnabled ? (
+                  <PayMethod
+                    selected={payment === 'cash'}
+                    onClick={() => setPayment('cash')}
+                    icon="money-dollar-circle-line"
+                    name="Cash"
+                    shortcut="ALT+C"
+                  />
+                ) : null}
+                {settings.cardEnabled ? (
+                  <PayMethod
+                    selected={payment === 'card'}
+                    onClick={() => setPayment('card')}
+                    icon="bank-card-line"
+                    name="Card"
+                    shortcut=""
+                  />
+                ) : null}
               </div>
 
               <div className="grid grid-cols-[1fr_1.6fr] gap-2">
                 <Button
                   variant="secondary"
                   className="h-12 min-h-12 font-extrabold"
-                  disabled={lines.length === 0 || checkoutPending}
+                  disabled={lines.length === 0 || checkoutPending || !settings.allowHoldOrders}
                   onClick={handleHoldSale}
                 >
                   <Icon name="pause-circle-line" /> HOLD
@@ -1331,7 +1444,7 @@ export function PosPage() {
       />
 
       <DiscountModal
-        open={Boolean(discountTarget)}
+        open={settings.allowDiscounts && Boolean(discountTarget)}
         onClose={() => setDiscountTargetId(null)}
         productName={discountTarget?.product.name ?? ''}
         variant={discountTarget?.product.variant}
@@ -1378,6 +1491,29 @@ function formatStockLabel(stock: number | undefined): string {
   if (stock === undefined) return 'Checking stock…'
   if (stock <= 0) return 'Out of stock'
   return `${stock} left`
+}
+
+function roundPosTotal(amount: number, increment: number): number {
+  if (!increment) return Math.round(amount * 100) / 100
+  return Math.round(amount / increment) * increment
+}
+
+function printReceipt(order: PosOrder, paperSize: '58mm' | '80mm') {
+  const printWindow = window.open('', '_blank', 'width=420,height=720')
+  if (!printWindow) return
+  const currency = order.currencyCode || 'USD'
+  const rows = (order.items ?? []).map((item) => {
+    const quantity = Number(item.quantity ?? item.qty ?? 0)
+    const lineTotal = Number(item.total ?? Number(item.unitPrice ?? 0) * quantity)
+    return `<div class="line"><span>${escapeReceiptText(item.productName || item.variantName || 'Item')} ×${quantity}</span><strong>${formatCurrency(lineTotal, currency)}</strong></div>`
+  }).join('')
+  const html = `<!doctype html><html><head><meta charset="utf-8"><title>${escapeReceiptText(order.orderNo)}</title><style>@page{size:${paperSize} auto;margin:0}*{box-sizing:border-box}body{width:${paperSize};margin:0;padding:12px 8px;font:12px/1.45 Arial,sans-serif;color:#111}.center{text-align:center}.muted{color:#666;font-size:10px}.line{display:flex;justify-content:space-between;gap:8px;margin:6px 0}.line span{max-width:68%}.total{border-top:1px dashed #888;margin-top:8px;padding-top:8px;font-size:15px;font-weight:700}.label{color:#666}.footer{margin-top:14px;text-align:center;font-size:10px;color:#666}</style></head><body><div class="center"><strong>V-POS</strong><div class="muted">${escapeReceiptText(order.orderNo)}</div></div>${rows}<div class="line"><span class="label">Subtotal</span><strong>${formatCurrency(Number(order.subtotal ?? 0), currency)}</strong></div><div class="line"><span class="label">Tax</span><strong>${formatCurrency(Number(order.tax ?? 0), currency)}</strong></div><div class="total"><div class="line"><span>Total</span><strong>${formatCurrency(Number(order.grandTotal ?? 0), currency)}</strong></div></div><div class="footer">Thank you</div><script>window.onload=()=>{window.print();window.onafterprint=()=>window.close()}</script></body></html>`
+  printWindow.document.write(html)
+  printWindow.document.close()
+}
+
+function escapeReceiptText(value: string): string {
+  return value.replace(/[&<>'"]/g, (character) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', "'": '&#39;', '"': '&quot;' })[character] ?? character)
 }
 
 function toCartEntries(order: PosOrder): Record<string, CartEntry> {

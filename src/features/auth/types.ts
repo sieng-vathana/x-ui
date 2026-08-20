@@ -6,6 +6,10 @@ export interface BusinessProfile {
   type: string
   phone: string
   address: string
+  defaultCurrencyCode: string
+  usdToKhrExchangeRate: number
+  usdToKhrExchangeRateConfigured: boolean
+  pricesIncludeTax: boolean
 }
 
 export interface AuthenticatedUser {
@@ -32,6 +36,7 @@ export interface RegistrationInput {
   businessName: string
   businessCode: string
   defaultCurrencyCode: string
+  usdToKhrExchangeRate: number
   taxRegistrationNumber?: string
   taxRegistrationLabel?: string
   pricesIncludeTax: boolean
