@@ -30,6 +30,7 @@ import {
   useHeldOrders,
   useResumeHeldSale,
 } from '../features/orders/useOrders'
+import { orderApi } from '../features/orders/orderApi'
 import type { CreateHeldSaleInput, CreatePosOrderInput, PosOrder } from '../features/orders/types'
 import {
   useCreateCashPayment,
@@ -40,12 +41,14 @@ import {
 } from '../features/payments/usePayments'
 import type { QrPaymentResponse } from '../features/payments/types'
 import { useProductsList } from '../features/products/useProducts'
+import { useStoresRaw } from '../features/stores/useStores'
 import { usePosSettings, type PosPaymentMethod } from '../features/pos/posSettings'
 import { useAdminStore } from '../hooks/useAdminStore'
 import { resolveImageUrl } from '../lib/api'
 import { cn } from '../lib/cn'
 import { canConvertCurrency, convertCurrency, formatCurrency, formatKhr } from '../lib/currency'
 import { paths } from '../lib/paths'
+import { printReceipt as openReceiptPrint } from '../lib/receipt'
 import { card, pageContent, searchField } from '../lib/ui'
 
 type CartEntry = { qty: number; discount?: LineDiscount | null }
@@ -108,6 +111,7 @@ export function PosPage() {
   const currencyCode = settings.defaultCurrencyCode === 'BUSINESS' ? businessCurrency : settings.defaultCurrencyCode
   const usdToKhrRate = Number(user?.business.usdToKhrExchangeRate || 4000)
   const productsQuery = useProductsList(storeId)
+  const storesQuery = useStoresRaw()
   const customersQuery = useCustomers()
   const createCustomerMutation = useCreateCustomer()
   const createOrderMutation = useCreatePosOrder()
@@ -142,6 +146,32 @@ export function PosPage() {
   const rootRef = useRef<HTMLDivElement>(null)
   const defaultStoreAppliedRef = useRef(false)
 
+  const selectedStore = useMemo(
+    () => storesQuery.data?.find((store) => String(store.id) === String(storeId)),
+    [storeId, storesQuery.data],
+  )
+
+  const getReceiptOptions = useCallback((order: PosOrder, paymentMethod?: string | null) => {
+    const customerNumber = Number(order.customerId)
+    const customerName = customerNumber > 0
+      ? (customersQuery.data?.content ?? []).find((customer) => customer.id === customerNumber)?.fullName ?? `Customer #${customerNumber}`
+      : 'Walk-in customer'
+    return {
+      paperSize: settings.receiptPaperSize,
+      businessName: user?.business.name,
+      businessLogoUrl: user?.business.logoUrl,
+      store: selectedStore,
+      cashierName: user?.name,
+      customerName,
+      paymentMethod,
+      usdToKhrRate,
+      showLogo: settings.receiptShowLogo,
+      showSku: settings.receiptShowSku,
+      showCustomer: settings.receiptShowCustomer,
+      footer: settings.receiptFooter,
+    }
+  }, [customersQuery.data, selectedStore, settings.receiptFooter, settings.receiptPaperSize, settings.receiptShowCustomer, settings.receiptShowLogo, settings.receiptShowSku, usdToKhrRate, user])
+
   const handleActivityAction = useCallback((action: 'resume' | 'discard' | 'receipt' | 'reorder', id: string) => {
     if (action === 'resume' || action === 'discard') {
       const heldOrderId = Number(id)
@@ -172,13 +202,25 @@ export function PosPage() {
       return
     }
 
-    const messages = {
-      receipt: `Receipt preview for ${id} will be connected to the order service later.`,
-      reorder: `Reorder for ${id} will be connected to the order service later.`,
-    } as const
-    toast(messages[action], 'info')
+    if (action === 'receipt') {
+      const orderId = Number(id)
+      if (!Number.isInteger(orderId) || orderId <= 0) {
+        toast('The selected order is invalid.', 'warning')
+        return
+      }
+      setActivityMode(null)
+      void orderApi.get(orderId)
+        .then((order) => {
+          if (!openReceiptPrint(order, getReceiptOptions(order, order.paymentMethod))) {
+            toast('The receipt window was blocked. Allow pop-ups for this POS site and try again.', 'warning')
+          }
+        })
+        .catch((error) => toast(error instanceof Error ? error.message : 'The receipt could not be loaded.', 'error'))
+      return
+    }
+    toast(`Reorder for ${id} will be connected to the order service later.`, 'info')
     setActivityMode(null)
-  }, [discardHeldSaleMutation, resumeHeldSaleMutation, toast])
+  }, [discardHeldSaleMutation, getReceiptOptions, resumeHeldSaleMutation, toast])
 
   const products = useMemo<PosProduct[]>(() => {
     return (productsQuery.data ?? []).flatMap((product) => {
@@ -638,7 +680,7 @@ export function PosPage() {
         })
         const completed = await completeOrderMutation.mutateAsync(order.id)
         toast(`Order ${order.orderNo} completed.`, 'success')
-        if (settings.autoPrintReceipt) printReceipt(completed, settings.receiptPaperSize)
+        if (settings.autoPrintReceipt) openReceiptPrint(completed, getReceiptOptions(completed, payment))
       } else if (payment === 'card') {
         const order = await createOrderMutation.mutateAsync(input)
         await createCardPaymentMutation.mutateAsync({
@@ -654,7 +696,7 @@ export function PosPage() {
         })
         const completed = await completeOrderMutation.mutateAsync(order.id)
         toast(`Order ${order.orderNo} completed.`, 'success')
-        if (settings.autoPrintReceipt) printReceipt(completed, settings.receiptPaperSize)
+        if (settings.autoPrintReceipt) openReceiptPrint(completed, getReceiptOptions(completed, payment))
       } else {
         const items = lines
           .map((line) => `${line.product.name} x${line.qty}`)
@@ -683,7 +725,7 @@ export function PosPage() {
     } catch (error) {
       toast(error instanceof Error ? error.message : 'Checkout could not be completed.', 'error')
     }
-  }, [completeOrderMutation, createCardPaymentMutation, createCashPaymentMutation, createOrderMutation, createPosQrCheckoutMutation, currencyCode, customerId, lines, payment, settings.allowNegativeStock, settings.autoPrintReceipt, settings.receiptPaperSize, settings.requireCustomer, settings.roundingIncrement, simulatePaymentCallbackMutation, storeId, taxRate, toast, user])
+  }, [completeOrderMutation, createCardPaymentMutation, createCashPaymentMutation, createOrderMutation, createPosQrCheckoutMutation, currencyCode, customerId, getReceiptOptions, lines, payment, settings.allowNegativeStock, settings.autoPrintReceipt, settings.requireCustomer, settings.roundingIncrement, simulatePaymentCallbackMutation, storeId, taxRate, toast, user])
 
   const checkoutPending = createOrderMutation.isPending
     || createCashPaymentMutation.isPending
@@ -706,13 +748,13 @@ export function PosPage() {
     void completeOrderMutation.mutateAsync(qrCheckout.response.payment.orderId)
       .then((order) => {
         toast(`Payment received. Order ${qrCheckout.orderNo} completed.`, 'success')
-        if (settings.autoPrintReceipt) printReceipt(order, settings.receiptPaperSize)
+        if (settings.autoPrintReceipt) openReceiptPrint(order, getReceiptOptions(order, 'qr'))
       })
       .catch((error) => {
         completedQrPaymentIdRef.current = null
         toast(error instanceof Error ? error.message : 'Payment received, but the order could not be completed.', 'error')
       })
-  }, [completeOrderMutation, qrCheckout, qrPaymentQuery.data?.status, settings.autoPrintReceipt, settings.receiptPaperSize, toast])
+  }, [completeOrderMutation, getReceiptOptions, qrCheckout, qrPaymentQuery.data?.status, settings.autoPrintReceipt, toast])
 
   useEffect(() => {
     const onKey = (event: KeyboardEvent) => {
@@ -1496,24 +1538,6 @@ function formatStockLabel(stock: number | undefined): string {
 function roundPosTotal(amount: number, increment: number): number {
   if (!increment) return Math.round(amount * 100) / 100
   return Math.round(amount / increment) * increment
-}
-
-function printReceipt(order: PosOrder, paperSize: '58mm' | '80mm') {
-  const printWindow = window.open('', '_blank', 'width=420,height=720')
-  if (!printWindow) return
-  const currency = order.currencyCode || 'USD'
-  const rows = (order.items ?? []).map((item) => {
-    const quantity = Number(item.quantity ?? item.qty ?? 0)
-    const lineTotal = Number(item.total ?? Number(item.unitPrice ?? 0) * quantity)
-    return `<div class="line"><span>${escapeReceiptText(item.productName || item.variantName || 'Item')} ×${quantity}</span><strong>${formatCurrency(lineTotal, currency)}</strong></div>`
-  }).join('')
-  const html = `<!doctype html><html><head><meta charset="utf-8"><title>${escapeReceiptText(order.orderNo)}</title><style>@page{size:${paperSize} auto;margin:0}*{box-sizing:border-box}body{width:${paperSize};margin:0;padding:12px 8px;font:12px/1.45 Arial,sans-serif;color:#111}.center{text-align:center}.muted{color:#666;font-size:10px}.line{display:flex;justify-content:space-between;gap:8px;margin:6px 0}.line span{max-width:68%}.total{border-top:1px dashed #888;margin-top:8px;padding-top:8px;font-size:15px;font-weight:700}.label{color:#666}.footer{margin-top:14px;text-align:center;font-size:10px;color:#666}</style></head><body><div class="center"><strong>V-POS</strong><div class="muted">${escapeReceiptText(order.orderNo)}</div></div>${rows}<div class="line"><span class="label">Subtotal</span><strong>${formatCurrency(Number(order.subtotal ?? 0), currency)}</strong></div><div class="line"><span class="label">Tax</span><strong>${formatCurrency(Number(order.tax ?? 0), currency)}</strong></div><div class="total"><div class="line"><span>Total</span><strong>${formatCurrency(Number(order.grandTotal ?? 0), currency)}</strong></div></div><div class="footer">Thank you</div><script>window.onload=()=>{window.print();window.onafterprint=()=>window.close()}</script></body></html>`
-  printWindow.document.write(html)
-  printWindow.document.close()
-}
-
-function escapeReceiptText(value: string): string {
-  return value.replace(/[&<>'"]/g, (character) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', "'": '&#39;', '"': '&quot;' })[character] ?? character)
 }
 
 function toCartEntries(order: PosOrder): Record<string, CartEntry> {

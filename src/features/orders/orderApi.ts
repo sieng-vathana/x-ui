@@ -31,6 +31,14 @@ export const orderApi = {
     )
   },
 
+  async get(id: number): Promise<PosOrder> {
+    if (!Number.isInteger(id) || id <= 0) throw new Error('A valid order is required to print a receipt.')
+    return requireData(
+      await api.request<ApiEnvelope<PosOrder>>(`/orders/${id}`),
+      'The order receipt could not be loaded.',
+    )
+  },
+
   async createPos(input: CreatePosOrderInput): Promise<PosOrder> {
     return requireData(
       await api.request<ApiEnvelope<PosOrder>>('/orders/pos', {

@@ -205,6 +205,29 @@ export function PosConfigurationForm({
           <Toggle label="Sticky order panel" description="Keep Menu and Current order anchored while scrolling." checked={settings.stickyOrderPanel} onChange={(value) => updateSettings({ stickyOrderPanel: value })} />
           <Toggle label="Auto-print receipts" description="Open a receipt print view after payment." checked={settings.autoPrintReceipt} onChange={(value) => updateSettings({ autoPrintReceipt: value })} />
         </div>
+
+        <div className="mt-6 border-t border-vpos-line pt-5">
+          <div>
+            <h4 className="m-0 text-[14px] font-extrabold text-vpos-text">Receipt content</h4>
+            <p className="mt-1 mb-0 text-[12px] text-vpos-muted">These options apply to automatic prints and receipt reprints from Recent orders.</p>
+          </div>
+          <div className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+            <Toggle label="Show business logo" description="Print the business logo at the top." checked={settings.receiptShowLogo} onChange={(value) => updateSettings({ receiptShowLogo: value })} />
+            <Toggle label="Show SKU" description="Include the product SKU under each item." checked={settings.receiptShowSku} onChange={(value) => updateSettings({ receiptShowSku: value })} />
+            <Toggle label="Show customer" description="Include the selected customer on the receipt." checked={settings.receiptShowCustomer} onChange={(value) => updateSettings({ receiptShowCustomer: value })} />
+            <label className="sm:col-span-2 lg:col-span-3">
+              <span className="mb-2 block text-[12px] font-semibold tracking-[.02em] text-vpos-dark">Receipt footer message</span>
+              <textarea
+                value={settings.receiptFooter}
+                maxLength={240}
+                rows={2}
+                onChange={(event) => updateSettings({ receiptFooter: event.target.value })}
+                className="w-full resize-y rounded-lg border border-vpos-line bg-white px-3.5 py-2.5 text-[13px] text-vpos-text outline-none focus:border-vpos-primary"
+                placeholder="Thank you for shopping with us."
+              />
+            </label>
+          </div>
+        </div>
       </section>
     </div>
   )

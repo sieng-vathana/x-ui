@@ -22,6 +22,10 @@ export interface PosSettings {
   allowHoldOrders: boolean
   autoPrintReceipt: boolean
   receiptPaperSize: PosReceiptPaperSize
+  receiptShowLogo: boolean
+  receiptShowSku: boolean
+  receiptShowCustomer: boolean
+  receiptFooter: string
   showOutOfStock: boolean
   searchIdentifiers: boolean
   autoFocusSearch: boolean
@@ -44,6 +48,10 @@ export const defaultPosSettings: PosSettings = {
   allowHoldOrders: true,
   autoPrintReceipt: false,
   receiptPaperSize: '80mm',
+  receiptShowLogo: true,
+  receiptShowSku: true,
+  receiptShowCustomer: true,
+  receiptFooter: 'Thank you for shopping with us.',
   showOutOfStock: true,
   searchIdentifiers: true,
   autoFocusSearch: true,
@@ -78,6 +86,10 @@ function normalizeSettings(value: Partial<PosSettings> | null | undefined): PosS
     requireCustomer: merged.requireCustomer === true,
     allowHoldOrders: merged.allowHoldOrders !== false,
     autoPrintReceipt: merged.autoPrintReceipt === true,
+    receiptShowLogo: merged.receiptShowLogo !== false,
+    receiptShowSku: merged.receiptShowSku !== false,
+    receiptShowCustomer: merged.receiptShowCustomer !== false,
+    receiptFooter: typeof merged.receiptFooter === 'string' ? merged.receiptFooter.slice(0, 240) : defaultPosSettings.receiptFooter,
     showOutOfStock: merged.showOutOfStock !== false,
     searchIdentifiers: merged.searchIdentifiers !== false,
     autoFocusSearch: merged.autoFocusSearch !== false,

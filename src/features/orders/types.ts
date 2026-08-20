@@ -48,6 +48,9 @@ export interface OrderItem {
   unitPrice: number
   discountType?: OrderDiscountType | null
   discountValue?: number | null
+  discountAmount?: number | null
+  orderDiscountAmount?: number | null
+  taxAmount?: number | null
   total: number
 }
 

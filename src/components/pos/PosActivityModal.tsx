@@ -26,6 +26,7 @@ export interface HeldOrder {
 }
 
 interface RecentOrder {
+  orderId: number
   id: string
   customer: string
   items: string
@@ -310,10 +311,10 @@ function RecentOrdersView({
             )}>{order.status}</span>
             <strong className="text-[14px] text-vpos-primary">{formatCurrency(order.total, order.currencyCode)}</strong>
             <div className="flex gap-1 md:justify-end">
-              <button type="button" aria-label={`View receipt ${order.id}`} onClick={() => onAction?.('receipt', order.id)} className="grid h-8 w-8 place-items-center rounded-lg border-0 bg-vpos-subtle text-vpos-muted transition hover:bg-vpos-sand hover:text-vpos-primary">
+              <button type="button" aria-label={`View receipt ${order.id}`} onClick={() => onAction?.('receipt', String(order.orderId))} className="grid h-8 w-8 place-items-center rounded-lg border-0 bg-vpos-subtle text-vpos-muted transition hover:bg-vpos-sand hover:text-vpos-primary">
                 <Icon name="file-list-3-line" />
               </button>
-              <button type="button" aria-label={`Reorder ${order.id}`} onClick={() => onAction?.('reorder', order.id)} className="grid h-8 w-8 place-items-center rounded-lg border-0 bg-vpos-subtle text-vpos-muted transition hover:bg-vpos-sand hover:text-vpos-primary">
+              <button type="button" aria-label={`Reorder ${order.id}`} onClick={() => onAction?.('reorder', String(order.orderId))} className="grid h-8 w-8 place-items-center rounded-lg border-0 bg-vpos-subtle text-vpos-muted transition hover:bg-vpos-sand hover:text-vpos-primary">
                 <Icon name="refresh-line" />
               </button>
             </div>
@@ -409,6 +410,7 @@ function toRecentOrder(order: PosOrder, customerNames?: ReadonlyMap<number, stri
     : 'Walk-in customer'
 
   return {
+    orderId: order.id,
     id: order.orderNo || `Order #${order.id}`,
     customer,
     items: `${itemCount} ${itemCount === 1 ? 'item' : 'items'}`,
