@@ -4,6 +4,8 @@ import type {
   CreatePosOrderInput,
   OrderPage,
   PosOrder,
+  SalesSummary,
+  TopProduct,
 } from './types'
 
 const api = new ApiClient({ baseUrl: API_BASE_URL })
@@ -28,6 +30,24 @@ export const orderApi = {
         `/orders?storeId=${numericStoreId}&page=${page}&size=${size}`,
       ),
       'Recent orders could not be loaded.',
+    )
+  },
+
+  async salesSummary(storeId: string | number, from: string, to: string): Promise<SalesSummary> {
+    return requireData(
+      await api.request<ApiEnvelope<SalesSummary>>(
+        `/orders/reports/sales-summary?storeId=${encodeURIComponent(storeId)}&from=${encodeURIComponent(from)}&to=${encodeURIComponent(to)}`,
+      ),
+      'The sales summary could not be loaded.',
+    )
+  },
+
+  async topProducts(storeId: string | number, from: string, to: string, limit = 10): Promise<TopProduct[]> {
+    return requireData(
+      await api.request<ApiEnvelope<TopProduct[]>>(
+        `/orders/reports/top-products?storeId=${encodeURIComponent(storeId)}&from=${encodeURIComponent(from)}&to=${encodeURIComponent(to)}&limit=${limit}`,
+      ),
+      'The product report could not be loaded.',
     )
   },
 

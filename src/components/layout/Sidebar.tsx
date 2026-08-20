@@ -50,6 +50,21 @@ const purchaseSubItems = [
   { to: paths.purchaseSuppliers, label: 'Suppliers' }, { to: paths.purchaseReturns, label: 'Supplier returns' },
 ]
 
+const salesSubItems: Array<{ to: string; label: string; end?: boolean; permission?: string }> = [
+  { to: paths.sales, label: 'All sales', end: true, permission: 'x-order:read' },
+  { to: paths.salesPayments, label: 'Payments', permission: 'x-report:read' },
+  { to: paths.salesReturns, label: 'Returns & refunds', permission: 'x-order:refund' },
+  { to: paths.salesCashRegister, label: 'Cash register', permission: 'x-report:read' },
+]
+
+const reportSubItems: Array<{ to: string; label: string; end?: boolean }> = [
+  { to: paths.reports, label: 'Sales overview', end: true },
+  { to: paths.reportsProducts, label: 'Product performance' },
+  { to: paths.reportsPayments, label: 'Payment & cash' },
+  { to: paths.reportsStores, label: 'Store & cashier' },
+  { to: paths.reportsTax, label: 'Tax, discounts & refunds' },
+]
+
 const settingsSubItems = [
   { to: paths.settings, label: 'Business profile', end: true },
   { to: paths.settingsPos, label: 'POS configuration' },
@@ -110,7 +125,7 @@ function StaticNavItem({ icon, label, iconOnly, hint, theme, hovered, onHover }:
 }
 
 function SidebarDropdownPanel({ id, icon, label, items, iconOnly, theme, onNavigate }: {
-  id: string; icon: string; label: string; items: Array<{ to: string; label: string; end?: boolean }>; iconOnly: boolean; theme: ReturnType<typeof themeClasses>; onNavigate: () => void
+  id: string; icon: string; label: string; items: Array<{ to: string; label: string; end?: boolean; permission?: string }>; iconOnly: boolean; theme: ReturnType<typeof themeClasses>; onNavigate: () => void
 }) {
   return <div id={`${id}-submenu`} className={cn(iconOnly ? 'animate-slide-in-right absolute top-0 left-[calc(100%+12px)] z-[70] w-[232px] rounded-xl border p-2 shadow-[0_16px_42px_rgba(8,31,56,.32)]' : 'flex flex-col gap-0.5', iconOnly && theme.flyout)}>
     {iconOnly ? <div className={cn('mb-1 flex items-center gap-2 rounded-lg px-2 py-1.5', theme.icon)}><span className="grid h-6 w-6 place-items-center rounded-md bg-white/10 text-[15px]"><Icon name={icon} /></span><span className="text-[13px] font-extrabold">{label}</span></div> : null}
@@ -119,7 +134,7 @@ function SidebarDropdownPanel({ id, icon, label, items, iconOnly, theme, onNavig
 }
 
 function MenuGroup({ id, icon, label, items, active, state, iconOnly, theme, onNavigate }: {
-  id: string; icon: string; label: string; items: Array<{ to: string; label: string; end?: boolean }>; active: boolean; state: SidebarLayoutState; iconOnly: boolean; theme: ReturnType<typeof themeClasses>; onNavigate: () => void
+  id: string; icon: string; label: string; items: Array<{ to: string; label: string; end?: boolean; permission?: string }>; active: boolean; state: SidebarLayoutState; iconOnly: boolean; theme: ReturnType<typeof themeClasses>; onNavigate: () => void
 }) {
   const closeTimer = useRef<number | null>(null)
   const open = state.openGroup === id || (!iconOnly && state.openGroup === null && active)
@@ -151,9 +166,14 @@ export function Sidebar({ state }: SidebarProps) {
   const theme = themeClasses(config.color)
   const location = useLocation()
   const inProducts = location.pathname === paths.products || location.pathname.startsWith(`${paths.products}/`)
+  const inSales = location.pathname === paths.sales || location.pathname.startsWith(`${paths.sales}/`)
   const inPurchases = location.pathname.startsWith(paths.purchases)
+  const inReports = location.pathname === paths.reports || location.pathname.startsWith(`${paths.reports}/`)
   const inSettings = location.pathname === paths.settings || location.pathname.startsWith(`${paths.settings}/`)
   const visibleProductSubItems = productSubItems.filter(
+    (item) => !item.permission || user?.permissions.includes(item.permission),
+  )
+  const visibleSalesSubItems = salesSubItems.filter(
     (item) => !item.permission || user?.permissions.includes(item.permission),
   )
   const canVisit = (key: string) => !navigationPermissions[key] || user?.permissions.includes(navigationPermissions[key])
@@ -171,9 +191,10 @@ export function Sidebar({ state }: SidebarProps) {
     <nav className={cn('flex flex-1 flex-col', iconOnly ? 'items-center gap-1.5 overflow-visible py-3' : effectiveSize === 'compact' ? 'gap-1 overflow-y-auto overflow-x-hidden px-2 py-3' : 'gap-1 overflow-y-auto overflow-x-hidden px-3 py-3')}>
       {navPrimary.filter((item) => item.key !== 'products' && canVisit(item.key)).map((item) => <NavItem key={item.key} to={keyToPath[item.key] ?? paths.home} icon={item.icon} label={item.label} end={item.key === 'dashboard'} iconOnly={iconOnly} hint={navMeta[item.key]?.hint} theme={theme} onNavigate={onNavigate} hovered={state.hoveredMenuItem === item.label} onHover={state.setHoveredMenuItem} />)}
       {canVisit('products') ? <MenuGroup id="products" icon="shopping-bag-3-line" label="Products" items={visibleProductSubItems} active={inProducts} state={state} iconOnly={iconOnly} theme={theme} onNavigate={onNavigate} /> : null}
-      {canVisit('sales') ? <NavItem to={paths.sales} icon="line-chart-line" label="Sales" iconOnly={iconOnly} hint={navMeta.sales?.hint} theme={theme} onNavigate={onNavigate} hovered={state.hoveredMenuItem === 'Sales'} onHover={state.setHoveredMenuItem} /> : null}
+      {canVisit('sales') ? <MenuGroup id="sales" icon="line-chart-line" label="Sales" items={visibleSalesSubItems} active={inSales} state={state} iconOnly={iconOnly} theme={theme} onNavigate={onNavigate} /> : null}
       {canVisit('purchases') ? <MenuGroup id="purchases" icon="truck-line" label="Purchases" items={purchaseSubItems} active={inPurchases} state={state} iconOnly={iconOnly} theme={theme} onNavigate={onNavigate} /> : null}
-      {staticItems.filter((item) => item.key !== 'sales' && canVisit(item.key)).map((item) => <NavItem key={item.key} to={keyToPath[item.key]} icon={item.icon} label={item.label} iconOnly={iconOnly} hint={navMeta[item.key]?.hint} theme={theme} onNavigate={onNavigate} hovered={state.hoveredMenuItem === item.label} onHover={state.setHoveredMenuItem} />)}
+      {canVisit('reports') ? <MenuGroup id="reports" icon="bar-chart-box-line" label="Reports" items={reportSubItems} active={inReports} state={state} iconOnly={iconOnly} theme={theme} onNavigate={onNavigate} /> : null}
+      {staticItems.filter((item) => item.key !== 'sales' && item.key !== 'reports' && canVisit(item.key)).map((item) => <NavItem key={item.key} to={keyToPath[item.key]} icon={item.icon} label={item.label} iconOnly={iconOnly} hint={navMeta[item.key]?.hint} theme={theme} onNavigate={onNavigate} hovered={state.hoveredMenuItem === item.label} onHover={state.setHoveredMenuItem} />)}
       <div className={cn('my-2 h-px shrink-0', iconOnly ? 'w-8' : 'mx-1 w-auto', theme.divider)} />
       {!iconOnly ? <p className={cn('mb-1 px-3 text-[11px] font-semibold tracking-[1.2px]', theme.title)}>MANAGEMENT</p> : null}
       {managementItems.filter((item) => canVisit(item.key)).map((item) => item.key === 'settings' ? <MenuGroup key={item.key} id="settings" icon={item.icon} label={item.label} items={settingsSubItems} active={inSettings} state={state} iconOnly={iconOnly} theme={theme} onNavigate={onNavigate} /> : item.linked ? <NavItem key={item.key} to={keyToPath[item.key] ?? paths.home} icon={item.icon} label={item.label} iconOnly={iconOnly} hint={navMeta[item.key]?.hint} theme={theme} onNavigate={onNavigate} hovered={state.hoveredMenuItem === item.label} onHover={state.setHoveredMenuItem} /> : <StaticNavItem key={item.key} icon={item.icon} label={item.label} iconOnly={iconOnly} hint={navMeta[item.key]?.hint} theme={theme} hovered={state.hoveredMenuItem === item.label} onHover={state.setHoveredMenuItem} />)}

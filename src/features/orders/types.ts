@@ -84,3 +84,19 @@ export interface OrderPage {
   totalPages: number
   hasNext: boolean
 }
+
+export interface SalesSummary {
+  orderCount: number
+  subtotal: number
+  discount: number
+  tax: number
+  grandTotal: number
+}
+
+export interface TopProduct {
+  variantId: number
+  productName: string
+  sku?: string | null
+  quantity: number
+  salesAmount: number
+}

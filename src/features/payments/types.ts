@@ -36,6 +36,14 @@ export interface CreateCashPaymentInput {
   note?: string
 }
 
+export interface PaymentBreakdown {
+  method: PaymentMethod
+  provider: PaymentProvider
+  paymentCount: number
+  totalAmount: number
+  refundedAmount: number
+}
+
 export interface CreateCardPaymentInput {
   orderId: number
   businessId: number

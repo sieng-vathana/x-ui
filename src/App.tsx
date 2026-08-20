@@ -4,7 +4,6 @@ import { BrowserRouter, Navigate, Route, Routes } from 'react-router-dom'
 import { AdminLayout } from './layouts/AdminLayout'
 import { DashboardPage } from './pages/DashboardPage'
 import { CustomersPage } from './pages/CustomersPage'
-import { PlaceholderPage } from './pages/PlaceholderPage'
 import { PosPage } from './pages/PosPage'
 import { ProductDetailPage } from './pages/ProductDetailPage'
 import { ProductFormPage } from './pages/ProductFormPage'
@@ -34,6 +33,10 @@ import { BusinessRegistrationPage } from './pages/auth/BusinessRegistrationPage'
 import { UsersPage } from './pages/UsersPage'
 import { RoleManagementPage } from './pages/RoleManagementPage'
 import { TasksPage } from './pages/TasksPage'
+import { SalesPage } from './pages/SalesPage'
+import { SalesPaymentsPage } from './pages/SalesPaymentsPage'
+import { SalesOperationsPage } from './pages/SalesOperationsPage'
+import { ReportsPage } from './pages/ReportsPage'
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -110,10 +113,16 @@ export default function App() {
                 <Route path="products/:sku/edit" element={<ProductFormPage />} />
                 <Route path="inventory" element={<Navigate to="/products/low-stock" replace />} />
                 <Route path="stores" element={<StoresPage />} />
-                <Route
-                  path="sales"
-                  element={<PlaceholderPage title="Sales" description="Sales history and invoices." />}
-                />
+                <Route element={<RequirePermission permission="x-order:read" />}>
+                  <Route path="sales" element={<SalesPage />} />
+                </Route>
+                <Route element={<RequirePermission permission="x-order:refund" />}>
+                  <Route path="sales/returns" element={<SalesOperationsPage section="returns" />} />
+                </Route>
+                <Route element={<RequirePermission permission="x-report:read" />}>
+                  <Route path="sales/payments" element={<SalesPaymentsPage />} />
+                  <Route path="sales/cash-register" element={<SalesOperationsPage section="cash-register" />} />
+                </Route>
                 <Route path="tasks" element={<TasksPage />} />
                 <Route path="purchases" element={<PurchaseOrdersPage />} />
                 <Route path="purchases/orders/new" element={<PurchaseOrderDetailPage />} />
@@ -124,10 +133,13 @@ export default function App() {
                 <Route element={<RequirePermission permission="x-customer:read" />}>
                   <Route path="customers" element={<CustomersPage />} />
                 </Route>
-                <Route
-                  path="reports"
-                  element={<PlaceholderPage title="Reports" description="Business reports." />}
-                />
+                <Route element={<RequirePermission permission="x-report:read" />}>
+                  <Route path="reports" element={<ReportsPage />} />
+                  <Route path="reports/products" element={<ReportsPage section="products" />} />
+                  <Route path="reports/payments" element={<ReportsPage section="payments" />} />
+                  <Route path="reports/stores" element={<ReportsPage section="stores" />} />
+                  <Route path="reports/tax" element={<ReportsPage section="tax" />} />
+                </Route>
                 <Route path="settings" element={<BusinessProfilePage />} />
                 <Route path="settings/pos" element={<BusinessProfilePage />} />
                 <Route path="settings/layout" element={<BusinessProfilePage />} />

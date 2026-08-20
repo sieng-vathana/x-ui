@@ -5,6 +5,7 @@ import type {
   CreatePosQrCheckoutInput,
   CreateQrPaymentInput,
   Payment,
+  PaymentBreakdown,
   PosQrCheckoutResponse,
   QrPaymentResponse,
 } from './types'
@@ -85,6 +86,15 @@ export const paymentApi = {
         `/payments?orderId=${encodeURIComponent(orderId)}`,
       ),
       'Payment activity could not be loaded.',
+    )
+  },
+
+  async breakdown(storeId: string | number, from: string, to: string): Promise<PaymentBreakdown[]> {
+    return requireData(
+      await api.request<ApiEnvelope<PaymentBreakdown[]>>(
+        `/payments/reports/breakdown?storeId=${encodeURIComponent(storeId)}&from=${encodeURIComponent(from)}&to=${encodeURIComponent(to)}`,
+      ),
+      'The payment breakdown could not be loaded.',
     )
   },
 

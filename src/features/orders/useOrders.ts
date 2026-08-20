@@ -7,16 +7,16 @@ function normalizeStoreId(storeId?: string | number): number | undefined {
   return Number.isInteger(numericId) && numericId > 0 ? numericId : undefined
 }
 
-export function useRecentOrders(storeId?: string | number, enabled = true) {
+export function useRecentOrders(storeId?: string | number, enabled = true, page = 0, size = 20) {
   const normalizedStoreId = normalizeStoreId(storeId)
 
   return useQuery({
-    queryKey: ['orders', 'recent', { storeId: normalizedStoreId }],
+    queryKey: ['orders', 'recent', { storeId: normalizedStoreId, page, size }],
     queryFn: () => {
       if (normalizedStoreId === undefined) {
         throw new Error('A valid store must be selected before loading orders.')
       }
-      return orderApi.list(normalizedStoreId)
+      return orderApi.list(normalizedStoreId, page, size)
     },
     enabled: enabled && normalizedStoreId !== undefined,
     staleTime: 30 * 1000,
@@ -25,6 +25,34 @@ export function useRecentOrders(storeId?: string | number, enabled = true) {
       if (error instanceof ApiError && (error.status === 401 || error.status === 403)) return false
       return failureCount < 1
     },
+  })
+}
+
+export function useSalesSummary(storeId: string | number | undefined, from: string, to: string, enabled = true) {
+  const normalizedStoreId = normalizeStoreId(storeId)
+
+  return useQuery({
+    queryKey: ['reports', 'sales-summary', { storeId: normalizedStoreId, from, to }],
+    queryFn: () => {
+      if (normalizedStoreId === undefined) throw new Error('A valid store must be selected before loading reports.')
+      return orderApi.salesSummary(normalizedStoreId, from, to)
+    },
+    enabled: enabled && normalizedStoreId !== undefined && Boolean(from) && Boolean(to),
+    staleTime: 30 * 1000,
+  })
+}
+
+export function useTopProducts(storeId: string | number | undefined, from: string, to: string, limit = 10, enabled = true) {
+  const normalizedStoreId = normalizeStoreId(storeId)
+
+  return useQuery({
+    queryKey: ['reports', 'top-products', { storeId: normalizedStoreId, from, to, limit }],
+    queryFn: () => {
+      if (normalizedStoreId === undefined) throw new Error('A valid store must be selected before loading reports.')
+      return orderApi.topProducts(normalizedStoreId, from, to, limit)
+    },
+    enabled: enabled && normalizedStoreId !== undefined && Boolean(from) && Boolean(to),
+    staleTime: 30 * 1000,
   })
 }
 

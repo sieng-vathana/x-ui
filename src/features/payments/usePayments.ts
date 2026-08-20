@@ -48,6 +48,15 @@ export function usePaymentsForOrder(orderId?: number) {
   })
 }
 
+export function usePaymentBreakdown(storeId: string | number | undefined, from: string, to: string, enabled = true) {
+  return useQuery({
+    queryKey: ['reports', 'payment-breakdown', { storeId, from, to }],
+    queryFn: () => paymentApi.breakdown(storeId!, from, to),
+    enabled: enabled && Boolean(storeId) && Boolean(from) && Boolean(to),
+    staleTime: 30 * 1000,
+  })
+}
+
 export function usePaymentStatus(id?: number) {
   return useQuery({
     queryKey: ['payment', id],
