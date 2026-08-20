@@ -41,7 +41,7 @@ function asUser(source: BackendUser, business?: BackendBusiness): AuthenticatedU
         address: business.timeZone,
         defaultCurrencyCode: business.defaultCurrencyCode || 'USD',
         usdToKhrExchangeRate: Number(business.usdToKhrExchangeRate ?? 4000),
-        usdToKhrExchangeRateConfigured: business.usdToKhrExchangeRate != null,
+        usdToKhrExchangeRateConfigured: Number(business.usdToKhrExchangeRate ?? 0) > 0,
         pricesIncludeTax: business.pricesIncludeTax ?? true,
       }
     : {
@@ -159,7 +159,7 @@ export const authApi = {
       address: response.data.timeZone,
       defaultCurrencyCode: response.data.defaultCurrencyCode || 'USD',
       usdToKhrExchangeRate: Number(response.data.usdToKhrExchangeRate ?? 4000),
-      usdToKhrExchangeRateConfigured: response.data.usdToKhrExchangeRate != null,
+      usdToKhrExchangeRateConfigured: Number(response.data.usdToKhrExchangeRate ?? 0) > 0,
       pricesIncludeTax: response.data.pricesIncludeTax ?? true,
       logoUrl: input.logoUrl,
     }
