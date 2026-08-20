@@ -19,9 +19,18 @@ export interface ReceiptOptions {
   footer?: string
 }
 
-export function printReceipt(order: PosOrder, options: ReceiptOptions): boolean {
+export function openReceiptWindow(): Window | null {
   const printWindow = window.open('', '_blank', 'width=420,height=760')
-  if (!printWindow) return false
+  if (!printWindow) return null
+  printWindow.document.open()
+  printWindow.document.write('<!doctype html><html><head><title>Preparing receipt</title></head><body style="font:14px Arial,sans-serif;padding:24px">Preparing receipt…</body></html>')
+  printWindow.document.close()
+  return printWindow
+}
+
+export function printReceipt(order: PosOrder, options: ReceiptOptions, targetWindow?: Window | null): boolean {
+  const printWindow = targetWindow === undefined ? openReceiptWindow() : targetWindow
+  if (!printWindow || printWindow.closed) return false
 
   const currency = (order.currencyCode || 'USD').toUpperCase()
   const rate = Number(options.usdToKhrRate || 0)

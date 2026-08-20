@@ -48,7 +48,7 @@ import { resolveImageUrl } from '../lib/api'
 import { cn } from '../lib/cn'
 import { canConvertCurrency, convertCurrency, formatCurrency, formatKhr } from '../lib/currency'
 import { paths } from '../lib/paths'
-import { printReceipt as openReceiptPrint } from '../lib/receipt'
+import { openReceiptWindow, printReceipt as openReceiptPrint } from '../lib/receipt'
 import { card, pageContent, searchField } from '../lib/ui'
 
 type CartEntry = { qty: number; discount?: LineDiscount | null }
@@ -132,7 +132,6 @@ export function PosPage() {
   const [shortcutsOpen, setShortcutsOpen] = useState(false)
   const [activityMode, setActivityMode] = useState<'hold' | 'recent' | null>(null)
   const [qrCheckout, setQrCheckout] = useState<{ orderNo: string; response: QrPaymentResponse } | null>(null)
-  const closeQrCheckout = useCallback(() => setQrCheckout(null), [])
   const [isFullscreen, setIsFullscreen] = useState(false)
   const [mobileOrderOpen, setMobileOrderOpen] = useState(false)
   const createHeldSaleMutation = useCreateHeldSale()
@@ -140,6 +139,12 @@ export function PosPage() {
   const resumeHeldSaleMutation = useResumeHeldSale()
   const heldOrdersQuery = useHeldOrders(storeId, activityMode === 'hold')
   const completedQrPaymentIdRef = useRef<number | null>(null)
+  const pendingQrReceiptWindowRef = useRef<Window | null>(null)
+  const closeQrCheckout = useCallback(() => {
+    pendingQrReceiptWindowRef.current?.close()
+    pendingQrReceiptWindowRef.current = null
+    setQrCheckout(null)
+  }, [])
   const qrPaymentQuery = usePaymentStatus(qrCheckout?.response.payment.id)
   const catRef = useRef<HTMLDivElement>(null)
   const searchRef = useRef<HTMLInputElement>(null)
@@ -209,13 +214,21 @@ export function PosPage() {
         return
       }
       setActivityMode(null)
+      const receiptWindow = openReceiptWindow()
+      if (!receiptWindow) {
+        toast('The receipt window was blocked. Allow pop-ups for this POS site and try again.', 'warning')
+        return
+      }
       void orderApi.get(orderId)
         .then((order) => {
-          if (!openReceiptPrint(order, getReceiptOptions(order, order.paymentMethod))) {
+          if (!openReceiptPrint(order, getReceiptOptions(order, order.paymentMethod), receiptWindow)) {
             toast('The receipt window was blocked. Allow pop-ups for this POS site and try again.', 'warning')
           }
         })
-        .catch((error) => toast(error instanceof Error ? error.message : 'The receipt could not be loaded.', 'error'))
+        .catch((error) => {
+          receiptWindow.close()
+          toast(error instanceof Error ? error.message : 'The receipt could not be loaded.', 'error')
+        })
       return
     }
     toast(`Reorder for ${id} will be connected to the order service later.`, 'info')
@@ -663,6 +676,8 @@ export function PosPage() {
       })),
     }
 
+    const receiptWindow = settings.autoPrintReceipt ? openReceiptWindow() : null
+
     try {
       if (payment === 'cash') {
         const order = await createOrderMutation.mutateAsync(input)
@@ -680,7 +695,9 @@ export function PosPage() {
         })
         const completed = await completeOrderMutation.mutateAsync(order.id)
         toast(`Order ${order.orderNo} completed.`, 'success')
-        if (settings.autoPrintReceipt) openReceiptPrint(completed, getReceiptOptions(completed, payment))
+        if (settings.autoPrintReceipt && !openReceiptPrint(completed, getReceiptOptions(completed, payment), receiptWindow)) {
+          toast('The receipt window was blocked. Allow pop-ups for this POS site and reprint it from Recent orders.', 'warning')
+        }
       } else if (payment === 'card') {
         const order = await createOrderMutation.mutateAsync(input)
         await createCardPaymentMutation.mutateAsync({
@@ -696,8 +713,11 @@ export function PosPage() {
         })
         const completed = await completeOrderMutation.mutateAsync(order.id)
         toast(`Order ${order.orderNo} completed.`, 'success')
-        if (settings.autoPrintReceipt) openReceiptPrint(completed, getReceiptOptions(completed, payment))
+        if (settings.autoPrintReceipt && !openReceiptPrint(completed, getReceiptOptions(completed, payment), receiptWindow)) {
+          toast('The receipt window was blocked. Allow pop-ups for this POS site and reprint it from Recent orders.', 'warning')
+        }
       } else {
+        pendingQrReceiptWindowRef.current = receiptWindow
         const items = lines
           .map((line) => `${line.product.name} x${line.qty}`)
           .join(', ')
@@ -723,6 +743,8 @@ export function PosPage() {
       setCart({})
       setDiscountTargetId(null)
     } catch (error) {
+      receiptWindow?.close()
+      if (pendingQrReceiptWindowRef.current === receiptWindow) pendingQrReceiptWindowRef.current = null
       toast(error instanceof Error ? error.message : 'Checkout could not be completed.', 'error')
     }
   }, [completeOrderMutation, createCardPaymentMutation, createCashPaymentMutation, createOrderMutation, createPosQrCheckoutMutation, currencyCode, customerId, getReceiptOptions, lines, payment, settings.allowNegativeStock, settings.autoPrintReceipt, settings.requireCustomer, settings.roundingIncrement, simulatePaymentCallbackMutation, storeId, taxRate, toast, user])
@@ -748,7 +770,11 @@ export function PosPage() {
     void completeOrderMutation.mutateAsync(qrCheckout.response.payment.orderId)
       .then((order) => {
         toast(`Payment received. Order ${qrCheckout.orderNo} completed.`, 'success')
-        if (settings.autoPrintReceipt) openReceiptPrint(order, getReceiptOptions(order, 'qr'))
+        const receiptWindow = pendingQrReceiptWindowRef.current
+        pendingQrReceiptWindowRef.current = null
+        if (settings.autoPrintReceipt && !openReceiptPrint(order, getReceiptOptions(order, 'qr'), receiptWindow)) {
+          toast('The receipt window was blocked. Allow pop-ups for this POS site and reprint it from Recent orders.', 'warning')
+        }
       })
       .catch((error) => {
         completedQrPaymentIdRef.current = null
