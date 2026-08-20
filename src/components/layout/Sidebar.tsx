@@ -50,6 +50,12 @@ const purchaseSubItems = [
   { to: paths.purchaseSuppliers, label: 'Suppliers' }, { to: paths.purchaseReturns, label: 'Supplier returns' },
 ]
 
+const settingsSubItems = [
+  { to: paths.settings, label: 'Business profile', end: true },
+  { to: paths.settingsPos, label: 'POS configuration' },
+  { to: paths.settingsLayout, label: 'Workspace layout' },
+]
+
 const staticItems = [
   { key: 'sales', icon: 'line-chart-line', label: 'Sales' }, { key: 'customers', icon: 'user-heart-line', label: 'Customers' },
   { key: 'reports', icon: 'bar-chart-box-line', label: 'Reports' },
@@ -146,6 +152,7 @@ export function Sidebar({ state }: SidebarProps) {
   const location = useLocation()
   const inProducts = location.pathname === paths.products || location.pathname.startsWith(`${paths.products}/`)
   const inPurchases = location.pathname.startsWith(paths.purchases)
+  const inSettings = location.pathname === paths.settings || location.pathname.startsWith(`${paths.settings}/`)
   const visibleProductSubItems = productSubItems.filter(
     (item) => !item.permission || user?.permissions.includes(item.permission),
   )
@@ -169,7 +176,7 @@ export function Sidebar({ state }: SidebarProps) {
       {staticItems.filter((item) => item.key !== 'sales' && canVisit(item.key)).map((item) => <NavItem key={item.key} to={keyToPath[item.key]} icon={item.icon} label={item.label} iconOnly={iconOnly} hint={navMeta[item.key]?.hint} theme={theme} onNavigate={onNavigate} hovered={state.hoveredMenuItem === item.label} onHover={state.setHoveredMenuItem} />)}
       <div className={cn('my-2 h-px shrink-0', iconOnly ? 'w-8' : 'mx-1 w-auto', theme.divider)} />
       {!iconOnly ? <p className={cn('mb-1 px-3 text-[11px] font-semibold tracking-[1.2px]', theme.title)}>MANAGEMENT</p> : null}
-      {managementItems.filter((item) => canVisit(item.key)).map((item) => item.linked ? <NavItem key={item.key} to={keyToPath[item.key] ?? paths.home} icon={item.icon} label={item.label} iconOnly={iconOnly} hint={navMeta[item.key]?.hint} theme={theme} onNavigate={onNavigate} hovered={state.hoveredMenuItem === item.label} onHover={state.setHoveredMenuItem} /> : <StaticNavItem key={item.key} icon={item.icon} label={item.label} iconOnly={iconOnly} hint={navMeta[item.key]?.hint} theme={theme} hovered={state.hoveredMenuItem === item.label} onHover={state.setHoveredMenuItem} />)}
+      {managementItems.filter((item) => canVisit(item.key)).map((item) => item.key === 'settings' ? <MenuGroup key={item.key} id="settings" icon={item.icon} label={item.label} items={settingsSubItems} active={inSettings} state={state} iconOnly={iconOnly} theme={theme} onNavigate={onNavigate} /> : item.linked ? <NavItem key={item.key} to={keyToPath[item.key] ?? paths.home} icon={item.icon} label={item.label} iconOnly={iconOnly} hint={navMeta[item.key]?.hint} theme={theme} onNavigate={onNavigate} hovered={state.hoveredMenuItem === item.label} onHover={state.setHoveredMenuItem} /> : <StaticNavItem key={item.key} icon={item.icon} label={item.label} iconOnly={iconOnly} hint={navMeta[item.key]?.hint} theme={theme} hovered={state.hoveredMenuItem === item.label} onHover={state.setHoveredMenuItem} />)}
     </nav>
   </aside>
 }

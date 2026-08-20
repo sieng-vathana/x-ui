@@ -28,6 +28,8 @@ export const paths = {
   customers: '/customers',
   reports: '/reports',
   settings: '/settings',
+  settingsPos: '/settings/pos',
+  settingsLayout: '/settings/layout',
   users: '/users',
   roles: '/roles',
 } as const

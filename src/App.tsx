@@ -129,6 +129,8 @@ export default function App() {
                   element={<PlaceholderPage title="Reports" description="Business reports." />}
                 />
                 <Route path="settings" element={<BusinessProfilePage />} />
+                <Route path="settings/pos" element={<BusinessProfilePage />} />
+                <Route path="settings/layout" element={<BusinessProfilePage />} />
                 <Route path="users" element={<UsersPage />} />
                 <Route path="roles" element={<RoleManagementPage />} />
               </Route>
