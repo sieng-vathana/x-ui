@@ -5,6 +5,7 @@ export function formatCurrency(amount: number, currency = 'USD'): string {
   return new Intl.NumberFormat('en-US', {
     style: 'currency',
     currency: normalized,
+    currencyDisplay: normalized === 'KHR' ? 'narrowSymbol' : 'symbol',
     minimumFractionDigits: normalized === 'KHR' ? 0 : 2,
     maximumFractionDigits: normalized === 'KHR' ? 0 : 2,
   }).format(Number.isFinite(amount) ? amount : 0)
