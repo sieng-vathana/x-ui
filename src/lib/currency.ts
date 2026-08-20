@@ -2,13 +2,18 @@ export const DEFAULT_USD_TO_KHR_RATE = 4000
 
 export function formatCurrency(amount: number, currency = 'USD'): string {
   const normalized = currency.trim().toUpperCase() || 'USD'
-  return new Intl.NumberFormat('en-US', {
+  const formatter = new Intl.NumberFormat('en-US', {
     style: 'currency',
     currency: normalized,
     currencyDisplay: normalized === 'KHR' ? 'narrowSymbol' : 'symbol',
     minimumFractionDigits: normalized === 'KHR' ? 0 : 2,
     maximumFractionDigits: normalized === 'KHR' ? 0 : 2,
-  }).format(Number.isFinite(amount) ? amount : 0)
+  })
+  const value = Number.isFinite(amount) ? amount : 0
+  if (normalized !== 'KHR') return formatter.format(value)
+  return formatter.formatToParts(value)
+    .map((part) => part.type === 'currency' ? `${part.value} ` : part.value)
+    .join('')
 }
 
 export function formatUsd(amount: number): string {
@@ -33,5 +38,5 @@ export function canConvertCurrency(fromCurrency: string, toCurrency: string): bo
 }
 
 export function formatKhr(amount: number, rate = DEFAULT_USD_TO_KHR_RATE): string {
-  return `៛${Math.round(amount * rate).toLocaleString('en-US')}`
+  return `៛ ${Math.round(amount * rate).toLocaleString('en-US')}`
 }
