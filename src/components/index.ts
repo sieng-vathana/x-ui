@@ -5,7 +5,13 @@ export {
   type BreadcrumbItem,
 } from './ui/Breadcrumb'
 export { Button, type ButtonProps, type ButtonVariant } from './ui/Button'
-export { Select, type SelectProps, type SelectOption } from './ui/Select'
+export {
+  Select,
+  MultiSelect,
+  type SelectProps,
+  type MultiSelectProps,
+  type SelectOption,
+} from './ui/Select'
 export { Status, type StatusProps } from './ui/Status'
 export { ProductThumb, type ProductThumbProps } from './ui/ProductThumb'
 export {

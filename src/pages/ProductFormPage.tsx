@@ -6,6 +6,7 @@ import {
   CropModal,
   FormField,
   Icon,
+  MultiSelect,
   Select,
   StoreSwitcher,
   TextAreaField,
@@ -643,7 +644,12 @@ export function ProductFormPage() {
   }
 
   const removeOptionGroup = (id: string) => {
-    setOptionGroups((prev) => prev.filter((g) => g.id !== id))
+    setOptionGroups((prev) => {
+      const next = prev.filter((g) => g.id !== id)
+      return next.length > 0
+        ? next
+        : [{ id: `opt-${Date.now()}`, name: '', values: [], inputValue: '' }]
+    })
   }
 
   const addOptionValue = (groupId: string, selectedValue?: string) => {
@@ -653,15 +659,6 @@ export function ProductFormPage() {
         const val = (selectedValue ?? g.inputValue).trim()
         if (!val || g.values.includes(val)) return g
         return { ...g, values: [...g.values, val], inputValue: selectedValue ? g.inputValue : '' }
-      }),
-    )
-  }
-
-  const removeOptionValue = (groupId: string, valToRemove: string) => {
-    setOptionGroups((prev) =>
-      prev.map((g) => {
-        if (g.id !== groupId) return g
-        return { ...g, values: g.values.filter((v) => v !== valToRemove) }
       }),
     )
   }
@@ -1208,7 +1205,6 @@ export function ProductFormPage() {
                       ...apiOptionValues,
                       ...(savedOption?.values ?? []),
                     ]))
-                    const remainingOptionValues = availableOptionValues.filter((value) => !group.values.includes(value))
                     const isLoadingOptionValues = selectedApiAttribute
                       ? loadingOptionValues[String(selectedApiAttribute.id)] === true
                       : false
@@ -1217,19 +1213,11 @@ export function ProductFormPage() {
                     <div key={group.id} className="rounded-xl border border-vpos-line bg-vpos-subtle/30 p-4">
                         <div className="mb-3 flex items-center justify-between gap-2">
                           <strong className="text-[13px] text-vpos-primary">Option {idx + 1}</strong>
-                          {optionGroups.length > 1 && (
-                            <button
-                              type="button"
-                              onClick={() => removeOptionGroup(group.id)}
-                              className="border-0 bg-transparent text-[12px] font-bold text-vpos-red hover:underline"
-                            >
-                              Remove option
-                            </button>
-                          )}
                         </div>
                         <div className="grid grid-cols-1 gap-3 md:grid-cols-3">
                           <Select
                             label="Option Name"
+                            requiredMark
                             placeholder="Select or search option (e.g. Size, Color)..."
                             value={group.name}
                             onChange={(val) => {
@@ -1253,29 +1241,40 @@ export function ProductFormPage() {
                             searchable
                             allowCustom
                           />
-                          <div className="md:col-span-2">
-                            <label className="mb-2 block text-[12px] font-semibold text-vpos-dark">
-                              Option Values
-                            </label>
-                            <div className="flex items-center gap-2">
-                              <Select
+                          <div className="min-w-0 md:col-span-2">
+                            <div className="flex items-end gap-3">
+                            <div className="min-w-0 flex-1">
+                              <label className="mb-2 block text-[12px] font-semibold text-vpos-dark">
+                                Option Value <b className="text-vpos-red">*</b>
+                              </label>
+                              <MultiSelect
                                 placeholder={
                                   isLoadingOptionValues
                                     ? 'Loading saved values…'
-                                    : remainingOptionValues.length > 0
-                                      ? 'Select saved value'
-                                      : availableOptionValues.length > 0
-                                        ? 'All saved values selected'
-                                        : group.name
-                                          ? 'No saved values'
-                                          : 'Select an option name first'
+                                    : availableOptionValues.length > 0
+                                      ? 'Select option values'
+                                      : group.name
+                                        ? 'No saved values'
+                                        : 'Select an option name first'
                                 }
-                                value=""
-                                onChange={(value) => addOptionValue(group.id, value)}
-                                options={remainingOptionValues.map((value) => ({ value, label: value }))}
+                                values={group.values}
+                                onChange={(values) => {
+                                  setOptionGroups((prev) =>
+                                    prev.map((g) => (g.id === group.id ? { ...g, values } : g)),
+                                  )
+                                }}
+                                options={availableOptionValues.map((value) => ({ value, label: value }))}
                                 searchable
-                                className="min-w-0 flex-1"
                               />
+                            </div>
+                            <button
+                              type="button"
+                              onClick={() => removeOptionGroup(group.id)}
+                              className="inline-flex h-[39px] shrink-0 items-center gap-1.5 rounded-[8px] border border-[#ff8d78] bg-white px-3 text-[12px] font-bold text-[#ff8d78] transition-colors hover:bg-[#fff4f1]"
+                            >
+                              <Icon name="delete-bin-line" />
+                              Remove
+                            </button>
                             </div>
                             <div className="mt-2 flex items-center gap-2">
                               <input
@@ -1301,26 +1300,7 @@ export function ProductFormPage() {
                                 Add custom
                               </Button>
                             </div>
-
-                            {/* Active Selected Values Tags */}
-                            <div className="mt-2.5 flex flex-wrap items-center gap-1.5">
-                              {group.values.map((val) => (
-                                <span
-                                  key={val}
-                                  className="inline-flex items-center gap-1.5 rounded-full bg-vpos-sand px-3 py-1 text-[12px] font-bold text-vpos-primary shadow-xs"
-                                >
-                                  {val}
-                                  <button
-                                    type="button"
-                                    onClick={() => removeOptionValue(group.id, val)}
-                                    className="border-0 bg-transparent text-vpos-primary hover:text-vpos-red cursor-pointer"
-                                  >
-                                    ×
-                                  </button>
-                                </span>
-                              ))}
                             </div>
-                          </div>
                         </div>
                       </div>
                     )

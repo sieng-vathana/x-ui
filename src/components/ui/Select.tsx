@@ -23,6 +23,18 @@ export interface SelectProps {
   allowCustom?: boolean
 }
 
+export interface MultiSelectProps {
+  label?: string
+  placeholder?: string
+  options: SelectOption[]
+  values: string[]
+  onChange: (values: string[]) => void
+  required?: boolean
+  requiredMark?: boolean
+  className?: string
+  searchable?: boolean
+}
+
 const labelClass =
   'mb-2 block text-[12px] font-semibold tracking-[0.02em] text-vpos-dark'
 
@@ -205,6 +217,170 @@ export function Select({
                 <span>Use "{query.trim()}"</span>
               </button>
             )}
+          </div>
+        </div>
+      ) : null}
+    </div>
+  )
+}
+
+export function MultiSelect({
+  label,
+  placeholder = 'Select values',
+  options,
+  values,
+  onChange,
+  required,
+  requiredMark,
+  className,
+  searchable = false,
+}: MultiSelectProps) {
+  const [open, setOpen] = useState(false)
+  const [query, setQuery] = useState('')
+  const ref = useRef<HTMLDivElement>(null)
+  const inputRef = useRef<HTMLInputElement>(null)
+  const listId = useId()
+  const selectedOptions = values.map((value) => options.find((option) => option.value === value) ?? ({ value, label: value }))
+  const filtered = options.filter((option) => {
+    if (!query.trim()) return true
+    return option.label.toLowerCase().includes(query.toLowerCase())
+  })
+
+  useEffect(() => {
+    if (!open) return
+    const onDoc = (event: MouseEvent) => {
+      if (!ref.current?.contains(event.target as Node)) {
+        setOpen(false)
+        setQuery('')
+      }
+    }
+    document.addEventListener('mousedown', onDoc)
+    const timeout = setTimeout(() => {
+      if (searchable) inputRef.current?.focus()
+    }, 50)
+    return () => {
+      document.removeEventListener('mousedown', onDoc)
+      clearTimeout(timeout)
+    }
+  }, [open, searchable])
+
+  const toggleValue = (value: string) => {
+    onChange(values.includes(value) ? values.filter((item) => item !== value) : [...values, value])
+  }
+
+  return (
+    <div ref={ref} className={cn('relative w-full', className)}>
+      {label ? (
+        <span className={labelClass}>
+          {label}
+          {required || requiredMark ? <b className="text-vpos-red"> *</b> : null}
+        </span>
+      ) : null}
+      <div
+        role="combobox"
+        aria-expanded={open}
+        aria-controls={listId}
+        aria-haspopup="listbox"
+        tabIndex={0}
+        onClick={() => setOpen((value) => !value)}
+        onKeyDown={(event) => {
+          if (event.key === 'Enter' || event.key === ' ') {
+            event.preventDefault()
+            setOpen((value) => !value)
+          }
+        }}
+        className={cn(
+          'flex min-h-[39px] w-full cursor-pointer items-center gap-2 rounded-[4px] border border-vpos-line bg-white px-2.5 text-left transition-colors',
+          'hover:border-vpos-primary/60',
+          open && 'border-vpos-primary shadow-[0_0_0_2px_rgb(104_124_254_/_0.12)]',
+        )}
+      >
+        <div className="flex min-w-0 flex-1 flex-wrap items-center gap-1.5">
+          {selectedOptions.length > 0 ? selectedOptions.map((option) => (
+            <span
+              key={option.value}
+              className="inline-flex max-w-full items-center gap-1 rounded-[5px] bg-[#e5e7eb] px-2 py-1 text-[11px] font-semibold text-vpos-text"
+            >
+              <span className="truncate">{option.label}</span>
+              <span
+                role="button"
+                tabIndex={0}
+                aria-label={`Remove ${option.label}`}
+                onClick={(event) => {
+                  event.stopPropagation()
+                  toggleValue(option.value)
+                }}
+                onKeyDown={(event) => {
+                  if (event.key === 'Enter' || event.key === ' ') {
+                    event.preventDefault()
+                    event.stopPropagation()
+                    toggleValue(option.value)
+                  }
+                }}
+                className="cursor-pointer text-[13px] leading-none text-vpos-muted hover:text-vpos-text"
+              >
+                ×
+              </span>
+            </span>
+          )) : (
+            <span className="truncate text-[13px] font-semibold text-vpos-muted">{placeholder}</span>
+          )}
+        </div>
+        <svg
+          className={cn('h-4 w-4 shrink-0 text-vpos-muted transition-transform', open && 'rotate-180')}
+          xmlns="http://www.w3.org/2000/svg"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="2"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+        >
+          <path d="m6 9 6 6 6-6" />
+        </svg>
+      </div>
+
+      {open ? (
+        <div
+          id={listId}
+          role="listbox"
+          aria-multiselectable="true"
+          className="absolute top-[calc(100%+6px)] left-0 z-[400] min-w-full overflow-hidden rounded-[4px] border border-vpos-line bg-white py-1 shadow-vpos"
+        >
+          {searchable ? (
+            <div className="flex items-center gap-2 border-b border-vpos-line px-3 py-2">
+              <input
+                ref={inputRef}
+                className="h-9 min-w-0 flex-1 rounded-[4px] border border-vpos-line bg-vpos-surface px-2.5 text-[13px] text-vpos-text outline-none focus:border-vpos-primary"
+                placeholder="Search values..."
+                value={query}
+                onChange={(event) => setQuery(event.target.value)}
+                onClick={(event) => event.stopPropagation()}
+              />
+            </div>
+          ) : null}
+          <div className="max-h-[220px] overflow-y-auto py-1">
+            {filtered.length === 0 ? (
+              <p className="px-4 py-3 text-[13px] text-vpos-muted">No values available</p>
+            ) : filtered.map((option) => {
+              const selected = values.includes(option.value)
+              return (
+                <button
+                  key={option.value}
+                  type="button"
+                  role="option"
+                  aria-selected={selected}
+                  className={cn(
+                    'flex w-full items-center justify-between gap-2 border-0 px-4 py-2.5 text-left text-[13px] font-semibold transition-colors',
+                    selected ? 'bg-vpos-sand text-vpos-primary' : 'text-vpos-text hover:bg-vpos-subtle',
+                  )}
+                  onClick={() => toggleValue(option.value)}
+                >
+                  <span className="truncate">{option.label}</span>
+                  {selected ? <Icon name="check-line" className="shrink-0 text-[15px] text-vpos-primary" /> : null}
+                </button>
+              )
+            })}
           </div>
         </div>
       ) : null}
