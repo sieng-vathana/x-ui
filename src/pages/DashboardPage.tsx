@@ -154,7 +154,7 @@ export function DashboardPage() {
           />
           <div className="flex flex-wrap items-center gap-1.5 lg:pb-0.5">
             <span className="mr-1 text-[11px] font-bold uppercase tracking-[0.06em] text-vpos-muted">Quick range</span>
-            {[['Today', 1], ['7 days', 7], ['30 days', 30]].map(([label, days]) => {
+            {[['Today', 1], ['7 days', 7], ['30 days', 30], ['90 days', 90], ['1 year', 365]].map(([label, days]) => {
               const active = days === 7 && from === defaultReportFrom() && to === localDateValue()
               return (
                 <button
