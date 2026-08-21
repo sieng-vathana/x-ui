@@ -1,6 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { ApiError } from '../../lib/api'
 import { paymentApi } from './paymentApi'
+import type { CashMovementInput, CloseCashSessionInput } from './types'
 
 export function useCreateCashPayment() {
   return useMutation({ mutationFn: paymentApi.createCash })
@@ -54,6 +55,60 @@ export function usePaymentBreakdown(storeId: string | number | undefined, from: 
     queryFn: () => paymentApi.breakdown(storeId!, from, to),
     enabled: enabled && Boolean(storeId) && Boolean(from) && Boolean(to),
     staleTime: 30 * 1000,
+  })
+}
+
+export function useCurrentCashSession(
+  storeId: string | number | undefined,
+  cashierId: string | number | undefined,
+  currencyCode: string,
+  enabled = true,
+) {
+  return useQuery({
+    queryKey: ['cash-session', 'current', { storeId, cashierId, currencyCode }],
+    queryFn: () => paymentApi.currentCashSession(storeId!, cashierId!, currencyCode),
+    enabled: enabled && Boolean(storeId) && Boolean(cashierId) && Boolean(currencyCode),
+    staleTime: 15 * 1000,
+    refetchOnWindowFocus: false,
+  })
+}
+
+export function useCashSessionHistory(
+  storeId: string | number | undefined,
+  cashierId: string | number | undefined,
+  currencyCode: string,
+  enabled = true,
+) {
+  return useQuery({
+    queryKey: ['cash-session', 'history', { storeId, cashierId, currencyCode }],
+    queryFn: () => paymentApi.cashSessionHistory(storeId!, cashierId!, currencyCode),
+    enabled: enabled && Boolean(storeId) && Boolean(cashierId) && Boolean(currencyCode),
+    staleTime: 30 * 1000,
+    refetchOnWindowFocus: false,
+  })
+}
+
+export function useOpenCashSession() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: paymentApi.openCashSession,
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['cash-session'] }),
+  })
+}
+
+export function useAddCashMovement() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: ({ id, input }: { id: number; input: CashMovementInput }) => paymentApi.addCashMovement(id, input),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['cash-session'] }),
+  })
+}
+
+export function useCloseCashSession() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: ({ id, input }: { id: number; input: CloseCashSessionInput }) => paymentApi.closeCashSession(id, input),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['cash-session'] }),
   })
 }
 

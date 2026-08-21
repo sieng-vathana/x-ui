@@ -36,6 +36,7 @@ import {
   useCreateCashPayment,
   useCreateCardPayment,
   useCreateSimulatedPosQrCheckout,
+  useCurrentCashSession,
   usePaymentStatus,
   useSimulatePaymentCallback,
 } from '../features/payments/usePayments'
@@ -119,6 +120,12 @@ export function PosPage() {
   const createCardPaymentMutation = useCreateCardPayment()
   const createPosQrCheckoutMutation = useCreateSimulatedPosQrCheckout()
   const simulatePaymentCallbackMutation = useSimulatePaymentCallback()
+  const currentCashSessionQuery = useCurrentCashSession(
+    storeId,
+    Number(user?.id),
+    currencyCode,
+    Boolean(user?.id && storeId),
+  )
   const completeOrderMutation = useCompleteOrder()
   const [query, setQuery] = useState('')
   const [categoryId, setCategoryId] = useState('all')
@@ -652,6 +659,15 @@ export function PosPage() {
       toast('That payment method is disabled in POS settings.', 'warning')
       return
     }
+    if (payment === 'cash' && !currentCashSessionQuery.data) {
+      toast(
+        currentCashSessionQuery.isLoading
+          ? 'Checking the cash register. Try again in a moment.'
+          : 'Open the cash register before accepting cash payments.',
+        'warning',
+      )
+      return
+    }
 
     const input: CreatePosOrderInput = {
       businessId,
@@ -685,6 +701,7 @@ export function PosPage() {
           orderId: order.id,
           businessId,
           storeId: selectedStoreId,
+          cashierId,
           amount: order.grandTotal,
           tenderedAmount: order.grandTotal,
           currencyCode: order.currencyCode,
@@ -704,6 +721,7 @@ export function PosPage() {
           orderId: order.id,
           businessId,
           storeId: selectedStoreId,
+          cashierId,
           amount: order.grandTotal,
           currencyCode: order.currencyCode,
           method: 'CARD',
@@ -747,7 +765,7 @@ export function PosPage() {
       if (pendingQrReceiptWindowRef.current === receiptWindow) pendingQrReceiptWindowRef.current = null
       toast(error instanceof Error ? error.message : 'Checkout could not be completed.', 'error')
     }
-  }, [completeOrderMutation, createCardPaymentMutation, createCashPaymentMutation, createOrderMutation, createPosQrCheckoutMutation, currencyCode, customerId, getReceiptOptions, lines, payment, settings.allowNegativeStock, settings.autoPrintReceipt, settings.requireCustomer, settings.roundingIncrement, simulatePaymentCallbackMutation, storeId, taxRate, toast, user])
+  }, [completeOrderMutation, createCardPaymentMutation, createCashPaymentMutation, createOrderMutation, createPosQrCheckoutMutation, currencyCode, currentCashSessionQuery.data, currentCashSessionQuery.isLoading, customerId, getReceiptOptions, lines, payment, settings.allowNegativeStock, settings.autoPrintReceipt, settings.requireCustomer, settings.roundingIncrement, simulatePaymentCallbackMutation, storeId, taxRate, toast, user])
 
   const checkoutPending = createOrderMutation.isPending
     || createCashPaymentMutation.isPending
@@ -1455,6 +1473,12 @@ export function PosPage() {
                   />
                 ) : null}
               </div>
+              {settings.cashEnabled && !currentCashSessionQuery.data ? (
+                <div className="mb-3 flex items-start gap-2 rounded-[4px] border border-vpos-orange/25 bg-vpos-orange-bg px-3 py-2.5 text-[12px] leading-5 text-vpos-orange">
+                  <Icon name="information-line" className="mt-0.5 shrink-0 text-[16px]" />
+                  <span>Open a cash register session before accepting cash payments. QR and card checkout remain available.</span>
+                </div>
+              ) : null}
 
               <div className="grid grid-cols-[1fr_1.6fr] gap-2">
                 <Button

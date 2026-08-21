@@ -1,9 +1,13 @@
 import { API_BASE_URL, ApiClient } from '../../lib/api'
 import type {
   CreateCashPaymentInput,
+  CashMovementInput,
+  CashSession,
+  CloseCashSessionInput,
   CreateCardPaymentInput,
   CreatePosQrCheckoutInput,
   CreateQrPaymentInput,
+  OpenCashSessionInput,
   Payment,
   PaymentBreakdown,
   PosQrCheckoutResponse,
@@ -95,6 +99,62 @@ export const paymentApi = {
         `/payments/reports/breakdown?storeId=${encodeURIComponent(storeId)}&from=${encodeURIComponent(from)}&to=${encodeURIComponent(to)}`,
       ),
       'The payment breakdown could not be loaded.',
+    )
+  },
+
+  async currentCashSession(
+    storeId: string | number,
+    cashierId: string | number,
+    currencyCode: string,
+  ): Promise<CashSession | null> {
+    return requireData(
+      await api.request<ApiEnvelope<CashSession | null>>(
+        `/payments/cash-sessions/current?storeId=${encodeURIComponent(storeId)}&cashierId=${encodeURIComponent(cashierId)}&currencyCode=${encodeURIComponent(currencyCode)}`,
+      ),
+      'The current cash register could not be loaded.',
+    )
+  },
+
+  async cashSessionHistory(
+    storeId: string | number,
+    cashierId: string | number,
+    currencyCode: string,
+  ): Promise<CashSession[]> {
+    return requireData(
+      await api.request<ApiEnvelope<CashSession[]>>(
+        `/payments/cash-sessions/history?storeId=${encodeURIComponent(storeId)}&cashierId=${encodeURIComponent(cashierId)}&currencyCode=${encodeURIComponent(currencyCode)}`,
+      ),
+      'Cash register history could not be loaded.',
+    )
+  },
+
+  async openCashSession(input: OpenCashSessionInput): Promise<CashSession> {
+    return requireData(
+      await api.request<ApiEnvelope<CashSession>>('/payments/cash-sessions/open', {
+        method: 'POST',
+        body: JSON.stringify(input),
+      }),
+      'The cash register could not be opened.',
+    )
+  },
+
+  async addCashMovement(id: number, input: CashMovementInput): Promise<CashSession> {
+    return requireData(
+      await api.request<ApiEnvelope<CashSession>>(`/payments/cash-sessions/${encodeURIComponent(id)}/movements`, {
+        method: 'POST',
+        body: JSON.stringify(input),
+      }),
+      'The cash movement could not be recorded.',
+    )
+  },
+
+  async closeCashSession(id: number, input: CloseCashSessionInput): Promise<CashSession> {
+    return requireData(
+      await api.request<ApiEnvelope<CashSession>>(`/payments/cash-sessions/${encodeURIComponent(id)}/close`, {
+        method: 'POST',
+        body: JSON.stringify(input),
+      }),
+      'The cash register could not be closed.',
     )
   },
 

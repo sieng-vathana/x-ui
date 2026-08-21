@@ -7,6 +7,7 @@ export interface Payment {
   orderId: number
   businessId: number
   storeId: number
+  cashierId?: number | null
   amount: number
   tenderedAmount?: number | null
   changeAmount: number
@@ -27,6 +28,7 @@ export interface CreateCashPaymentInput {
   orderId: number
   businessId: number
   storeId: number
+  cashierId: number
   amount: number
   tenderedAmount: number
   currencyCode: string
@@ -48,6 +50,7 @@ export interface CreateCardPaymentInput {
   orderId: number
   businessId: number
   storeId: number
+  cashierId: number
   amount: number
   currencyCode: string
   method: 'CARD'
@@ -60,6 +63,7 @@ export interface CreateQrPaymentInput {
   orderId: number
   businessId: number
   storeId: number
+  cashierId?: number
   amount: number
   currencyCode: string
   idempotencyKey: string
@@ -99,4 +103,64 @@ export interface CreatePosQrCheckoutInput {
 export interface PosQrCheckoutResponse {
   order: import('../orders/types').PosOrder
   payment: QrPaymentResponse
+}
+
+export type CashSessionStatus = 'OPEN' | 'CLOSED'
+export type CashMovementType = 'PAY_IN' | 'PAY_OUT'
+
+export interface CashMovement {
+  id: number
+  sessionId: number
+  type: CashMovementType
+  amount: number
+  reason: string
+  createdBy: number
+  createdAt?: string
+}
+
+export interface CashSession {
+  id: number
+  businessId: number
+  storeId: number
+  cashierId: number
+  currencyCode: string
+  status: CashSessionStatus
+  openingFloat: number
+  cashSales: number
+  cashRefunds: number
+  cashIn: number
+  cashOut: number
+  paymentCount: number
+  expectedCash: number
+  countedCash?: number | null
+  variance?: number | null
+  openedAt?: string
+  closedAt?: string | null
+  openedBy: number
+  closedBy?: number | null
+  note?: string | null
+  closeNote?: string | null
+  movements: CashMovement[]
+}
+
+export interface OpenCashSessionInput {
+  businessId: number
+  storeId: number
+  cashierId: number
+  currencyCode: string
+  openingFloat: number
+  note?: string
+}
+
+export interface CashMovementInput {
+  type: CashMovementType
+  amount: number
+  reason: string
+  createdBy: number
+}
+
+export interface CloseCashSessionInput {
+  countedCash: number
+  closedBy: number
+  closeNote?: string
 }

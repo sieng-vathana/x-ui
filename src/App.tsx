@@ -36,6 +36,7 @@ import { TasksPage } from './pages/TasksPage'
 import { SalesPage } from './pages/SalesPage'
 import { SalesPaymentsPage } from './pages/SalesPaymentsPage'
 import { SalesOperationsPage } from './pages/SalesOperationsPage'
+import { CashRegisterPage } from './pages/CashRegisterPage'
 import { ReportsPage } from './pages/ReportsPage'
 
 const queryClient = new QueryClient({
@@ -121,7 +122,9 @@ export default function App() {
                 </Route>
                 <Route element={<RequirePermission permission="x-report:read" />}>
                   <Route path="sales/payments" element={<SalesPaymentsPage />} />
-                  <Route path="sales/cash-register" element={<SalesOperationsPage section="cash-register" />} />
+                </Route>
+                <Route element={<RequirePermission permission="x-payment:read" />}>
+                  <Route path="sales/cash-register" element={<CashRegisterPage />} />
                 </Route>
                 <Route path="tasks" element={<TasksPage />} />
                 <Route path="purchases" element={<PurchaseOrdersPage />} />

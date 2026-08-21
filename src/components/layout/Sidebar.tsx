@@ -54,7 +54,7 @@ const salesSubItems: Array<{ to: string; label: string; end?: boolean; permissio
   { to: paths.sales, label: 'All sales', end: true, permission: 'x-order:read' },
   { to: paths.salesPayments, label: 'Payments', permission: 'x-report:read' },
   { to: paths.salesReturns, label: 'Returns & refunds', permission: 'x-order:refund' },
-  { to: paths.salesCashRegister, label: 'Cash register', permission: 'x-report:read' },
+  { to: paths.salesCashRegister, label: 'Cash register', permission: 'x-payment:read' },
 ]
 
 const reportSubItems: Array<{ to: string; label: string; end?: boolean }> = [
