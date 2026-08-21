@@ -42,6 +42,20 @@ export function useSalesSummary(storeId: string | number | undefined, from: stri
   })
 }
 
+export function useSalesTrend(storeId: string | number | undefined, from: string, to: string, enabled = true) {
+  const normalizedStoreId = normalizeStoreId(storeId)
+
+  return useQuery({
+    queryKey: ['reports', 'sales-trend', { storeId: normalizedStoreId, from, to }],
+    queryFn: () => {
+      if (normalizedStoreId === undefined) throw new Error('A valid store must be selected before loading reports.')
+      return orderApi.salesTrend(normalizedStoreId, from, to)
+    },
+    enabled: enabled && normalizedStoreId !== undefined && Boolean(from) && Boolean(to),
+    staleTime: 30 * 1000,
+  })
+}
+
 export function useTopProducts(storeId: string | number | undefined, from: string, to: string, limit = 10, enabled = true) {
   const normalizedStoreId = normalizeStoreId(storeId)
 

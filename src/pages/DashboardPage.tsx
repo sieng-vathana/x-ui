@@ -1,4 +1,7 @@
+import { useMemo, useState, type ReactNode } from 'react'
+import { Link } from 'react-router-dom'
 import {
+  Breadcrumb,
   Button,
   Icon,
   MetricCard,
@@ -7,194 +10,533 @@ import {
   StoreSwitcher,
   Topbar,
 } from '../components'
-import {
-  expenseBars,
-  products as catalog,
-  recentSales,
-  salesBars,
-  weekDays,
-} from '../data/mockup'
+import { ReportDateFilter } from '../components/reports/ReportDateFilter'
+import { useAuth } from '../context/AuthContext'
+import { useCurrentCashSession, usePaymentBreakdown } from '../features/payments/usePayments'
+import { useRecentOrders, useSalesSummary, useSalesTrend, useTopProducts } from '../features/orders/useOrders'
+import type { SalesTrend } from '../features/orders/types'
+import { useProductsList } from '../features/products/useProducts'
+import type { ProductItem } from '../features/products/types'
+import { usePosSettings } from '../features/pos/posSettings'
 import { useAdminStore } from '../hooks/useAdminStore'
+import { formatCurrency } from '../lib/currency'
 import { cn } from '../lib/cn'
 import { firstName, getGreeting } from '../lib/greeting'
-import { card, pageContent, thClass, tdClass } from '../lib/ui'
+import { formatReportDate, defaultReportFrom, localDateValue, reportDateTimeRange } from '../lib/reporting'
+import { paths } from '../lib/paths'
+import { card, pageContent, tdClass, thClass } from '../lib/ui'
+
+interface StockAlertRow {
+  id: string | number
+  productName: string
+  sku: string
+  image?: string
+  quantity: number
+  threshold: number
+}
+
+interface TrendPoint {
+  date: string
+  orderCount: number
+  grandTotal: number
+}
 
 export function DashboardPage() {
+  const { user } = useAuth()
   const { storeId, setStoreId } = useAdminStore()
+  const { settings } = usePosSettings(user?.business.id)
+  const [from, setFrom] = useState(defaultReportFrom)
+  const [to, setTo] = useState(() => localDateValue())
+  const range = useMemo(() => reportDateTimeRange(from, to), [from, to])
+
+  const permissions = user?.permissions ?? []
+  const canReadReports = permissions.includes('x-report:read')
+  const canReadOrders = permissions.includes('x-order:read')
+  const canReadProducts = permissions.includes('x-product:read')
+  const canReadPayments = permissions.includes('x-payment:read') || permissions.includes('x-payment:create')
+  const businessCurrency = (user?.business.defaultCurrencyCode || 'USD').toUpperCase()
+  const currency = settings.defaultCurrencyCode === 'BUSINESS' ? businessCurrency : settings.defaultCurrencyCode
+
+  const summaryQuery = useSalesSummary(storeId, range.from, range.to, canReadReports)
+  const trendQuery = useSalesTrend(storeId, range.from, range.to, canReadReports)
+  const topProductsQuery = useTopProducts(storeId, range.from, range.to, 5, canReadReports)
+  const paymentsQuery = usePaymentBreakdown(storeId, range.from, range.to, canReadReports && canReadPayments)
+  const ordersQuery = useRecentOrders(storeId, canReadOrders, 0, 8)
+  const catalogQuery = useProductsList(storeId, canReadProducts)
+  const cashSessionQuery = useCurrentCashSession(storeId, user?.id, currency, canReadPayments)
+
+  const summary = summaryQuery.data
+  const paymentRows = paymentsQuery.data ?? []
+  const topProducts = topProductsQuery.data ?? []
+  const recentOrders = ordersQuery.data?.content ?? []
+  const cashSession = cashSessionQuery.data
+  const orderCount = Number(summary?.orderCount ?? 0)
+  const netSales = Number(summary?.grandTotal ?? 0)
+  const averageOrder = orderCount > 0 ? netSales / orderCount : 0
+  const paymentTotal = paymentRows.reduce((total, row) => total + Number(row.totalAmount || 0), 0)
+  const refundedTotal = paymentRows.reduce((total, row) => total + Number(row.refundedAmount || 0), 0)
+  const paymentCount = paymentRows.reduce((total, row) => total + Number(row.paymentCount || 0), 0)
   const greeting = getGreeting()
-  const name = firstName('Vathana Sieng')
+  const displayName = firstName(user?.name || 'there')
+  const reportError = [summaryQuery, trendQuery, topProductsQuery, paymentsQuery, ordersQuery, catalogQuery, cashSessionQuery]
+    .find((query) => query.isError)?.error
+
+  const trendPoints = useMemo(
+    () => buildTrendPoints(from, to, trendQuery.data ?? []),
+    [from, to, trendQuery.data],
+  )
+  const trendMax = Math.max(1, ...trendPoints.map((point) => point.grandTotal))
+  const stockAlerts = useMemo(() => buildStockAlerts(catalogQuery.data ?? []), [catalogQuery.data])
+
+  const refreshDashboard = () => {
+    void Promise.all([
+      summaryQuery.refetch(),
+      trendQuery.refetch(),
+      topProductsQuery.refetch(),
+      paymentsQuery.refetch(),
+      ordersQuery.refetch(),
+      catalogQuery.refetch(),
+      cashSessionQuery.refetch(),
+    ])
+  }
+
+  const setPreset = (days: number) => {
+    const end = localDateValue()
+    const start = new Date(`${end}T00:00:00`)
+    start.setDate(start.getDate() - days + 1)
+    setFrom(localDateValue(start))
+    setTo(end)
+  }
 
   return (
     <>
       <Topbar
-        title="Dashboard"
-        subtitle="Welcome back — here’s your store at a glance."
+        title="Overview"
+        subtitle="A live view of sales, payments, register status, and stock."
         actions={<StoreSwitcher value={storeId} onChange={setStoreId} />}
       />
       <main className={pageContent}>
-        <section className="mb-6 flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+        <section className="mb-5 flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
           <div>
-            <h2 className="m-0 text-[21px] font-semibold text-vpos-text">
-              {greeting.text}, {name}!
+            <Breadcrumb items={[{ label: 'Overview' }]} />
+            <h2 className="mt-4 mb-0 text-[21px] font-semibold text-vpos-text">
+              {greeting.text}, {displayName}!
             </h2>
-            <p className="mt-1 mb-0 text-[15px] text-vpos-muted">
-              Here’s what’s happening with your store today.
+            <p className="mt-1 mb-0 text-[14px] text-vpos-muted">
+              See what needs attention in your store today.
             </p>
           </div>
           <div className="flex flex-wrap items-center gap-2">
-            <button type="button" className="inline-flex h-10 items-center gap-2 rounded-md border border-vpos-line bg-white px-3 text-[13px] font-semibold text-vpos-text shadow-vpos">
-              <Icon name="calendar-2-line" className="text-[17px] text-vpos-primary" />
-              01 Jan, 2026 – 31 Jan, 2026
-            </button>
-            <Button variant="soft"><Icon name="add-circle-line" /> Add product</Button>
-          </div>
-        </section>
-
-        <section className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
-          {(
-            [
-              ['Total sales', '$18,420', '+12.4%', 'money-dollar-circle-line', 'positive'],
-              ['Net profit', '$6,820', '+8.2%', 'line-chart-line', 'primary'],
-              ['Purchases', '$7,460', '−2.1%', 'shopping-cart-2-line', 'warning'],
-              ['Expenses', '$2,196', '+4.6%', 'wallet-3-line', 'danger'],
-            ] as const
-          ).map(([label, value, trend, icon, tone], i) => (
-            <MetricCard
-              key={label}
-              className={`stagger-${i + 1}`}
-              label={label}
-              value={value}
-              trend={trend}
-              trendTone={tone}
-              icon={<Icon name={icon} />}
-              iconTone={tone}
-            />
-          ))}
-        </section>
-
-        <section className="mt-[18px] grid grid-cols-1 gap-[18px] xl:grid-cols-[minmax(0,1.8fr)_minmax(330px,0.9fr)]">
-          <article className={cn(card, 'animate-slide-up stagger-5 min-h-[335px] p-[22px]')}>
-            <div className="mb-2 flex flex-wrap items-start justify-between gap-4">
-              <div>
-                <h3 className="m-0 text-[17px]">Sales performance</h3>
-                <p className="mt-1.5 mb-0 text-[13px] text-vpos-muted">
-                  Revenue and expenses • Last 7 days
-                </p>
-              </div>
-              <div className="flex gap-[18px] text-[13px] text-vpos-muted">
-                <span className="flex items-center gap-1.5">
-                  <i className="inline-block h-2 w-2 rounded-full bg-vpos-primary" />
-                  Sales
-                </span>
-                <span className="flex items-center gap-1.5">
-                  <i className="inline-block h-2 w-2 rounded-full bg-vpos-accent" />
-                  Expenses
-                </span>
-              </div>
-            </div>
-            <div
-              className="mt-5 flex h-[240px] items-stretch justify-around gap-3 border-b border-vpos-line bg-[repeating-linear-gradient(transparent_0_48px,rgba(137,161,152,.12)_49px)] pt-[15px]"
-              aria-label="Seven day sales chart"
+            <Link
+              to={paths.productNew}
+              className="inline-flex min-h-[39px] items-center justify-center gap-2 rounded-[4px] border border-transparent bg-vpos-primary px-4 text-[14px] font-semibold text-white no-underline transition-colors hover:bg-vpos-primary-2"
             >
-              {salesBars.map((h, i) => (
-                <div
-                  key={weekDays[i]}
-                  className={`animate-slide-up stagger-${i + 1} flex max-w-[72px] flex-1 flex-col items-center justify-end gap-2`}
+              <Icon name="add-circle-line" />
+              Add product
+            </Link>
+            <Link
+              to={paths.pos}
+              className="inline-flex min-h-[39px] items-center justify-center gap-2 rounded-[4px] border border-vpos-line bg-white px-4 text-[14px] font-semibold text-vpos-text no-underline transition-colors hover:border-vpos-primary hover:bg-vpos-subtle"
+            >
+              <Icon name="store-2-line" />
+              Open POS
+            </Link>
+          </div>
+        </section>
+
+        <section className="flex flex-col gap-3 rounded-[4px] border border-vpos-line bg-white p-3 shadow-vpos lg:flex-row lg:items-end lg:justify-between">
+          <ReportDateFilter
+            from={from}
+            to={to}
+            onFromChange={setFrom}
+            onToChange={setTo}
+            onRefresh={refreshDashboard}
+          />
+          <div className="flex flex-wrap items-center gap-1.5 lg:pb-0.5">
+            <span className="mr-1 text-[11px] font-bold uppercase tracking-[0.06em] text-vpos-muted">Quick range</span>
+            {[['Today', 1], ['7 days', 7], ['30 days', 30]].map(([label, days]) => {
+              const active = days === 7 && from === defaultReportFrom() && to === localDateValue()
+              return (
+                <button
+                  key={label}
+                  type="button"
+                  onClick={() => setPreset(Number(days))}
+                  className={cn(
+                    'rounded-[4px] border px-3 py-2 text-[12px] font-semibold transition-colors',
+                    active
+                      ? 'border-vpos-primary bg-vpos-sand text-vpos-primary'
+                      : 'border-vpos-line bg-white text-vpos-text hover:border-vpos-primary hover:bg-vpos-subtle',
+                  )}
                 >
-                  <div className="flex h-[190px] items-end gap-1">
-                    <span
-                      className="block min-h-1 w-[19px] rounded-t-md bg-vpos-primary"
-                      style={{ height: `${h}%` }}
-                    />
-                    <span
-                      className="block min-h-1 w-[11px] rounded-t-md bg-vpos-accent"
-                      style={{ height: `${expenseBars[i]}%` }}
-                    />
-                  </div>
-                  <small className="text-[12px] text-vpos-muted">{weekDays[i]}</small>
+                  {label}
+                </button>
+              )
+            })}
+          </div>
+        </section>
+
+        {reportError ? (
+          <div className="mt-4 flex items-start gap-2 rounded-[4px] border border-vpos-red/25 bg-vpos-red-bg p-4 text-[13px] text-vpos-red">
+            <Icon name="error-warning-line" className="mt-0.5 text-[17px]" />
+            <span>{reportError instanceof Error ? reportError.message : 'Some overview data could not be loaded.'}</span>
+          </div>
+        ) : null}
+
+        <section className="mt-[18px] grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-5">
+          <MetricCard
+            label="Net sales"
+            value={summaryQuery.isLoading ? '—' : formatCurrency(netSales, currency)}
+            trend={`${orderCount} completed orders`}
+            trendAs="small"
+            icon={<Icon name="funds-line" />}
+            iconTone="positive"
+          />
+          <MetricCard
+            label="Completed orders"
+            value={summaryQuery.isLoading ? '—' : orderCount.toLocaleString('en-US')}
+            trend="Selected period"
+            trendAs="small"
+            icon={<Icon name="file-list-3-line" />}
+            iconTone="primary"
+          />
+          <MetricCard
+            label="Average order"
+            value={summaryQuery.isLoading ? '—' : formatCurrency(averageOrder, currency)}
+            trend="Net sales ÷ orders"
+            trendAs="small"
+            icon={<Icon name="bar-chart-box-line" />}
+            iconTone="primary"
+          />
+          <MetricCard
+            label="Collected payments"
+            value={paymentsQuery.isLoading ? '—' : formatCurrency(paymentTotal, currency)}
+            trend={`${paymentCount} payments`}
+            trendAs="small"
+            icon={<Icon name="secure-payment-line" />}
+            iconTone="positive"
+          />
+          <MetricCard
+            label="Refunded"
+            value={paymentsQuery.isLoading ? '—' : formatCurrency(refundedTotal, currency)}
+            trend="Payment refunds"
+            trendAs="small"
+            trendTone="danger"
+            icon={<Icon name="refund-2-line" />}
+            iconTone="danger"
+          />
+        </section>
+
+        <section className="mt-[18px] grid grid-cols-1 gap-[18px] xl:grid-cols-[minmax(0,1.45fr)_minmax(320px,.75fr)]">
+          <article className={cn(card, 'min-h-[355px] overflow-hidden p-5')}>
+            <SectionHeader
+              title="Sales trend"
+              subtitle={`${formatDateLabel(from)} – ${formatDateLabel(to)} · completed sales`}
+              action={<Icon name="line-chart-line" className="text-[21px] text-vpos-primary" />}
+            />
+            {trendQuery.isLoading ? (
+              <LoadingPanel label="Loading sales trend…" />
+            ) : trendPoints.length === 0 ? (
+              <EmptyPanel icon="line-chart-line" label="No completed sales in this period." />
+            ) : (
+              <div className="mt-5 overflow-x-auto pb-1">
+                <div
+                  className="flex min-w-full items-end gap-2 border-b border-vpos-line bg-[repeating-linear-gradient(transparent_0_46px,rgba(137,161,152,.12)_47px)] pt-4"
+                  style={{ width: `${Math.max(100, trendPoints.length * 52)}px`, minHeight: 245 }}
+                  aria-label="Sales trend chart"
+                >
+                  {trendPoints.map((point) => {
+                    const height = point.grandTotal > 0 ? Math.max(5, (point.grandTotal / trendMax) * 190) : 2
+                    return (
+                      <div
+                        key={point.date}
+                        className="flex min-w-[44px] flex-1 flex-col items-center justify-end gap-2"
+                        title={`${formatDateLabel(point.date)}: ${formatCurrency(point.grandTotal, currency)} · ${point.orderCount} orders`}
+                      >
+                        <div className="flex h-[190px] w-full items-end justify-center">
+                          <span className="block w-[22px] rounded-t-md bg-vpos-primary transition-[height]" style={{ height }} />
+                        </div>
+                        <small className="whitespace-nowrap text-[11px] text-vpos-muted">{formatCompactDate(point.date)}</small>
+                      </div>
+                    )
+                  })}
                 </div>
-              ))}
-            </div>
+              </div>
+            )}
           </article>
 
-          <article className={cn(card, 'animate-slide-up stagger-6 min-h-[335px] p-[22px]')}>
-            <div className="mb-2 flex items-start justify-between gap-4">
-              <div>
-                <h3 className="m-0 text-[17px]">Low-stock alerts</h3>
-                <p className="mt-1.5 mb-0 text-[13px] text-vpos-muted">
-                  Items that need attention
-                </p>
+          <article className={cn(card, 'min-h-[355px] overflow-hidden p-5')}>
+            <SectionHeader
+              title="Payment mix"
+              subtitle="Collected and refunded by method"
+              action={<Link to={paths.salesPayments} className="text-[12px] font-semibold text-vpos-primary no-underline hover:underline">View report</Link>}
+            />
+            {paymentsQuery.isLoading ? (
+              <LoadingPanel label="Loading payment mix…" />
+            ) : paymentRows.length === 0 ? (
+              <EmptyPanel icon="secure-payment-line" label="No settled payments in this period." />
+            ) : (
+              <div className="mt-5 space-y-4">
+                {paymentRows.map((row) => {
+                  const share = paymentTotal > 0 ? Math.max(2, (Number(row.totalAmount || 0) / paymentTotal) * 100) : 0
+                  return (
+                    <div key={`${row.method}-${row.provider}`}>
+                      <div className="mb-1.5 flex items-center justify-between gap-3 text-[13px]">
+                        <span className="font-semibold text-vpos-text">{paymentLabel(row.method, row.provider)}</span>
+                        <strong className="text-vpos-text">{formatCurrency(Number(row.totalAmount || 0), currency)}</strong>
+                      </div>
+                      <div className="h-2 overflow-hidden rounded-full bg-vpos-subtle">
+                        <span className="block h-full rounded-full bg-vpos-primary" style={{ width: `${share}%` }} />
+                      </div>
+                      <div className="mt-1 flex justify-between text-[11px] text-vpos-muted">
+                        <span>{row.paymentCount} payments</span>
+                        <span>{Number(row.refundedAmount || 0) > 0 ? `${formatCurrency(Number(row.refundedAmount), currency)} refunded` : 'No refunds'}</span>
+                      </div>
+                    </div>
+                  )
+                })}
               </div>
-              <Button variant="text">View all</Button>
-            </div>
-            {catalog
-              .filter((p) => p.stock <= 12)
-              .slice(0, 4)
-              .map((p) => (
-                <div
-                  key={p.sku}
-                  className="grid grid-cols-[42px_1fr_auto] items-center gap-[11px] border-b border-vpos-line/70 py-3 last:border-0"
-                >
-                  <ProductThumb tone={p.tone} />
-                  <span>
-                    <strong className="block text-[14px]">{p.name}</strong>
-                    <small className="mt-1 block text-[12px] text-vpos-muted">
-                      {p.sku}
-                    </small>
-                  </span>
-                  <span
-                    className={cn(
-                      'inline-flex min-w-[78px] items-center justify-center rounded-full px-2.5 py-1.5 text-[12px] font-extrabold',
-                      p.stock === 0
-                        ? 'bg-vpos-red-bg text-vpos-red'
-                        : 'bg-vpos-orange-bg text-vpos-orange',
-                    )}
-                  >
-                    {p.stock === 0 ? 'Out' : `${p.stock} left`}
-                  </span>
-                </div>
-              ))}
+            )}
           </article>
         </section>
 
-        <article className={cn(card, 'animate-slide-up stagger-7 mt-[18px] p-[22px]')}>
-          <div className="mb-3 flex items-center justify-between">
-            <h3 className="m-0 text-[17px]">Recent sales</h3>
-            <Button variant="text">View all sales</Button>
-          </div>
-          <div className="overflow-x-auto">
-            <table className="w-full border-collapse">
-              <thead>
-                <tr>
-                  {['Invoice', 'Customer', 'Cashier', 'Payment', 'Total', 'Status'].map(
-                    (h) => (
-                      <th key={h} className={thClass}>
-                        {h}
-                      </th>
-                    ),
-                  )}
-                </tr>
-              </thead>
-              <tbody>
-                {recentSales.map((row, i) => (
-                  <tr key={row.invoice} className={`animate-fade-in stagger-${(i % 8) + 1}`}>
-                    <td className={cn(tdClass, 'font-bold text-vpos-primary-2')}>
-                      {row.invoice}
-                    </td>
-                    <td className={tdClass}>{row.customer}</td>
-                    <td className={tdClass}>{row.cashier}</td>
-                    <td className={tdClass}>{row.payment}</td>
-                    <td className={tdClass}>{row.total}</td>
-                    <td className={tdClass}>
-                      <Status value={row.status} />
-                    </td>
-                  </tr>
+        <section className="mt-[18px] grid grid-cols-1 gap-[18px] xl:grid-cols-[minmax(0,1.15fr)_minmax(330px,.85fr)]">
+          <article className={cn(card, 'overflow-hidden p-0')}>
+            <div className="flex items-start justify-between gap-3 border-b border-vpos-line px-5 py-4">
+              <SectionHeader title="Top-selling products" subtitle="Ranked by completed units sold" />
+              <Link to={paths.reportsProducts} className="shrink-0 text-[12px] font-semibold text-vpos-primary no-underline hover:underline">View all</Link>
+            </div>
+            {topProductsQuery.isLoading ? (
+              <LoadingPanel label="Loading top products…" />
+            ) : topProducts.length === 0 ? (
+              <EmptyPanel icon="shopping-bag-3-line" label="No completed product sales in this period." />
+            ) : (
+              <div className="overflow-x-auto">
+                <table className="w-full border-collapse">
+                  <thead>
+                    <tr>
+                      {['Product', 'Units', 'Sales'].map((header) => <th key={header} className={thClass}>{header}</th>)}
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {topProducts.map((product, index) => (
+                      <tr key={product.variantId}>
+                        <td className={tdClass}>
+                          <div className="flex items-center gap-3">
+                            <span className="grid h-7 w-7 shrink-0 place-items-center rounded-full bg-vpos-sand text-[12px] font-extrabold text-vpos-primary">{index + 1}</span>
+                            <span>
+                              <strong className="block text-[13px]">{product.productName}</strong>
+                              <small className="text-[11px] text-vpos-muted">{product.sku || `Variant #${product.variantId}`}</small>
+                            </span>
+                          </div>
+                        </td>
+                        <td className={tdClass}>{product.quantity.toLocaleString('en-US')}</td>
+                        <td className={tdClass}><strong>{formatCurrency(Number(product.salesAmount || 0), currency)}</strong></td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </article>
+
+          <article className={cn(card, 'overflow-hidden p-0')}>
+            <div className="flex items-start justify-between gap-3 border-b border-vpos-line px-5 py-4">
+              <SectionHeader title="Low-stock alerts" subtitle="Items that need attention" />
+              <Link to={paths.productLowStock} className="shrink-0 text-[12px] font-semibold text-vpos-primary no-underline hover:underline">View all</Link>
+            </div>
+            {catalogQuery.isLoading ? (
+              <LoadingPanel label="Loading inventory alerts…" />
+            ) : stockAlerts.length === 0 ? (
+              <EmptyPanel icon="checkbox-circle-line" label="No low-stock items found." />
+            ) : (
+              <div className="px-5">
+                {stockAlerts.map((item) => (
+                  <div key={item.id} className="grid grid-cols-[42px_1fr_auto] items-center gap-3 border-b border-vpos-line/70 py-3 last:border-0">
+                    <ProductThumb src={item.image} />
+                    <span className="min-w-0">
+                      <strong className="block truncate text-[13px]">{item.productName}</strong>
+                      <small className="mt-1 block truncate text-[11px] text-vpos-muted">{item.sku}</small>
+                    </span>
+                    <Status value={item.quantity === 0 ? 'Out of stock' : `${item.quantity} left`} />
+                  </div>
                 ))}
-              </tbody>
-            </table>
-          </div>
-        </article>
+              </div>
+            )}
+          </article>
+        </section>
+
+        <section className="mt-[18px] grid grid-cols-1 gap-[18px] xl:grid-cols-[minmax(0,1.15fr)_minmax(330px,.85fr)]">
+          <article className={cn(card, 'overflow-hidden p-0')}>
+            <div className="flex items-start justify-between gap-3 border-b border-vpos-line px-5 py-4">
+              <SectionHeader title="Recent sales" subtitle="Latest orders for the selected store" />
+              <Link to={paths.sales} className="shrink-0 text-[12px] font-semibold text-vpos-primary no-underline hover:underline">View all</Link>
+            </div>
+            {ordersQuery.isLoading ? (
+              <LoadingPanel label="Loading recent sales…" />
+            ) : recentOrders.length === 0 ? (
+              <EmptyPanel icon="file-list-3-line" label="No recent sales found." />
+            ) : (
+              <div className="overflow-x-auto">
+                <table className="w-full border-collapse">
+                  <thead>
+                    <tr>
+                      {['Invoice', 'Payment', 'Total', 'Status', 'Completed'].map((header) => <th key={header} className={thClass}>{header}</th>)}
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {recentOrders.map((order) => (
+                      <tr key={order.id}>
+                        <td className={cn(tdClass, 'font-bold text-vpos-primary-2')}>{order.orderNo}</td>
+                        <td className={tdClass}>{paymentLabel(order.paymentMethod, undefined)}</td>
+                        <td className={tdClass}><strong>{formatCurrency(Number(order.grandTotal || 0), order.currencyCode || currency)}</strong></td>
+                        <td className={tdClass}><Status value={formatStatus(order.orderStatus)} /></td>
+                        <td className={tdClass}>{formatReportDate(order.completedAt || order.createdAt)}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </article>
+
+          <article className={cn(card, 'overflow-hidden p-5')}>
+            <SectionHeader
+              title="Cash register"
+              subtitle="Your current register session"
+              action={<Status value={cashSession?.status === 'OPEN' ? 'Open' : 'Not open'} />}
+            />
+            {cashSessionQuery.isLoading ? (
+              <LoadingPanel label="Checking register status…" />
+            ) : cashSession ? (
+              <>
+                <div className="mt-5 grid grid-cols-2 gap-3">
+                  <SummaryTile label="Cash sales" value={formatCurrency(cashSession.cashSales, currency)} />
+                  <SummaryTile label="Expected cash" value={formatCurrency(cashSession.expectedCash, currency)} />
+                  <SummaryTile label="Payments" value={cashSession.paymentCount.toLocaleString('en-US')} />
+                  <SummaryTile label="Opened" value={formatReportDate(cashSession.openedAt)} />
+                </div>
+                <Link to={paths.salesCashRegister} className="mt-4 inline-flex items-center gap-1.5 text-[13px] font-semibold text-vpos-primary no-underline hover:underline">Manage cash register <Icon name="arrow-right-line" /></Link>
+              </>
+            ) : (
+              <div className="mt-5 rounded-[4px] border border-dashed border-vpos-line bg-vpos-subtle p-4">
+                <strong className="block text-[14px] text-vpos-text">No open register session</strong>
+                <p className="mt-1 mb-3 text-[12px] leading-5 text-vpos-muted">Open a cash session before taking cash payments at the POS.</p>
+                <Link to={paths.salesCashRegister} className="inline-flex min-h-[34px] items-center justify-center gap-2 rounded-[4px] bg-vpos-primary px-3 text-[12px] font-semibold text-white no-underline hover:bg-vpos-primary-2">Open register</Link>
+              </div>
+            )}
+          </article>
+        </section>
+
+        <section className="mt-[18px] flex flex-wrap items-center justify-between gap-3 rounded-[4px] border border-vpos-line bg-vpos-subtle px-4 py-3 text-[12px] text-vpos-muted">
+          <span>All amounts are shown in <strong className="text-vpos-text">{currency}</strong> using the current POS currency setting.</span>
+          <Button variant="text" onClick={refreshDashboard}><Icon name="refresh-line" /> Refresh overview</Button>
+        </section>
       </main>
     </>
   )
+}
+
+function SectionHeader({
+  title,
+  subtitle,
+  action,
+}: {
+  title: string
+  subtitle: string
+  action?: ReactNode
+}) {
+  return (
+    <div className="flex min-w-0 items-start justify-between gap-3">
+      <div className="min-w-0">
+        <h3 className="m-0 text-[15px] font-extrabold text-vpos-text">{title}</h3>
+        <p className="mt-1 mb-0 truncate text-[12px] text-vpos-muted">{subtitle}</p>
+      </div>
+      {action ? <div className="shrink-0">{action}</div> : null}
+    </div>
+  )
+}
+
+function SummaryTile({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="rounded-[4px] border border-vpos-line bg-vpos-subtle p-3">
+      <span className="block text-[10px] font-bold uppercase tracking-[0.06em] text-vpos-muted">{label}</span>
+      <strong className="mt-1.5 block truncate text-[15px] text-vpos-text">{value}</strong>
+    </div>
+  )
+}
+
+function LoadingPanel({ label }: { label: string }) {
+  return <div className="grid min-h-[180px] place-items-center px-5 text-[13px] text-vpos-muted">{label}</div>
+}
+
+function EmptyPanel({ icon, label }: { icon: string; label: string }) {
+  return (
+    <div className="grid min-h-[180px] place-items-center gap-2 px-5 text-center text-[13px] text-vpos-muted">
+      <Icon name={icon} className="text-[28px] text-vpos-primary/60" />
+      <span>{label}</span>
+    </div>
+  )
+}
+
+function buildTrendPoints(from: string, to: string, rows: SalesTrend[]): TrendPoint[] {
+  const start = new Date(`${from}T00:00:00`)
+  const end = new Date(`${to}T00:00:00`)
+  if (Number.isNaN(start.getTime()) || Number.isNaN(end.getTime()) || start > end) return []
+
+  const byDate = new Map(rows.map((row) => [String(row.date).slice(0, 10), row]))
+  const points: TrendPoint[] = []
+  const cursor = new Date(start)
+  while (cursor <= end) {
+    const date = localDateValue(cursor)
+    const row = byDate.get(date)
+    points.push({ date, orderCount: Number(row?.orderCount ?? 0), grandTotal: Number(row?.grandTotal ?? 0) })
+    cursor.setDate(cursor.getDate() + 1)
+  }
+  return points
+}
+
+function buildStockAlerts(products: ProductItem[]): StockAlertRow[] {
+  return products
+    .filter((product) => product.isStockable !== false)
+    .flatMap((product) => (product.variants ?? []).flatMap((variant, index) => {
+      if (variant.quantity === undefined) return []
+      const quantity = Number(variant.quantity)
+      const threshold = Number(variant.stockAlertQty ?? 5)
+      if (quantity > threshold) return []
+      return [{
+        id: variant.id ?? `${product.id}-${index}`,
+        productName: product.productName,
+        sku: variant.sku || product.productCode,
+        image: variant.image || product.thumbnail || product.images?.[0]?.imageUrl,
+        quantity,
+        threshold,
+      }]
+    }))
+    .sort((left, right) => left.quantity - right.quantity)
+    .slice(0, 5)
+}
+
+function paymentLabel(method?: string | null, provider?: string | null): string {
+  const methodText = (method || 'Unknown').toLowerCase().replaceAll('_', ' ')
+  const label = methodText.charAt(0).toUpperCase() + methodText.slice(1)
+  if (!provider || provider === 'NONE') return label
+  const providerText = provider.toLowerCase().replaceAll('_', ' ')
+  return `${label} · ${providerText.charAt(0).toUpperCase()}${providerText.slice(1)}`
+}
+
+function formatStatus(value?: string | null): string {
+  const text = (value || 'Unknown').toLowerCase().replaceAll('_', ' ')
+  return text.replace(/\b\w/g, (letter) => letter.toUpperCase())
+}
+
+function formatDateLabel(value: string): string {
+  const date = new Date(`${value}T00:00:00`)
+  if (Number.isNaN(date.getTime())) return value
+  return new Intl.DateTimeFormat('en-US', { month: 'short', day: 'numeric', year: 'numeric' }).format(date)
+}
+
+function formatCompactDate(value: string): string {
+  const date = new Date(`${value}T00:00:00`)
+  if (Number.isNaN(date.getTime())) return value
+  return new Intl.DateTimeFormat('en-US', { month: 'short', day: 'numeric' }).format(date)
 }

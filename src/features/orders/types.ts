@@ -93,6 +93,12 @@ export interface SalesSummary {
   grandTotal: number
 }
 
+export interface SalesTrend {
+  date: string
+  orderCount: number
+  grandTotal: number
+}
+
 export interface TopProduct {
   variantId: number
   productName: string

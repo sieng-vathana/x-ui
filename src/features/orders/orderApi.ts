@@ -5,6 +5,7 @@ import type {
   OrderPage,
   PosOrder,
   SalesSummary,
+  SalesTrend,
   TopProduct,
 } from './types'
 
@@ -39,6 +40,15 @@ export const orderApi = {
         `/orders/reports/sales-summary?storeId=${encodeURIComponent(storeId)}&from=${encodeURIComponent(from)}&to=${encodeURIComponent(to)}`,
       ),
       'The sales summary could not be loaded.',
+    )
+  },
+
+  async salesTrend(storeId: string | number, from: string, to: string): Promise<SalesTrend[]> {
+    return requireData(
+      await api.request<ApiEnvelope<SalesTrend[]>>(
+        `/orders/reports/sales-trend?storeId=${encodeURIComponent(storeId)}&from=${encodeURIComponent(from)}&to=${encodeURIComponent(to)}`,
+      ),
+      'The sales trend could not be loaded.',
     )
   },
 

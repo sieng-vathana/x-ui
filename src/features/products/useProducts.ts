@@ -14,11 +14,11 @@ function normalizeStoreId(storeId?: string | number): number | undefined {
   return Number.isInteger(numericId) && numericId > 0 ? numericId : undefined
 }
 
-export function useProductsList(storeId?: string | number) {
+export function useProductsList(storeId?: string | number, enabled = true) {
   return useQuery({
     queryKey: ['products-list', { storeId: normalizeStoreId(storeId) }],
     queryFn: () => productApi.getProducts(normalizeStoreId(storeId)),
-    enabled: Boolean(normalizeStoreId(storeId)),
+    enabled: enabled && Boolean(normalizeStoreId(storeId)),
     staleTime: 60 * 1000,
     retry: (failureCount, error) => {
       if (error instanceof ApiError && (error.status === 401 || error.status === 403)) return false
