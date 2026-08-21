@@ -20,7 +20,7 @@ export interface SelectProps {
   className?: string
   searchable?: boolean
   searchAction?: ReactNode
-  allowCustom?: boolean
+  allowCustom?: boolean | ((value: string) => boolean)
 }
 
 export interface MultiSelectProps {
@@ -68,6 +68,7 @@ export function Select({
   const hasExactMatch = options.some(
     (o) => o.label.toLowerCase() === query.trim().toLowerCase() || o.value.toLowerCase() === query.trim().toLowerCase()
   )
+  const canUseCustom = typeof allowCustom === 'function' ? allowCustom(query.trim()) : allowCustom
 
   useEffect(() => {
     if (!open) return
@@ -165,7 +166,7 @@ export function Select({
             </div>
           ) : null}
           <div className="max-h-[220px] overflow-y-auto py-1">
-            {filtered.length === 0 && !allowCustom ? (
+            {filtered.length === 0 && !canUseCustom ? (
               <p className="px-4 py-3 text-[13px] text-vpos-muted">No results</p>
             ) : (
               filtered.map((opt) => {
@@ -203,7 +204,7 @@ export function Select({
               })
             )}
 
-            {allowCustom && query.trim() && !hasExactMatch && (
+            {canUseCustom && query.trim() && !hasExactMatch && (
               <button
                 type="button"
                 className="flex w-full items-center gap-2 border-0 border-t border-vpos-line bg-vpos-sand/40 px-4 py-2.5 text-left text-[13px] font-bold text-vpos-primary hover:bg-vpos-sand transition-colors"

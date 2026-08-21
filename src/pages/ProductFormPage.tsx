@@ -1208,6 +1208,12 @@ export function ProductFormPage() {
                     const isLoadingOptionValues = selectedApiAttribute
                       ? loadingOptionValues[String(selectedApiAttribute.id)] === true
                       : false
+                    const optionNameOptions = attributeSelectOptions.filter((option) => {
+                      const normalizedName = option.value.trim().toLowerCase()
+                      return !optionGroups.some(
+                        (otherGroup) => otherGroup.id !== group.id && otherGroup.name.trim().toLowerCase() === normalizedName,
+                      )
+                    })
 
                     return (
                     <div key={group.id} className="rounded-xl border border-vpos-line bg-vpos-subtle/30 p-4">
@@ -1221,6 +1227,12 @@ export function ProductFormPage() {
                             placeholder="Select or search option (e.g. Size, Color)..."
                             value={group.name}
                             onChange={(val) => {
+                              const normalizedName = val.trim().toLowerCase()
+                              const duplicate = optionGroups.some(
+                                (otherGroup) => otherGroup.id !== group.id && otherGroup.name.trim().toLowerCase() === normalizedName,
+                              )
+                              if (duplicate) return
+
                               const selectedAttribute = apiAttributes.find(
                                 (attribute) => attribute.attributeName.trim().toLowerCase() === val.trim().toLowerCase(),
                               )
@@ -1237,9 +1249,14 @@ export function ProductFormPage() {
                                 }),
                               )
                             }}
-                            options={attributeSelectOptions}
+                            options={optionNameOptions}
                             searchable
-                            allowCustom
+                            allowCustom={(value) => {
+                              const normalizedName = value.trim().toLowerCase()
+                              return !optionGroups.some(
+                                (otherGroup) => otherGroup.id !== group.id && otherGroup.name.trim().toLowerCase() === normalizedName,
+                              )
+                            }}
                           />
                           <div className="min-w-0 md:col-span-2">
                             <div className="flex items-end gap-3">
