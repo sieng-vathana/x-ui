@@ -70,7 +70,13 @@ export interface ProductAttribute {
 export interface ProductAttributeValue {
   id: number
   attribute?: ProductAttribute
+  attributeName?: string
   value: string
+}
+
+export interface ProductVariantAttributeValue {
+  id?: number
+  attributeValue?: ProductAttributeValue
 }
 
 export interface ProductVariant {
@@ -78,6 +84,7 @@ export interface ProductVariant {
   sku: string
   barcode: string
   variantName?: string
+  displayName?: string
   image?: string
   costPrice?: number
   posPrice?: number
@@ -87,6 +94,7 @@ export interface ProductVariant {
   stockAlertQty?: number
   quantity?: number
   isDefault?: boolean
+  attributeValues?: ProductVariantAttributeValue[]
 }
 
 export interface ProductItem {

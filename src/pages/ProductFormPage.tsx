@@ -27,6 +27,7 @@ import {
 } from '../features/products/useProducts'
 import { useStoresRaw } from '../features/stores/useStores'
 import { productApi } from '../features/products/productApi'
+import type { ProductVariant } from '../features/products/types'
 import { cn } from '../lib/cn'
 import { paths } from '../lib/paths'
 import {
@@ -59,6 +60,18 @@ interface VariantInput {
   stockQuantity: string
   stockAlertQty: string
   supplierId: string
+}
+
+interface OptionGroup {
+  id: string
+  name: string
+  values: string[]
+  inputValue: string
+}
+
+interface VariantOptionEntry {
+  name: string
+  value: string
 }
 
 function emptyVariant(id: number): VariantInput {
@@ -99,20 +112,124 @@ function inferOptionName(values: string[], apiAttributes: { attributeName?: stri
   ]
 
   const lowerVals = values.map((v) => v.toLowerCase().trim())
+
+  const sharedSuffixes = [
+    { suffix: 'color', name: 'Color' },
+    { suffix: 'size', name: 'Size' },
+    { suffix: 'flavor', name: 'Flavor' },
+    { suffix: 'scent', name: 'Scent' },
+    { suffix: 'grade', name: 'Grade' },
+    { suffix: 'roast', name: 'Roast' },
+    { suffix: 'style', name: 'Style' },
+    { suffix: 'material', name: 'Material' },
+  ]
+  for (const option of sharedSuffixes) {
+    if (lowerVals.length > 0 && lowerVals.every((value) => value.endsWith(` ${option.suffix}`))) {
+      return option.name
+    }
+  }
+
   if (lowerVals.some((v) => colorKeywords.some((c) => v.includes(c)))) return 'Color'
   if (lowerVals.some((v) => sizeKeywords.some((s) => v === s || v.startsWith(s)))) return 'Size'
   if (lowerVals.some((v) => tempKeywords.some((t) => v.includes(t)))) return 'Temperature'
   if (lowerVals.some((v) => flavorKeywords.some((f) => v.includes(f)))) return 'Flavor'
   if (lowerVals.some((v) => milkKeywords.some((m) => v.includes(m)))) return 'Milk Type'
 
-  for (const attr of apiAttributes) {
-    if (attr.attributeName && lowerVals.includes(attr.attributeName.toLowerCase().trim())) {
-      return attr.attributeName
-    }
+  if (apiAttributes[groupIndex]?.attributeName?.trim()) {
+    return apiAttributes[groupIndex].attributeName.trim()
   }
 
   const defaultFallbackOrder = ['Size', 'Color', 'Flavor', 'Temperature', 'Milk Type']
   return defaultFallbackOrder[groupIndex] || `Option ${groupIndex + 1}`
+}
+
+function parseDisplayNameOptionEntries(displayName?: string): VariantOptionEntry[] {
+  const text = displayName?.trim() || ''
+  if (!text) return []
+
+  return text
+    .split(/\s+(?:\u00c2\u00b7|\u00b7|\u2022)\s+/)
+    .map((part) => {
+      const separatorIndex = part.indexOf(':')
+      if (separatorIndex <= 0) return null
+      const name = part.slice(0, separatorIndex).trim()
+      const value = part.slice(separatorIndex + 1).trim()
+      return name && value ? { name, value } : null
+    })
+    .filter((entry): entry is VariantOptionEntry => entry !== null)
+}
+
+function getVariantOptionEntries(variant: ProductVariant): VariantOptionEntry[] {
+  const linkedEntries = (variant.attributeValues ?? [])
+    .map((link) => {
+      const attributeValue = link.attributeValue
+      const name = (attributeValue?.attribute?.attributeName || attributeValue?.attributeName)?.trim() || ''
+      const value = attributeValue?.value?.trim() || ''
+      return name && value ? { name, value } : null
+    })
+    .filter((entry): entry is VariantOptionEntry => entry !== null)
+
+  return linkedEntries.length > 0 ? linkedEntries : parseDisplayNameOptionEntries(variant.displayName)
+}
+
+function getVariantDisplayName(variant: ProductVariant): string {
+  const optionValues = getVariantOptionEntries(variant).map((entry) => entry.value)
+  return optionValues.join(' / ') || variant.variantName?.trim() || variant.displayName?.trim() || ''
+}
+
+function buildOptionGroups(
+  variants: ProductVariant[],
+  displayNames: string[],
+  apiAttributes: { attributeName?: string }[],
+): OptionGroup[] {
+  const grouped = new Map<string, { name: string; values: string[] }>()
+
+  variants.forEach((variant) => {
+    getVariantOptionEntries(variant).forEach(({ name, value }) => {
+      const key = name.toLowerCase()
+      const group = grouped.get(key) ?? { name, values: [] }
+      if (!group.values.includes(value)) group.values.push(value)
+      grouped.set(key, group)
+    })
+  })
+
+  if (grouped.size > 0) {
+    return Array.from(grouped.values()).map((group, index) => ({
+      id: `opt-${Date.now()}-${index}`,
+      name: group.name,
+      values: group.values,
+      inputValue: '',
+    }))
+  }
+
+  const names = displayNames.map((name) => name.trim()).filter(Boolean)
+  if (names.some((name) => name.includes(' / '))) {
+    const partsByGroup: string[][] = []
+    names.forEach((name) => {
+      name.split(' / ').forEach((part, groupIndex) => {
+        const value = part.trim()
+        if (!value) return
+        if (!partsByGroup[groupIndex]) partsByGroup[groupIndex] = []
+        if (!partsByGroup[groupIndex].includes(value)) partsByGroup[groupIndex].push(value)
+      })
+    })
+    return partsByGroup.filter(Boolean).map((values, index) => ({
+      id: `opt-${Date.now()}-${index}`,
+      name: inferOptionName(values, apiAttributes, index),
+      values,
+      inputValue: '',
+    }))
+  }
+
+  const distinctNames = Array.from(new Set(names))
+  return distinctNames.length > 0
+    ? [{
+        id: `opt-${Date.now()}`,
+        name: inferOptionName(distinctNames, apiAttributes, 0),
+        values: distinctNames,
+        inputValue: '',
+      }]
+    : []
 }
 
 export function ProductFormPage() {
@@ -145,9 +262,7 @@ export function ProductFormPage() {
 
   const [variants, setVariants] = useState<VariantInput[]>([emptyVariant(0)])
   const [hasOptions, setHasOptions] = useState(false)
-  const [optionGroups, setOptionGroups] = useState<
-    { id: string; name: string; values: string[]; inputValue: string }[]
-  >([
+  const [optionGroups, setOptionGroups] = useState<OptionGroup[]>([
     { id: 'opt-1', name: '', values: [], inputValue: '' },
   ])
   const [images, setImages] = useState<ProductImage[]>([])
@@ -224,7 +339,7 @@ export function ProductFormPage() {
         imagePreviewUrl: v.image || undefined,
         sku: v.sku || '',
         barcode: v.barcode || '',
-        variantName: v.variantName || '',
+        variantName: getVariantDisplayName(v),
         costPrice: v.costPrice != null ? String(v.costPrice) : '',
         posPrice: v.posPrice != null ? String(v.posPrice) : '',
         compareAtPrice: v.compareAtPrice != null ? String(v.compareAtPrice) : '',
@@ -235,42 +350,17 @@ export function ProductFormPage() {
       }))
       setVariants(loadedVariants)
 
-      if (loadedVariants.length > 1 || (loadedVariants.length === 1 && loadedVariants[0].variantName && loadedVariants[0].variantName !== 'Default' && loadedVariants[0].variantName !== 'Standard')) {
+      const hasAttributeOptions = existingProduct.variants.some((variant) => getVariantOptionEntries(variant).length > 0)
+      const hasNamedOptions = loadedVariants.some((variant) => variant.variantName && variant.variantName !== 'Default' && variant.variantName !== 'Standard')
+      if (hasAttributeOptions || loadedVariants.length > 1 || hasNamedOptions) {
         setHasOptions(true)
-        const hasSlash = loadedVariants.some((v) => v.variantName.includes(' / '))
-        if (hasSlash) {
-          const partsByGroup: string[][] = []
-          loadedVariants.forEach((v) => {
-            const parts = v.variantName.split(' / ')
-            parts.forEach((part, gIdx) => {
-              if (!partsByGroup[gIdx]) partsByGroup[gIdx] = []
-              const trimmed = part.trim()
-              if (trimmed && !partsByGroup[gIdx].includes(trimmed)) {
-                partsByGroup[gIdx].push(trimmed)
-              }
-            })
-          })
-          const parsedGroups = partsByGroup.map((vals, gIdx) => ({
-            id: `opt-${Date.now()}-${gIdx}`,
-            name: inferOptionName(vals, apiAttributes, gIdx),
-            values: vals,
-            inputValue: '',
-          }))
-          if (parsedGroups.length > 0) {
-            setOptionGroups(parsedGroups)
-          }
-        } else {
-          const distinctNames = Array.from(new Set(loadedVariants.map((v) => v.variantName.trim()).filter(Boolean)))
-          if (distinctNames.length > 0) {
-            setOptionGroups([
-              {
-                id: `opt-${Date.now()}`,
-                name: inferOptionName(distinctNames, apiAttributes, 0),
-                values: distinctNames,
-                inputValue: '',
-              },
-            ])
-          }
+        const parsedGroups = buildOptionGroups(
+          existingProduct.variants,
+          loadedVariants.map((variant) => variant.variantName),
+          apiAttributes,
+        )
+        if (parsedGroups.length > 0) {
+          setOptionGroups(parsedGroups)
         }
       }
     }
