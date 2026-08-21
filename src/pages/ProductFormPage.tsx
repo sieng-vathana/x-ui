@@ -12,6 +12,7 @@ import {
   Toggle,
   Topbar,
 } from '../components'
+import { productOptionTypes, type ProductOptionType } from '../data/mockup'
 import { useAdminStore } from '../hooks/useAdminStore'
 import { useToast } from '../context/ToastContext'
 import {
@@ -30,6 +31,7 @@ import { productApi } from '../features/products/productApi'
 import type { ProductVariant } from '../features/products/types'
 import { cn } from '../lib/cn'
 import { paths } from '../lib/paths'
+import { readStoredValue } from '../lib/storage'
 import {
   card,
   formGrid,
@@ -65,6 +67,7 @@ interface VariantInput {
 interface OptionGroup {
   id: string
   name: string
+  attributeId?: number
   values: string[]
   inputValue: string
 }
@@ -90,6 +93,8 @@ function emptyVariant(id: number): VariantInput {
     supplierId: '',
   }
 }
+
+const PRODUCT_OPTIONS_STORAGE_KEY = 'x-ui:product-options'
 
 function inferOptionName(values: string[], apiAttributes: { attributeName?: string }[] = [], groupIndex = 0): string {
   const colorKeywords = [
@@ -265,6 +270,8 @@ export function ProductFormPage() {
   const [optionGroups, setOptionGroups] = useState<OptionGroup[]>([
     { id: 'opt-1', name: '', values: [], inputValue: '' },
   ])
+  const [optionValuesByAttribute, setOptionValuesByAttribute] = useState<Record<string, string[]>>({})
+  const [loadingOptionValues, setLoadingOptionValues] = useState<Record<string, boolean>>({})
   const [images, setImages] = useState<ProductImage[]>([])
   const [cropTarget, setCropTarget] = useState<ProductImage | null>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
@@ -277,6 +284,10 @@ export function ProductFormPage() {
   const { data: apiTaxes = [], isLoading: loadingTaxes } = useProductTaxes(effectiveStoreId)
   const { data: apiSuppliers = [] } = useProductSuppliers(effectiveStoreId)
   const { data: apiAttributes = [] } = useProductAttributes()
+  const savedProductOptions = useMemo(
+    () => readStoredValue<ProductOptionType[]>(PRODUCT_OPTIONS_STORAGE_KEY, productOptionTypes),
+    [],
+  )
 
   useEffect(() => {
     if (!existingProduct) return
@@ -372,6 +383,17 @@ export function ProductFormPage() {
     }
   }, [storeId, formStoreId])
 
+  const findApiAttributeForGroup = useCallback((group: OptionGroup) => {
+    const normalizedName = group.name.trim().toLowerCase()
+    if (group.attributeId) {
+      const attributeById = apiAttributes.find((attribute) => attribute.id === group.attributeId)
+      if (attributeById) return attributeById
+    }
+    return normalizedName
+      ? apiAttributes.find((attribute) => attribute.attributeName.trim().toLowerCase() === normalizedName)
+      : undefined
+  }, [apiAttributes])
+
   const attributeSelectOptions = useMemo(() => {
     const defaultAttrs = [
       { value: 'Size', label: 'Size' },
@@ -382,7 +404,12 @@ export function ProductFormPage() {
       { value: 'Material', label: 'Material' },
       { value: 'Style', label: 'Style' },
     ]
-    const liveOpts = apiAttributes.map((a) => ({ value: a.attributeName, label: a.attributeName }))
+    const liveOpts = [
+      ...apiAttributes.map((a) => ({ value: a.attributeName, label: a.attributeName })),
+      ...savedProductOptions
+        .filter((option) => option.status === 'Active')
+        .map((option) => ({ value: option.name, label: option.name })),
+    ]
     const names = new Set(liveOpts.map((o) => o.value))
     const merged = [...liveOpts]
     for (const def of defaultAttrs) {
@@ -398,7 +425,59 @@ export function ProductFormPage() {
       }
     })
     return merged
-  }, [apiAttributes, optionGroups])
+  }, [apiAttributes, optionGroups, savedProductOptions])
+
+  const selectedAttributeIds = useMemo(() => {
+    const ids = optionGroups
+      .map((group) => findApiAttributeForGroup(group)?.id)
+      .filter((id): id is number => typeof id === 'number')
+    return Array.from(new Set(ids))
+  }, [findApiAttributeForGroup, optionGroups])
+
+  useEffect(() => {
+    const pendingIds = selectedAttributeIds.filter((id) => {
+      const key = String(id)
+      return optionValuesByAttribute[key] === undefined && !loadingOptionValues[key]
+    })
+    if (pendingIds.length === 0) return
+
+    setLoadingOptionValues((previous) => {
+      const next = { ...previous }
+      pendingIds.forEach((id) => {
+        next[String(id)] = true
+      })
+      return next
+    })
+
+    void Promise.all(
+      pendingIds.map(async (id) => {
+        try {
+          const values = await productApi.getAttributeValues(id)
+          return {
+            id,
+            values: values.map((value) => value.value.trim()).filter(Boolean),
+          }
+        } catch {
+          return { id, values: [] }
+        }
+      }),
+    ).then((results) => {
+      setOptionValuesByAttribute((previous) => {
+        const next = { ...previous }
+        results.forEach(({ id, values }) => {
+          next[String(id)] = values
+        })
+        return next
+      })
+      setLoadingOptionValues((previous) => {
+        const next = { ...previous }
+        pendingIds.forEach((id) => {
+          next[String(id)] = false
+        })
+        return next
+      })
+    })
+  }, [loadingOptionValues, optionValuesByAttribute, selectedAttributeIds])
 
   const supplierOptions = useMemo(() => {
     if (apiSuppliers.length > 0) {
@@ -567,13 +646,13 @@ export function ProductFormPage() {
     setOptionGroups((prev) => prev.filter((g) => g.id !== id))
   }
 
-  const addOptionValue = (groupId: string) => {
+  const addOptionValue = (groupId: string, selectedValue?: string) => {
     setOptionGroups((prev) =>
       prev.map((g) => {
         if (g.id !== groupId) return g
-        const val = g.inputValue.trim()
+        const val = (selectedValue ?? g.inputValue).trim()
         if (!val || g.values.includes(val)) return g
-        return { ...g, values: [...g.values, val], inputValue: '' }
+        return { ...g, values: [...g.values, val], inputValue: selectedValue ? g.inputValue : '' }
       }),
     )
   }
@@ -1115,7 +1194,26 @@ export function ProductFormPage() {
 
               {hasOptions && (
                 <div className="space-y-4 pt-3 border-t border-vpos-line">
-                  {optionGroups.map((group, idx) => (
+                  {optionGroups.map((group, idx) => {
+                    const selectedApiAttribute = findApiAttributeForGroup(group)
+                    const savedOption = savedProductOptions.find(
+                      (option) => option.name.trim().toLowerCase() === group.name.trim().toLowerCase(),
+                    )
+                    const apiOptionValues = selectedApiAttribute
+                      ? optionValuesByAttribute[String(selectedApiAttribute.id)]
+                        ?? selectedApiAttribute.values?.map((value) => value.value.trim()).filter(Boolean)
+                        ?? []
+                      : []
+                    const availableOptionValues = Array.from(new Set([
+                      ...apiOptionValues,
+                      ...(savedOption?.values ?? []),
+                    ]))
+                    const remainingOptionValues = availableOptionValues.filter((value) => !group.values.includes(value))
+                    const isLoadingOptionValues = selectedApiAttribute
+                      ? loadingOptionValues[String(selectedApiAttribute.id)] === true
+                      : false
+
+                    return (
                     <div key={group.id} className="rounded-xl border border-vpos-line bg-vpos-subtle/30 p-4">
                         <div className="mb-3 flex items-center justify-between gap-2">
                           <strong className="text-[13px] text-vpos-primary">Option {idx + 1}</strong>
@@ -1135,12 +1233,18 @@ export function ProductFormPage() {
                             placeholder="Select or search option (e.g. Size, Color)..."
                             value={group.name}
                             onChange={(val) => {
+                              const selectedAttribute = apiAttributes.find(
+                                (attribute) => attribute.attributeName.trim().toLowerCase() === val.trim().toLowerCase(),
+                              )
                               setOptionGroups((prev) =>
                                 prev.map((g) => {
                                   if (g.id !== group.id) return g
+                                  const changed = g.name.trim().toLowerCase() !== val.trim().toLowerCase()
                                   return {
                                     ...g,
                                     name: val,
+                                    attributeId: selectedAttribute?.id,
+                                    values: changed ? [] : g.values,
                                   }
                                 }),
                               )
@@ -1154,6 +1258,26 @@ export function ProductFormPage() {
                               Option Values
                             </label>
                             <div className="flex items-center gap-2">
+                              <Select
+                                placeholder={
+                                  isLoadingOptionValues
+                                    ? 'Loading saved values…'
+                                    : remainingOptionValues.length > 0
+                                      ? 'Select saved value'
+                                      : availableOptionValues.length > 0
+                                        ? 'All saved values selected'
+                                        : group.name
+                                          ? 'No saved values'
+                                          : 'Select an option name first'
+                                }
+                                value=""
+                                onChange={(value) => addOptionValue(group.id, value)}
+                                options={remainingOptionValues.map((value) => ({ value, label: value }))}
+                                searchable
+                                className="min-w-0 flex-1"
+                              />
+                            </div>
+                            <div className="mt-2 flex items-center gap-2">
                               <input
                                 type="text"
                                 value={group.inputValue}
@@ -1170,11 +1294,11 @@ export function ProductFormPage() {
                                     addOptionValue(group.id)
                                   }
                                 }}
-                                placeholder="Type value and press Enter (e.g. Small, Red)"
+                                placeholder="Or type a custom value"
                                 className="h-[39px] flex-1 rounded-[4px] border border-vpos-line bg-white px-3 text-[13px] text-vpos-text outline-none focus:border-vpos-primary"
                               />
                               <Button type="button" variant="secondary" onClick={() => addOptionValue(group.id)}>
-                                Add
+                                Add custom
                               </Button>
                             </div>
 
@@ -1199,7 +1323,8 @@ export function ProductFormPage() {
                           </div>
                         </div>
                       </div>
-                    ))}
+                    )
+                  })}
 
                   <div className="flex items-center justify-between pt-2">
                     <Button type="button" variant="secondary" onClick={addOptionGroup}>

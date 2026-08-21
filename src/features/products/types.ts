@@ -65,6 +65,7 @@ export interface ProductAttribute {
   id: number
   businessId: number
   attributeName: string
+  values?: ProductAttributeValue[]
 }
 
 export interface ProductAttributeValue {
