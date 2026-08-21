@@ -85,7 +85,6 @@ export function DashboardPage() {
     () => buildTrendPoints(from, to, trendQuery.data ?? []),
     [from, to, trendQuery.data],
   )
-  const trendMax = Math.max(1, ...trendPoints.map((point) => point.grandTotal))
   const stockAlerts = useMemo(() => buildStockAlerts(catalogQuery.data ?? []), [catalogQuery.data])
 
   const refreshDashboard = () => {
@@ -238,29 +237,7 @@ export function DashboardPage() {
             ) : trendPoints.length === 0 ? (
               <EmptyPanel icon="line-chart-line" label="No completed sales in this period." />
             ) : (
-              <div className="mt-5 overflow-x-auto pb-1">
-                <div
-                  className="flex min-w-full items-end gap-2 border-b border-vpos-line bg-[repeating-linear-gradient(transparent_0_46px,rgba(137,161,152,.12)_47px)] pt-4"
-                  style={{ width: `${Math.max(100, trendPoints.length * 52)}px`, minHeight: 245 }}
-                  aria-label="Sales trend chart"
-                >
-                  {trendPoints.map((point) => {
-                    const height = point.grandTotal > 0 ? Math.max(5, (point.grandTotal / trendMax) * 190) : 2
-                    return (
-                      <div
-                        key={point.date}
-                        className="flex min-w-[44px] flex-1 flex-col items-center justify-end gap-2"
-                        title={`${formatDateLabel(point.date)}: ${formatCurrency(point.grandTotal, currency)} · ${point.orderCount} orders`}
-                      >
-                        <div className="flex h-[190px] w-full items-end justify-center">
-                          <span className="block w-[22px] rounded-t-md bg-vpos-primary transition-[height]" style={{ height }} />
-                        </div>
-                        <small className="whitespace-nowrap text-[11px] text-vpos-muted">{formatCompactDate(point.date)}</small>
-                      </div>
-                    )
-                  })}
-                </div>
-              </div>
+              <SalesTrendChart points={trendPoints} currency={currency} />
             )}
           </article>
 
@@ -476,6 +453,118 @@ function EmptyPanel({ icon, label }: { icon: string; label: string }) {
       <span>{label}</span>
     </div>
   )
+}
+
+function SalesTrendChart({ points, currency }: { points: TrendPoint[]; currency: string }) {
+  const [hoveredIndex, setHoveredIndex] = useState<number | null>(null)
+  const width = 760
+  const height = 280
+  const left = 58
+  const right = 18
+  const top = 18
+  const bottom = 42
+  const plotWidth = width - left - right
+  const plotHeight = height - top - bottom
+  const maxValue = Math.max(1, ...points.map((point) => point.grandTotal))
+  const coordinates = points.map((point, index) => ({
+    point,
+    x: left + (points.length === 1 ? plotWidth / 2 : (index / (points.length - 1)) * plotWidth),
+    y: top + plotHeight - (point.grandTotal / maxValue) * plotHeight,
+  }))
+  const linePath = coordinates.map(({ x, y }, index) => `${index === 0 ? 'M' : 'L'} ${x} ${y}`).join(' ')
+  const firstPoint = coordinates[0]
+  const lastPoint = coordinates[coordinates.length - 1]
+  const areaPath = `${linePath} L ${lastPoint.x} ${top + plotHeight} L ${firstPoint.x} ${top + plotHeight} Z`
+  const labels = trendLabelIndices(points.length)
+  const peak = points.reduce((highest, point) => point.grandTotal > highest.grandTotal ? point : highest, points[0])
+  const orderTotal = points.reduce((total, point) => total + point.orderCount, 0)
+  const hovered = hoveredIndex == null ? null : coordinates[hoveredIndex]
+
+  return (
+    <div className="mt-4">
+      <div className="relative">
+        <svg
+          viewBox={`0 0 ${width} ${height}`}
+          className="h-[270px] w-full overflow-visible"
+          role="img"
+          aria-label="Sales trend line chart"
+          onMouseLeave={() => setHoveredIndex(null)}
+        >
+          <defs>
+            <linearGradient id="overview-sales-area" x1="0" x2="0" y1="0" y2="1">
+              <stop offset="0%" stopColor="rgb(22 112 91)" stopOpacity="0.26" />
+              <stop offset="100%" stopColor="rgb(22 112 91)" stopOpacity="0.02" />
+            </linearGradient>
+          </defs>
+
+          {Array.from({ length: 5 }, (_, index) => {
+            const ratio = index / 4
+            const y = top + plotHeight - ratio * plotHeight
+            return (
+              <g key={`grid-${index}`}>
+                <line x1={left} x2={width - right} y1={y} y2={y} stroke="rgb(137 161 152 / 0.2)" strokeDasharray="3 5" />
+                <text x={left - 10} y={y + 4} textAnchor="end" className="fill-vpos-muted text-[11px]">
+                  {formatCompactCurrency(maxValue * ratio, currency)}
+                </text>
+              </g>
+            )
+          })}
+
+          <path d={areaPath} fill="url(#overview-sales-area)" />
+          <path d={linePath} fill="none" stroke="rgb(22 112 91)" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" />
+
+          {coordinates.map(({ point, x, y }, index) => (
+            <g key={point.date}>
+              <circle cx={x} cy={y} r={hoveredIndex === index ? 5 : 3} fill="white" stroke="rgb(22 112 91)" strokeWidth="2" />
+              <circle
+                cx={x}
+                cy={y}
+                r="16"
+                fill="transparent"
+                className="cursor-pointer"
+                onMouseEnter={() => setHoveredIndex(index)}
+                aria-label={`${formatDateLabel(point.date)}: ${formatCurrency(point.grandTotal, currency)}, ${point.orderCount} orders`}
+              />
+            </g>
+          ))}
+
+          {labels.map((index) => {
+            const { point, x } = coordinates[index]
+            return (
+              <text key={`label-${point.date}`} x={x} y={height - 12} textAnchor="middle" className="fill-vpos-muted text-[11px]">
+                {formatCompactDate(point.date)}
+              </text>
+            )
+          })}
+        </svg>
+
+        {hovered ? (
+          <div className="pointer-events-none absolute top-1 right-1 rounded-[4px] border border-vpos-line bg-white px-3 py-2 text-right shadow-vpos">
+            <strong className="block text-[13px] text-vpos-text">{formatCurrency(hovered.point.grandTotal, currency)}</strong>
+            <span className="text-[11px] text-vpos-muted">{formatDateLabel(hovered.point.date)} · {hovered.point.orderCount} orders</span>
+          </div>
+        ) : null}
+      </div>
+
+      <div className="mt-1 flex flex-wrap items-center justify-between gap-3 border-t border-vpos-line pt-3 text-[12px] text-vpos-muted">
+        <span className="inline-flex items-center gap-1.5"><i className="h-2 w-2 rounded-full bg-vpos-primary" /> Daily net sales</span>
+        <span>Peak <strong className="text-vpos-text">{formatCurrency(peak.grandTotal, currency)}</strong> on {formatCompactDate(peak.date)} · {orderTotal} orders</span>
+      </div>
+    </div>
+  )
+}
+
+function trendLabelIndices(count: number): number[] {
+  if (count <= 1) return [0]
+  const labelCount = Math.min(5, count)
+  return Array.from({ length: labelCount }, (_, index) => Math.round(index * (count - 1) / (labelCount - 1)))
+}
+
+function formatCompactCurrency(amount: number, currency: string): string {
+  const absolute = Math.abs(amount)
+  const divisor = absolute >= 1_000_000_000 ? 1_000_000_000 : absolute >= 1_000_000 ? 1_000_000 : absolute >= 1_000 ? 1_000 : 1
+  const suffix = divisor === 1_000_000_000 ? 'B' : divisor === 1_000_000 ? 'M' : divisor === 1_000 ? 'K' : ''
+  return `${formatCurrency(amount / divisor, currency)}${suffix}`
 }
 
 function buildTrendPoints(from: string, to: string, rows: SalesTrend[]): TrendPoint[] {
