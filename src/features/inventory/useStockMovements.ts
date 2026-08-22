@@ -1,12 +1,12 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { ApiError } from '../../lib/api'
-import {
+import type {
   StockBalance,
   StockChangeInput,
   StockMovementFilters,
   StockMovementType,
-  stockApi,
 } from './stockApi'
+import { stockApi } from './stockApi'
 
 export interface StockMovementQueryOptions {
   storeId?: string | number
