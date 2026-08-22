@@ -180,7 +180,6 @@ export function Sidebar({ state }: SidebarProps) {
   const iconOnly = !isMobile && (effectiveSize === 'small' || (hoverView && !hovered))
   const width = isMobile ? 280 : iconOnly ? 70 : effectiveSize === 'compact' ? 180 : 250
   const detached = !isMobile && (config.view === 'detached' || config.layout === 'semi-box')
-  const theme = themeClasses(config.color)
   const location = useLocation()
   const inProducts = location.pathname === paths.products || location.pathname.startsWith(`${paths.products}/`)
   const inSales = location.pathname === paths.sales || location.pathname.startsWith(`${paths.sales}/`)
@@ -199,32 +198,37 @@ export function Sidebar({ state }: SidebarProps) {
   const backgroundImages: Record<string, string> = { 'img-1': sidebarGrid, 'img-2': sidebarOrbit, 'img-3': sidebarLines, 'img-4': sidebarDots }
   const imageStyle = config.image === 'none' ? undefined : { backgroundImage: `linear-gradient(rgba(17,17,17,.76), rgba(17,17,17,.82)), url(${backgroundImages[config.image]})`, backgroundSize: 'cover', backgroundPosition: 'center' }
 
-  if (!isMobile && config.layout === 'horizontal') return <HorizontalMenu />
-  if (!isMobile && config.visibility === 'hidden') return null
-  if (!isMobile && config.layout === 'two-column') return <TwoColumnMenu state={state} theme={theme} />
+  const sidebarColor = config.colorMode === 'dark' ? 'dark' : config.color
 
-  return <aside aria-label="Primary navigation" data-sidebar-theme={config.color} onMouseEnter={() => hoverView && setHovered(true)} onMouseLeave={() => hoverView && setHovered(false)} className={cn('z-40 flex flex-col transition-[width,transform,opacity] duration-200 ease-out', isMobile ? 'fixed top-0 bottom-0 left-0 shadow-2xl' : config.position === 'fixed' ? 'fixed top-0 bottom-0 left-0' : 'absolute top-0 bottom-0 left-0', detached && (config.layout === 'semi-box' ? 'top-6 bottom-6 left-4 rounded-lg shadow-vpos' : 'top-4 bottom-4 left-4 rounded-xl shadow-vpos'), theme.shell)} style={{ width, transform: isMobile && !mobileOpen ? 'translateX(-100%)' : undefined, ...imageStyle }}>
-    <SidebarBrand iconOnly={iconOnly} compact={effectiveSize === 'compact'} theme={theme} />
+  const effectiveTheme = themeClasses(sidebarColor)
+
+  if (!isMobile && config.layout === 'horizontal') return <HorizontalMenu darkMode={config.colorMode === 'dark'} />
+  if (!isMobile && config.visibility === 'hidden') return null
+  if (!isMobile && config.layout === 'two-column') return <TwoColumnMenu state={state} theme={effectiveTheme} />
+
+  return <aside aria-label="Primary navigation" data-sidebar-theme={sidebarColor} onMouseEnter={() => hoverView && setHovered(true)} onMouseLeave={() => hoverView && setHovered(false)} className={cn('z-40 flex flex-col transition-[width,transform,opacity] duration-200 ease-out', isMobile ? 'fixed top-0 bottom-0 left-0 shadow-2xl' : config.position === 'fixed' ? 'fixed top-0 bottom-0 left-0' : 'absolute top-0 bottom-0 left-0', detached && (config.layout === 'semi-box' ? 'top-6 bottom-6 left-4 rounded-lg shadow-vpos' : 'top-4 bottom-4 left-4 rounded-xl shadow-vpos'), effectiveTheme.shell)} style={{ width, transform: isMobile && !mobileOpen ? 'translateX(-100%)' : undefined, ...imageStyle }}>
+    <SidebarBrand iconOnly={iconOnly} compact={effectiveSize === 'compact'} theme={effectiveTheme} />
     <nav className={cn('flex flex-1 flex-col', iconOnly ? 'items-center gap-1.5 overflow-visible py-3' : effectiveSize === 'compact' ? 'gap-1 overflow-y-auto overflow-x-hidden px-2 py-3' : 'gap-1 overflow-y-auto overflow-x-hidden px-3 py-3')}>
-      {navPrimary.filter((item) => item.key !== 'products' && canVisit(item.key)).map((item) => <NavItem key={item.key} to={keyToPath[item.key] ?? paths.home} icon={item.icon} label={item.label} end={item.key === 'dashboard'} iconOnly={iconOnly} hint={navMeta[item.key]?.hint} theme={theme} onNavigate={onNavigate} hovered={state.hoveredMenuItem === item.label} onHover={state.setHoveredMenuItem} />)}
-      {canVisit('products') ? <MenuGroup id="products" icon="shopping-bag-3-line" label="Products" items={visibleProductSubItems} active={inProducts} state={state} iconOnly={iconOnly} theme={theme} onNavigate={onNavigate} /> : null}
-      {canVisit('sales') ? <MenuGroup id="sales" icon="line-chart-line" label="Sales" items={visibleSalesSubItems} active={inSales} state={state} iconOnly={iconOnly} theme={theme} onNavigate={onNavigate} /> : null}
-      {canVisit('purchases') ? <MenuGroup id="purchases" icon="truck-line" label="Purchases" items={purchaseSubItems} active={inPurchases} state={state} iconOnly={iconOnly} theme={theme} onNavigate={onNavigate} /> : null}
-      {canVisit('reports') ? <MenuGroup id="reports" icon="bar-chart-box-line" label="Reports" items={reportSubItems} active={inReports} state={state} iconOnly={iconOnly} theme={theme} onNavigate={onNavigate} /> : null}
-      {staticItems.filter((item) => item.key !== 'sales' && item.key !== 'reports' && canVisit(item.key)).map((item) => <NavItem key={item.key} to={keyToPath[item.key]} icon={item.icon} label={item.label} iconOnly={iconOnly} hint={navMeta[item.key]?.hint} theme={theme} onNavigate={onNavigate} hovered={state.hoveredMenuItem === item.label} onHover={state.setHoveredMenuItem} />)}
-      <div className={cn('my-2 h-px shrink-0', iconOnly ? 'w-8' : 'mx-1 w-auto', theme.divider)} />
-      {!iconOnly ? <p className={cn('mb-1 px-3 text-[11px] font-semibold tracking-[1.2px]', theme.title)}>MANAGEMENT</p> : null}
-      {managementItems.filter((item) => canVisit(item.key)).map((item) => item.key === 'settings' ? <MenuGroup key={item.key} id="settings" icon={item.icon} label={item.label} items={settingsSubItems} active={inSettings} state={state} iconOnly={iconOnly} theme={theme} onNavigate={onNavigate} /> : item.linked ? <NavItem key={item.key} to={keyToPath[item.key] ?? paths.home} icon={item.icon} label={item.label} iconOnly={iconOnly} hint={navMeta[item.key]?.hint} theme={theme} onNavigate={onNavigate} hovered={state.hoveredMenuItem === item.label} onHover={state.setHoveredMenuItem} /> : <StaticNavItem key={item.key} icon={item.icon} label={item.label} iconOnly={iconOnly} hint={navMeta[item.key]?.hint} theme={theme} hovered={state.hoveredMenuItem === item.label} onHover={state.setHoveredMenuItem} />)}
+      {navPrimary.filter((item) => item.key !== 'products' && canVisit(item.key)).map((item) => <NavItem key={item.key} to={keyToPath[item.key] ?? paths.home} icon={item.icon} label={item.label} end={item.key === 'dashboard'} iconOnly={iconOnly} hint={navMeta[item.key]?.hint} theme={effectiveTheme} onNavigate={onNavigate} hovered={state.hoveredMenuItem === item.label} onHover={state.setHoveredMenuItem} />)}
+      {canVisit('products') ? <MenuGroup id="products" icon="shopping-bag-3-line" label="Products" items={visibleProductSubItems} active={inProducts} state={state} iconOnly={iconOnly} theme={effectiveTheme} onNavigate={onNavigate} /> : null}
+      {canVisit('sales') ? <MenuGroup id="sales" icon="line-chart-line" label="Sales" items={visibleSalesSubItems} active={inSales} state={state} iconOnly={iconOnly} theme={effectiveTheme} onNavigate={onNavigate} /> : null}
+      {canVisit('purchases') ? <MenuGroup id="purchases" icon="truck-line" label="Purchases" items={purchaseSubItems} active={inPurchases} state={state} iconOnly={iconOnly} theme={effectiveTheme} onNavigate={onNavigate} /> : null}
+      {canVisit('reports') ? <MenuGroup id="reports" icon="bar-chart-box-line" label="Reports" items={reportSubItems} active={inReports} state={state} iconOnly={iconOnly} theme={effectiveTheme} onNavigate={onNavigate} /> : null}
+      {staticItems.filter((item) => item.key !== 'sales' && item.key !== 'reports' && canVisit(item.key)).map((item) => <NavItem key={item.key} to={keyToPath[item.key]} icon={item.icon} label={item.label} iconOnly={iconOnly} hint={navMeta[item.key]?.hint} theme={effectiveTheme} onNavigate={onNavigate} hovered={state.hoveredMenuItem === item.label} onHover={state.setHoveredMenuItem} />)}
+      <div className={cn('my-2 h-px shrink-0', iconOnly ? 'w-8' : 'mx-1 w-auto', effectiveTheme.divider)} />
+      {!iconOnly ? <p className={cn('mb-1 px-3 text-[11px] font-semibold tracking-[1.2px]', effectiveTheme.title)}>MANAGEMENT</p> : null}
+      {managementItems.filter((item) => canVisit(item.key)).map((item) => item.key === 'settings' ? <MenuGroup key={item.key} id="settings" icon={item.icon} label={item.label} items={settingsSubItems} active={inSettings} state={state} iconOnly={iconOnly} theme={effectiveTheme} onNavigate={onNavigate} /> : item.linked ? <NavItem key={item.key} to={keyToPath[item.key] ?? paths.home} icon={item.icon} label={item.label} iconOnly={iconOnly} hint={navMeta[item.key]?.hint} theme={effectiveTheme} onNavigate={onNavigate} hovered={state.hoveredMenuItem === item.label} onHover={state.setHoveredMenuItem} /> : <StaticNavItem key={item.key} icon={item.icon} label={item.label} iconOnly={iconOnly} hint={navMeta[item.key]?.hint} theme={effectiveTheme} hovered={state.hoveredMenuItem === item.label} onHover={state.setHoveredMenuItem} />)}
     </nav>
   </aside>
 }
 
-function HorizontalMenu() {
+function HorizontalMenu({ darkMode }: { darkMode: boolean }) {
   const location = useLocation()
   const { user } = useAuth()
+  const theme = themeClasses(darkMode ? 'dark' : 'light')
   const items = [...navPrimary.filter(item => item.key !== 'products'), { key: 'products', label: 'Products', icon: 'shopping-bag-3-line' }, { key: 'purchases', label: 'Purchases', icon: 'truck-line' }, ...staticItems, ...managementItems]
     .filter((item) => !navigationPermissions[item.key] || user?.permissions.includes(navigationPermissions[item.key]))
-  return <nav aria-label="Horizontal navigation" className="fixed top-[70px] right-0 left-0 z-30 flex h-12 items-center gap-1 overflow-x-auto border-b border-vpos-line bg-white px-6 shadow-sm">{items.map(item => <NavLink key={item.key} to={keyToPath[item.key] ?? paths.products} className={({ isActive }) => cn('inline-flex h-8 items-center gap-1.5 rounded-[4px] px-3 text-[14px] font-medium no-underline', isActive || (item.key === 'products' && location.pathname.startsWith('/products')) ? 'bg-vpos-sand text-vpos-primary' : 'text-vpos-muted hover:bg-vpos-subtle')}><Icon name={item.icon} />{item.label}</NavLink>)}</nav>
+  return <nav aria-label="Horizontal navigation" className={cn('fixed top-[70px] right-0 left-0 z-30 flex h-12 items-center gap-1 overflow-x-auto border-b px-6 shadow-sm', darkMode ? 'border-white/10 bg-[#151923]' : 'border-vpos-line bg-white')}>{items.map(item => <NavLink key={item.key} to={keyToPath[item.key] ?? paths.products} className={({ isActive }) => cn('inline-flex h-8 items-center gap-1.5 rounded-[4px] px-3 text-[14px] font-medium no-underline', isActive || (item.key === 'products' && location.pathname.startsWith('/products')) ? theme.active : theme.item)}><Icon name={item.icon} />{item.label}</NavLink>)}</nav>
 }
 
 function TwoColumnMenu({ state, theme }: { state: SidebarLayoutState; theme: ReturnType<typeof themeClasses> }) {
