@@ -39,7 +39,7 @@ export function SignInPage() {
   }
 
   return (
-    <AuthShell eyebrow="WELCOME BACK" title="Pick up where you left off." description="Sign in to open your workspace and keep the floor moving.">
+    <AuthShell variant="reference" eyebrow="WELCOME BACK" title="Pick up where you left off." description="Sign in to open your workspace and keep the floor moving.">
       <form onSubmit={submit} noValidate className="auth-form">
         {isSessionExpired ? (
           <div role="alert" className="auth-alert auth-alert--notice">

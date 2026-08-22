@@ -8,18 +8,22 @@ export function AuthShell({
   title,
   description,
   singleColumn = false,
+  variant = 'default',
 }: {
   children: ReactNode
   eyebrow: string
   title: string
   description: string
   singleColumn?: boolean
+  variant?: 'default' | 'reference'
 }) {
+  const isReference = variant === 'reference'
+
   return (
-    <main className="auth-stage">
-      <div className={`auth-frame ${singleColumn ? 'auth-frame--single' : ''}`}>
+    <main className={`auth-stage ${isReference ? 'auth-stage--reference' : ''}`}>
+      <div className={`auth-frame ${singleColumn ? 'auth-frame--single' : ''} ${isReference ? 'auth-frame--reference' : ''}`}>
         {!singleColumn ? (
-          <aside className="auth-rail" aria-label="V-POS workspace overview">
+          isReference ? <ReferenceRail /> : <aside className="auth-rail" aria-label="V-POS workspace overview">
             <div className="auth-rail-grid" />
             <div className="auth-rail-inner">
               <div className="auth-rail-topline">
@@ -72,7 +76,7 @@ export function AuthShell({
           </aside>
         ) : null}
 
-        <section className={`auth-pane ${singleColumn ? 'auth-pane--setup' : ''}`}>
+        <section className={`auth-pane ${singleColumn ? 'auth-pane--setup' : ''} ${isReference ? 'auth-pane--reference' : ''}`}>
           <div className="auth-mobile-brand">
             <Link to="/sign-in" className="auth-brand">
               <span className="auth-brand-mark"><Icon name="store-3-fill" /></span>
@@ -81,7 +85,7 @@ export function AuthShell({
             {singleColumn ? <span className="auth-mobile-meta">WORKSPACE SETUP</span> : null}
           </div>
 
-          <div className={`auth-content ${singleColumn ? 'auth-content--setup' : ''}`}>
+          <div className={`auth-content ${singleColumn ? 'auth-content--setup' : ''} ${isReference ? 'auth-content--reference' : ''}`}>
             {singleColumn ? (
               <div className="auth-setup-strip">
                 <Link to="/sign-in" className="auth-setup-brand">
@@ -101,5 +105,50 @@ export function AuthShell({
       </div>
       <p className="auth-stage-note"><Icon name="lock-2-line" /> Private by design · ready when your team is</p>
     </main>
+  )
+}
+
+function ReferenceRail() {
+  return (
+    <aside className="auth-rail auth-rail--reference" aria-label="V-POS workspace overview">
+      <div className="auth-reference-grid" />
+      <div className="auth-reference-inner">
+        <div className="auth-reference-topline">
+          <Link to="/sign-in" className="auth-reference-brand">
+            <span className="auth-reference-brand-mark"><Icon name="store-3-fill" /></span>
+            <span>V-POS</span>
+          </Link>
+          <span className="auth-reference-status"><i /> Secure workspace</span>
+        </div>
+
+        <div className="auth-reference-copy">
+          <p className="auth-reference-kicker">OPERATIONS, IN SYNC</p>
+          <h2>Ready to keep<br />the floor moving?</h2>
+          <p>One clear view for sales, stock, stores, and your team when the counter gets loud.</p>
+        </div>
+
+        <div className="auth-reference-mosaic" aria-hidden="true">
+          <span className="auth-reference-tile auth-reference-tile--wide" />
+          <span className="auth-reference-tile auth-reference-tile--tall" />
+          <span className="auth-reference-tile" />
+          <span className="auth-reference-tile" />
+          <span className="auth-reference-tile auth-reference-tile--focus"><Icon name="line-chart-line" /></span>
+          <span className="auth-reference-tile auth-reference-tile--tall" />
+          <span className="auth-reference-tile" />
+          <span className="auth-reference-tile auth-reference-tile--wide" />
+        </div>
+
+        <article className="auth-reference-quote">
+          <div className="auth-reference-quote__brand"><span><Icon name="store-3-fill" /></span><strong>V-POS</strong></div>
+          <p>“A calm command center for every busy hour.”</p>
+          <footer>Workspace operations, in sync.</footer>
+        </article>
+
+        <div className="auth-reference-footer">
+          <span className="auth-mono">V-POS / COMMAND DESK</span>
+          <span>Make the next decision obvious.</span>
+        </div>
+      </div>
+    </aside>
   )
 }
