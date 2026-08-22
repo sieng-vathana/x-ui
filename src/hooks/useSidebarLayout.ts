@@ -8,8 +8,31 @@ export type SidebarView = 'default' | 'detached'
 export type SidebarPosition = 'fixed' | 'scrollable'
 export type SidebarColor = 'light' | 'dark' | 'gradient' | 'gradient-2' | 'gradient-3' | 'gradient-4'
 export type SidebarImage = 'none' | 'img-1' | 'img-2' | 'img-3' | 'img-4'
-export type ThemeColorMode = 'light' | 'dark'
+export type ThemeColorMode =
+  | 'light'
+  | 'dark'
+  | 'warm-paper'
+  | 'slate-night'
+  | 'forest-ledger'
+  | 'midnight-indigo'
+  | 'high-contrast'
+  | 'system'
 export type TopbarColor = 'light' | 'dark'
+
+export const DARK_THEME_MODES: readonly ThemeColorMode[] = [
+  'dark',
+  'slate-night',
+  'forest-ledger',
+  'midnight-indigo',
+  'high-contrast',
+]
+
+export function isDarkThemeMode(mode: ThemeColorMode): boolean {
+  if (mode === 'system') {
+    return typeof window !== 'undefined' && window.matchMedia('(prefers-color-scheme: dark)').matches
+  }
+  return DARK_THEME_MODES.includes(mode)
+}
 
 export interface SidebarConfig {
   layout: SidebarLayout
@@ -37,7 +60,9 @@ const allowed = {
   visibility: ['show', 'hidden'], width: ['fluid', 'boxed'], position: ['fixed', 'scrollable'],
   size: ['default', 'compact', 'small', 'hover'], view: ['default', 'detached'],
   color: ['light', 'dark', 'gradient', 'gradient-2', 'gradient-3', 'gradient-4'],
-  image: ['none', 'img-1', 'img-2', 'img-3', 'img-4'], colorMode: ['light', 'dark'], topbar: ['light', 'dark'],
+  image: ['none', 'img-1', 'img-2', 'img-3', 'img-4'],
+  colorMode: ['light', 'dark', 'warm-paper', 'slate-night', 'forest-ledger', 'midnight-indigo', 'high-contrast', 'system'],
+  topbar: ['light', 'dark'],
 } as const
 
 function valid<T extends readonly string[]>(value: unknown, values: T, fallback: T[number]) {
@@ -52,9 +77,8 @@ export function readThemeConfig(): SidebarConfig {
     return {
       layout: valid(saved.layout, allowed.layout, defaultSidebarConfig.layout),
       visibility: valid(saved.visibility, allowed.visibility, defaultSidebarConfig.visibility),
-      // The screenshot-specific customizer intentionally exposes only four
-      // choices. Keep legacy-only presentation fields at their neutral values
-      // so a stale preference cannot alter an option the drawer no longer has.
+      // Keep legacy-only presentation fields at their neutral values so a
+      // stale preference cannot alter options the customizer no longer owns.
       width: defaultSidebarConfig.width,
       position: valid(saved.position, allowed.position, defaultSidebarConfig.position),
       size: defaultSidebarConfig.size,
@@ -68,11 +92,26 @@ export function readThemeConfig(): SidebarConfig {
   } catch { return defaultSidebarConfig }
 }
 
+let systemThemeMediaQuery: MediaQueryList | null = null
+let systemThemeListener: ((event: MediaQueryListEvent) => void) | null = null
+
+function removeSystemThemeListener() {
+  if (systemThemeMediaQuery && systemThemeListener) {
+    systemThemeMediaQuery.removeEventListener('change', systemThemeListener)
+  }
+  systemThemeMediaQuery = null
+  systemThemeListener = null
+}
+
 export function applyThemeConfig(config: SidebarConfig) {
   if (typeof document === 'undefined') return
   const root = document.documentElement
+  removeSystemThemeListener()
   root.dataset.layout = config.layout
-  root.dataset.bsTheme = config.colorMode
+  const darkTheme = isDarkThemeMode(config.colorMode)
+  root.dataset.bsTheme = darkTheme ? 'dark' : 'light'
+  root.dataset.themeFamily = darkTheme ? 'dark' : 'light'
+  root.dataset.themePreset = config.colorMode
   root.dataset.layoutWidth = config.width
   root.dataset.layoutPosition = config.position
   root.dataset.topbar = config.topbar
@@ -80,7 +119,22 @@ export function applyThemeConfig(config: SidebarConfig) {
   root.dataset.sidebarSize = config.size
   root.dataset.sidebarImage = config.image
   root.dataset.preloader = config.preloader ? 'enabled' : 'disabled'
-  root.style.colorScheme = config.colorMode
+  root.style.colorScheme = config.colorMode === 'system'
+    ? 'light dark'
+    : isDarkThemeMode(config.colorMode) ? 'dark' : 'light'
+
+  if (config.colorMode === 'system') {
+    const mediaQuery = window.matchMedia('(prefers-color-scheme: dark)')
+    const listener = () => {
+      const family = mediaQuery.matches ? 'dark' : 'light'
+      root.dataset.bsTheme = family
+      root.dataset.themeFamily = family
+      window.dispatchEvent(new Event('app-theme-config-changed'))
+    }
+    mediaQuery.addEventListener('change', listener)
+    systemThemeMediaQuery = mediaQuery
+    systemThemeListener = listener
+  }
   window.dispatchEvent(new Event('app-theme-config-changed'))
 }
 

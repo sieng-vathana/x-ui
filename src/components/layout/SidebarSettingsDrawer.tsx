@@ -12,7 +12,16 @@ const layouts: Option<SidebarLayout>[] = [
   { value: 'two-column', label: 'Two Column' },
   { value: 'semi-box', label: 'Semi Box' },
 ]
-const modes: Option<ThemeColorMode>[] = [{ value: 'light', label: 'Light' }, { value: 'dark', label: 'Dark' }]
+const modes: Option<ThemeColorMode>[] = [
+  { value: 'light', label: 'Light' },
+  { value: 'warm-paper', label: 'Warm Paper' },
+  { value: 'dark', label: 'Dark' },
+  { value: 'slate-night', label: 'Slate Night' },
+  { value: 'forest-ledger', label: 'Forest Ledger' },
+  { value: 'midnight-indigo', label: 'Midnight Indigo' },
+  { value: 'high-contrast', label: 'High Contrast' },
+  { value: 'system', label: 'System' },
+]
 const visibility: Option<SidebarVisibility>[] = [{ value: 'show', label: 'Show' }, { value: 'hidden', label: 'Hidden' }]
 const positions: Option<SidebarPosition>[] = [{ value: 'fixed', label: 'Fixed' }, { value: 'scrollable', label: 'Scrollable' }]
 
@@ -26,8 +35,11 @@ function Preview({ group, value, selected }: { group: 'layout' | 'scheme' | 'vis
     {value === 'semi-box' ? <><i className={cls('top-[5px] bottom-[5px] left-[5px] w-[14px] rounded-[2px] bg-[#eef0ff]')} /><i className={cls('top-0 right-0 left-[24px] h-[9px] bg-[#f3f6f9]')} /><i className={cls('right-2 bottom-[14px] left-[25px] h-[18px] bg-[#f3f6f9]')} /><i className={cls('right-2 bottom-[5px] left-[25px] h-[5px] bg-[#eef0ff]')} /></> : null}
     {check}
   </span>
-  if (group === 'scheme') return <span className={cn('theme-preview', selected && 'selected')}>
-    {value === 'light' ? <><i className={cls('inset-y-0 left-0 w-[18px] bg-[#eef0ff]')} /><i className={cls('top-0 right-0 left-[18px] h-[9px] bg-[#f3f6f9]')} /><i className={cls('right-2 bottom-2 left-[25px] h-[20px] bg-[#fff]')} /></> : <><i className={cls('inset-y-0 left-0 w-[18px] bg-[#3d4053]')} /><i className={cls('top-0 right-0 left-[18px] h-[9px] bg-[#292c3e]')} /><i className={cls('right-2 bottom-2 left-[25px] h-[20px] bg-[#292c3e]')} /></>}
+  if (group === 'scheme') return <span className={cn('theme-preview theme-preview-scheme', selected && 'selected')} data-preview-theme={value}>
+    <i className="theme-preview-rail" />
+    <i className="theme-preview-topbar" />
+    <i className="theme-preview-content" />
+    <i className="theme-preview-card" />
     {check}
   </span>
   return <span className={cn('theme-preview', selected && 'selected')}>
@@ -77,5 +89,5 @@ export function SidebarSettingsDrawer({ state }: { state: SidebarLayoutState }) 
   }
 
   if (!mounted) return null
-  return <div className={cn('theme-customizer-layer', phase === 'exit' && 'is-exiting')} role="presentation"><button type="button" aria-label="Close Theme Customizer" className="theme-customizer-backdrop" onClick={close} /><aside key={generation} ref={panelRef} className={cn('theme-customizer-drawer', phase === 'exit' && 'is-exiting')} role="dialog" aria-modal="true" aria-label="Theme Customizer" onAnimationEnd={finishExit}><header><h2>Theme Customizer</h2><button type="button" onClick={close} aria-label="Close Theme Customizer"><Icon name="close-line" /></button></header><div className="theme-customizer-body"><PreviewGroup title="LAYOUT" description="Choose your layout" group="layout" value={config.layout} options={layouts} onChange={layout => updateConfig({ layout, width: 'fluid', view: 'default', size: 'default' })} /><PreviewGroup title="COLOR SCHEME" description="Choose Light or Dark Scheme." group="scheme" value={config.colorMode} options={modes} onChange={colorMode => updateConfig({ colorMode })} /><PreviewGroup title="SIDEBAR VISIBILITY" description="Choose show or Hidden sidebar." group="visibility" value={config.visibility} options={visibility} onChange={visibility => updateConfig({ visibility })} /><PositionControl value={config.position} onChange={position => updateConfig({ position })} /></div><footer><button type="button" onClick={state.resetConfig}>Reset</button><button type="button" onClick={close}>Buy Now</button></footer></aside></div>
+  return <div className={cn('theme-customizer-layer', phase === 'exit' && 'is-exiting')} role="presentation"><button type="button" aria-label="Close Theme Customizer" className="theme-customizer-backdrop" onClick={close} /><aside key={generation} ref={panelRef} className={cn('theme-customizer-drawer', phase === 'exit' && 'is-exiting')} role="dialog" aria-modal="true" aria-label="Theme Customizer" onAnimationEnd={finishExit}><header><h2>Theme Customizer</h2><button type="button" onClick={close} aria-label="Close Theme Customizer"><Icon name="close-line" /></button></header><div className="theme-customizer-body"><PreviewGroup title="LAYOUT" description="Choose your layout" group="layout" value={config.layout} options={layouts} onChange={layout => updateConfig({ layout, width: 'fluid', view: 'default', size: 'default' })} /><PreviewGroup title="COLOR SCHEME" description="Choose a workspace theme." group="scheme" value={config.colorMode} options={modes} onChange={colorMode => updateConfig({ colorMode })} /><PreviewGroup title="SIDEBAR VISIBILITY" description="Choose show or Hidden sidebar." group="visibility" value={config.visibility} options={visibility} onChange={visibility => updateConfig({ visibility })} /><PositionControl value={config.position} onChange={position => updateConfig({ position })} /></div><footer><button type="button" onClick={state.resetConfig}>Reset</button><button type="button" onClick={close}>Buy Now</button></footer></aside></div>
 }

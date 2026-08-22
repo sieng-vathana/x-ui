@@ -1,6 +1,6 @@
 import { useRef } from 'react'
 import { NavLink, useLocation } from 'react-router-dom'
-import type { SidebarLayoutState } from '../../hooks/useSidebarLayout'
+import { isDarkThemeMode, type SidebarLayoutState } from '../../hooks/useSidebarLayout'
 import { navPrimary } from '../../data/mockup'
 import { cn } from '../../lib/cn'
 import { paths } from '../../lib/paths'
@@ -198,11 +198,12 @@ export function Sidebar({ state }: SidebarProps) {
   const backgroundImages: Record<string, string> = { 'img-1': sidebarGrid, 'img-2': sidebarOrbit, 'img-3': sidebarLines, 'img-4': sidebarDots }
   const imageStyle = config.image === 'none' ? undefined : { backgroundImage: `linear-gradient(rgba(17,17,17,.76), rgba(17,17,17,.82)), url(${backgroundImages[config.image]})`, backgroundSize: 'cover', backgroundPosition: 'center' }
 
-  const sidebarColor = config.colorMode === 'dark' ? 'dark' : config.color
+  const darkTheme = isDarkThemeMode(config.colorMode)
+  const sidebarColor = darkTheme ? 'dark' : config.color
 
   const effectiveTheme = themeClasses(sidebarColor)
 
-  if (!isMobile && config.layout === 'horizontal') return <HorizontalMenu darkMode={config.colorMode === 'dark'} />
+  if (!isMobile && config.layout === 'horizontal') return <HorizontalMenu darkMode={darkTheme} />
   if (!isMobile && config.visibility === 'hidden') return null
   if (!isMobile && config.layout === 'two-column') return <TwoColumnMenu state={state} theme={effectiveTheme} />
 
@@ -228,7 +229,7 @@ function HorizontalMenu({ darkMode }: { darkMode: boolean }) {
   const theme = themeClasses(darkMode ? 'dark' : 'light')
   const items = [...navPrimary.filter(item => item.key !== 'products'), { key: 'products', label: 'Products', icon: 'shopping-bag-3-line' }, { key: 'purchases', label: 'Purchases', icon: 'truck-line' }, ...staticItems, ...managementItems]
     .filter((item) => !navigationPermissions[item.key] || user?.permissions.includes(navigationPermissions[item.key]))
-  return <nav aria-label="Horizontal navigation" className={cn('fixed top-[70px] right-0 left-0 z-30 flex h-12 items-center gap-1 overflow-x-auto border-b px-6 shadow-sm', darkMode ? 'border-white/10 bg-[#151923]' : 'border-vpos-line bg-white')}>{items.map(item => <NavLink key={item.key} to={keyToPath[item.key] ?? paths.products} className={({ isActive }) => cn('inline-flex h-8 items-center gap-1.5 rounded-[4px] px-3 text-[14px] font-medium no-underline', isActive || (item.key === 'products' && location.pathname.startsWith('/products')) ? theme.active : theme.item)}><Icon name={item.icon} />{item.label}</NavLink>)}</nav>
+  return <nav aria-label="Horizontal navigation" className={cn('fixed top-[70px] right-0 left-0 z-30 flex h-12 items-center gap-1 overflow-x-auto border-b px-6 shadow-sm', darkMode ? 'border-vpos-topbar-border bg-vpos-topbar-dark' : 'border-vpos-line bg-white')}>{items.map(item => <NavLink key={item.key} to={keyToPath[item.key] ?? paths.products} className={({ isActive }) => cn('inline-flex h-8 items-center gap-1.5 rounded-[4px] px-3 text-[14px] font-medium no-underline', isActive || (item.key === 'products' && location.pathname.startsWith('/products')) ? theme.active : theme.item)}><Icon name={item.icon} />{item.label}</NavLink>)}</nav>
 }
 
 function TwoColumnMenu({ state, theme }: { state: SidebarLayoutState; theme: ReturnType<typeof themeClasses> }) {

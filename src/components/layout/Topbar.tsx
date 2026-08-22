@@ -4,6 +4,7 @@ import { cn } from '../../lib/cn'
 import { Icon } from '../ui/Icon'
 import { paths } from '../../lib/paths'
 import { useAdminStore } from '../../hooks/useAdminStore'
+import { isDarkThemeMode } from '../../hooks/useSidebarLayout'
 import { UserMenu } from './UserMenu'
 import { useAuth } from '../../context/AuthContext'
 
@@ -42,7 +43,7 @@ export function Topbar({
   const { user } = useAuth()
   const headerOffset = !sidebar.isMobile && sidebar.config.visibility === 'show' && sidebar.config.layout !== 'horizontal' ? sidebarWidth : 0
   const renderBrand = showBrand && sidebar.config.layout === 'horizontal'
-  const darkTopbar = sidebar.config.topbar === 'dark' || sidebar.config.colorMode === 'dark'
+  const darkTopbar = sidebar.config.topbar === 'dark' || isDarkThemeMode(sidebar.config.colorMode)
 
   return (
     <>
