@@ -1,7 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { ApiError } from '../../lib/api'
 import { paymentApi } from './paymentApi'
-import type { CashMovementInput, CloseCashSessionInput } from './types'
+import type { CashMovementInput, CloseCashSessionInput, RefundPaymentInput } from './types'
 
 export function useCreateCashPayment() {
   return useMutation({ mutationFn: paymentApi.createCash })
@@ -46,6 +46,21 @@ export function usePaymentsForOrder(orderId?: number) {
     queryKey: ['payments', { orderId }],
     queryFn: () => paymentApi.listForOrder(orderId!),
     enabled: Boolean(orderId),
+  })
+}
+
+export function useRefundPayment() {
+  const queryClient = useQueryClient()
+
+  return useMutation({
+    mutationFn: ({ id, input }: { id: number; input: RefundPaymentInput }) => paymentApi.refund(id, input),
+    onSuccess: (payment) => {
+      queryClient.setQueryData(['payment', payment.id], payment)
+      queryClient.invalidateQueries({ queryKey: ['payments'] })
+      queryClient.invalidateQueries({ queryKey: ['orders', 'recent'] })
+      queryClient.invalidateQueries({ queryKey: ['reports', 'payment-breakdown'] })
+      queryClient.invalidateQueries({ queryKey: ['cash-session'] })
+    },
   })
 }
 

@@ -24,6 +24,11 @@ export interface Payment {
   updatedAt: string
 }
 
+export interface RefundPaymentInput {
+  amount: number
+  reason?: string
+}
+
 export interface CreateCashPaymentInput {
   orderId: number
   businessId: number

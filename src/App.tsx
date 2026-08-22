@@ -35,7 +35,7 @@ import { RoleManagementPage } from './pages/RoleManagementPage'
 import { TasksPage } from './pages/TasksPage'
 import { SalesPage } from './pages/SalesPage'
 import { SalesPaymentsPage } from './pages/SalesPaymentsPage'
-import { SalesOperationsPage } from './pages/SalesOperationsPage'
+import { RefundsPage } from './pages/RefundsPage'
 import { CashRegisterPage } from './pages/CashRegisterPage'
 import { ReportsPage } from './pages/ReportsPage'
 
@@ -118,7 +118,7 @@ export default function App() {
                   <Route path="sales" element={<SalesPage />} />
                 </Route>
                 <Route element={<RequirePermission permission="x-order:refund" />}>
-                  <Route path="sales/returns" element={<SalesOperationsPage section="returns" />} />
+                  <Route path="sales/returns" element={<RefundsPage />} />
                 </Route>
                 <Route element={<RequirePermission permission="x-report:read" />}>
                   <Route path="sales/payments" element={<SalesPaymentsPage />} />

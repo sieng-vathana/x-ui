@@ -12,6 +12,7 @@ import type {
   PaymentBreakdown,
   PosQrCheckoutResponse,
   QrPaymentResponse,
+  RefundPaymentInput,
 } from './types'
 
 const api = new ApiClient({ baseUrl: API_BASE_URL })
@@ -90,6 +91,19 @@ export const paymentApi = {
         `/payments?orderId=${encodeURIComponent(orderId)}`,
       ),
       'Payment activity could not be loaded.',
+    )
+  },
+
+  async refund(id: number, input: RefundPaymentInput): Promise<Payment> {
+    if (!Number.isInteger(id) || id <= 0) throw new Error('A valid payment is required for a refund.')
+    if (!Number.isFinite(input.amount) || input.amount <= 0) throw new Error('A refund amount greater than zero is required.')
+
+    return requireData(
+      await api.request<ApiEnvelope<Payment>>(`/payments/${encodeURIComponent(id)}/refund`, {
+        method: 'POST',
+        body: JSON.stringify(input),
+      }),
+      'The payment could not be refunded.',
     )
   },
 
