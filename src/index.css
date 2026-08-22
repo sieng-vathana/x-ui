@@ -1913,6 +1913,26 @@ html[data-preloader='disabled'] .app-loader-overlay {
   position: relative;
 }
 
+.auth-input-wrap {
+  position: relative;
+  display: block;
+}
+
+.auth-input--with-leading-icon {
+  padding-left: 44px;
+}
+
+.auth-input-leading-icon {
+  position: absolute;
+  top: 50%;
+  left: 14px;
+  z-index: 1;
+  pointer-events: none;
+  transform: translateY(-50%);
+  color: #9b97a0;
+  font-size: 16px;
+}
+
 .auth-password-wrap .auth-input {
   padding-right: 50px;
 }
@@ -2507,6 +2527,22 @@ html[data-preloader='disabled'] .app-loader-overlay {
   background: var(--auth-reference-surface);
   font-size: 12px;
   box-shadow: none;
+}
+
+.auth-content--reference .auth-input--with-leading-icon {
+  padding-left: 39px;
+}
+
+.auth-content--reference .auth-input-leading-icon {
+  left: 13px;
+  color: #70706b;
+  font-size: 14px;
+  transition: color 160ms ease;
+}
+
+.auth-content--reference .auth-input-wrap:focus-within .auth-input-leading-icon,
+.auth-content--reference .auth-password-wrap:focus-within .auth-input-leading-icon {
+  color: #d4d4ce;
 }
 
 .auth-content--reference .auth-input::placeholder {

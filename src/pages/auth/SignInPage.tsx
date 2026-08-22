@@ -48,14 +48,15 @@ export function SignInPage() {
           </div>
         ) : null}
         <div className="auth-form-fields">
-          <Field label="Username" autoComplete="username" value={username} onChange={setUsername} placeholder="e.g. vathana.admin" required />
+          <Field label="Username" leadingIcon="user-line" autoComplete="username" value={username} onChange={setUsername} placeholder="e.g. vathana.admin" required />
           <div className="auth-field">
             <div className="auth-field-heading">
               <label htmlFor="password" className="auth-field-label">Password <b>*</b></label>
               <span className="auth-field-hint">Your workspace password</span>
             </div>
             <div className="auth-password-wrap">
-              <input id="password" type={showPassword ? 'text' : 'password'} autoComplete="current-password" value={password} onChange={(event) => setPassword(event.target.value)} placeholder="At least 8 characters" required className="auth-input" />
+              <span className="auth-input-leading-icon"><Icon name="lock-2-line" /></span>
+              <input id="password" type={showPassword ? 'text' : 'password'} autoComplete="current-password" value={password} onChange={(event) => setPassword(event.target.value)} placeholder="At least 8 characters" required className="auth-input auth-input--with-leading-icon" />
               <button type="button" onClick={() => setShowPassword((value) => !value)} aria-label={showPassword ? 'Hide password' : 'Show password'} className="auth-password-toggle"><Icon name={showPassword ? 'eye-off-line' : 'eye-line'} /></button>
             </div>
           </div>
@@ -71,10 +72,11 @@ export function SignInPage() {
 
 type AuthFieldProps = {
   label: string
+  leadingIcon?: string
   value: string
   onChange: (value: string) => void
 } & Omit<InputHTMLAttributes<HTMLInputElement>, 'value' | 'onChange'>
 
-function Field({ label, value, onChange, ...props }: AuthFieldProps) {
-  return <label className="auth-field"><span className="auth-field-label">{label} <b>*</b></span><input {...props} value={value} onChange={(event) => onChange(event.target.value)} className="auth-input" /></label>
+function Field({ label, leadingIcon = 'user-line', value, onChange, ...props }: AuthFieldProps) {
+  return <label className="auth-field"><span className="auth-field-label">{label} <b>*</b></span><span className="auth-input-wrap"><span className="auth-input-leading-icon"><Icon name={leadingIcon} /></span><input {...props} value={value} onChange={(event) => onChange(event.target.value)} className="auth-input auth-input--with-leading-icon" /></span></label>
 }
