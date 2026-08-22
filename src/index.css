@@ -2426,15 +2426,22 @@ html[data-preloader='disabled'] .app-loader-overlay {
   height: 42px;
 }
 
-.dashboard-mini-bars > span {
+.dashboard-mini-bar {
+  display: flex;
+  width: 4px;
+  flex-direction: column-reverse;
+  gap: 2px;
+}
+
+.dashboard-mini-block {
   display: block;
   width: 4px;
-  min-height: 4px;
+  height: 4px;
   border-radius: 1px;
   background: var(--app-chart-muted);
 }
 
-.dashboard-mini-bars > span:nth-last-child(-n + 3) {
+.dashboard-mini-block-dark {
   background: var(--app-chart);
 }
 

@@ -187,7 +187,7 @@ export function DashboardPage() {
             trendAs="small"
             icon={<Icon name="funds-line" />}
             iconTone="positive"
-            miniBars={[12, 16, 18, 14, 22, 25, 28, 30, 34]}
+            miniBars={[2, 3, 4, 3, 5, 6, 7, 8, 9]}
           />
           <MetricCard
             label="Completed orders"
@@ -196,7 +196,7 @@ export function DashboardPage() {
             trendAs="small"
             icon={<Icon name="file-list-3-line" />}
             iconTone="primary"
-            miniBars={[10, 14, 12, 18, 22, 17, 24, 29, 26]}
+            miniBars={[2, 3, 3, 5, 4, 6, 7, 8, 7]}
           />
           <MetricCard
             label="Average order"
@@ -205,7 +205,7 @@ export function DashboardPage() {
             trendAs="small"
             icon={<Icon name="bar-chart-box-line" />}
             iconTone="primary"
-            miniBars={[23, 18, 20, 16, 25, 21, 29, 24, 27]}
+            miniBars={[6, 5, 4, 6, 5, 7, 8, 7, 8]}
           />
           <MetricCard
             label="Collected payments"
@@ -214,23 +214,28 @@ export function DashboardPage() {
             trendAs="small"
             icon={<Icon name="secure-payment-line" />}
             iconTone="positive"
-            miniBars={[8, 14, 11, 16, 20, 18, 23, 27, 22]}
+            miniBars={[2, 4, 3, 5, 5, 6, 7, 8, 6]}
           />
         </section>
 
         <section className="mt-[18px] grid grid-cols-1 gap-[18px] xl:grid-cols-[minmax(0,1.55fr)_minmax(320px,.8fr)]">
-          <article className={cn(card, 'dashboard-panel min-h-[355px] overflow-hidden p-5')}>
-            <SectionHeader
-              title="Sales trend"
-              subtitle={`${formatDateLabel(from)} – ${formatDateLabel(to)} · completed sales`}
-              action={<Icon name="line-chart-line" className="text-[21px] text-vpos-primary" />}
-            />
+          <article className={cn(card, 'dashboard-panel min-h-[438px] overflow-hidden p-4')}>
             {trendQuery.isLoading ? (
-              <LoadingPanel label="Loading sales trend…" />
+              <>
+                <SectionHeader title="Sales trend" subtitle="Daily completed sales" />
+                <LoadingPanel label="Loading sales trend…" />
+              </>
             ) : trendPoints.length === 0 ? (
-              <EmptyPanel icon="line-chart-line" label="No completed sales in this period." />
+              <>
+                <SectionHeader title="Sales trend" subtitle="Daily completed sales" />
+                <EmptyPanel icon="line-chart-line" label="No completed sales in this period." />
+              </>
             ) : (
-              <SalesTrendChart points={trendPoints} currency={currency} />
+              <SalesTrendChart
+                points={trendPoints}
+                currency={currency}
+                onRangeChange={setPreset}
+              />
             )}
           </article>
 
@@ -448,110 +453,174 @@ function EmptyPanel({ icon, label }: { icon: string; label: string }) {
   )
 }
 
-function SalesTrendChart({ points, currency }: { points: TrendPoint[]; currency: string }) {
-  const [hoveredIndex, setHoveredIndex] = useState<number | null>(null)
-  const width = 760
-  const height = 280
+function SalesTrendChart({
+  points,
+  currency,
+  onRangeChange,
+  activeRange = null,
+}: {
+  points: TrendPoint[]
+  currency: string
+  onRangeChange?: (days: number) => void
+  activeRange?: number | null
+}) {
+  const [selectedIndex, setSelectedIndex] = useState(0)
+  const width = 820
+  const height = 350
   const left = 58
   const right = 18
-  const top = 18
+  const top = 12
   const bottom = 42
   const plotWidth = width - left - right
   const plotHeight = height - top - bottom
-  const maxValue = Math.max(1, ...points.map((point) => point.grandTotal))
-  const barWidth = Math.max(6, Math.min(18, (plotWidth / Math.max(1, points.length)) * 0.62))
+  const rowCount = 40
+  const rowGap = 2
+  const maxValue = Math.ceil(Math.max(20_000, ...points.map((point) => point.grandTotal)) / 5_000) * 5_000
+  const blockHeight = Math.max(4, Math.min(7, (plotHeight - (rowCount - 1) * rowGap) / rowCount))
+  const barWidth = Math.max(10, Math.min(20, (plotWidth / Math.max(1, points.length)) * 0.72))
   const baseline = top + plotHeight
   const coordinates = points.map((point, index) => {
-    const barHeight = (point.grandTotal / maxValue) * plotHeight
+    const totalBlocks = Math.max(0, Math.min(rowCount, Math.round((point.grandTotal / maxValue) * rowCount)))
     return {
       point,
       x: left + ((index + 0.5) / Math.max(1, points.length)) * plotWidth,
-      barHeight,
-      darkHeight: Math.min(barHeight, Math.max(5, barHeight * 0.56)),
+      totalBlocks,
+      lightBlocks: Math.round(totalBlocks * 0.36),
     }
   })
+  const selected = points[selectedIndex] ?? points[0]
+  const periodAverage = points.reduce((total, point) => total + point.grandTotal, 0) / Math.max(1, points.length)
+  const delta = periodAverage > 0 ? ((selected.grandTotal - periodAverage) / periodAverage) * 100 : 0
+  const deltaTone = delta >= 0 ? 'text-vpos-green' : 'text-vpos-red'
+  const deltaArrow = delta >= 0 ? '↑' : '↓'
   const labels = trendLabelIndices(points.length)
-  const peak = points.reduce((highest, point) => point.grandTotal > highest.grandTotal ? point : highest, points[0])
-  const orderTotal = points.reduce((total, point) => total + point.orderCount, 0)
-  const hovered = hoveredIndex == null ? null : coordinates[hoveredIndex]
+  const rangeOptions = [
+    { label: '14D', days: 14 },
+    { label: '1M', days: 30 },
+    { label: '3M', days: 90 },
+    { label: '6M', days: 180 },
+  ]
 
   return (
-    <div className="mt-4">
-      <div className="relative">
-        <svg
-          viewBox={'0 0 ' + width + ' ' + height}
-          className="h-[270px] w-full overflow-visible"
-          role="img"
-          aria-label="Sales trend bar chart"
-          onMouseLeave={() => setHoveredIndex(null)}
-        >
-          {Array.from({ length: 5 }, (_, index) => {
-            const ratio = index / 4
-            const y = top + plotHeight - ratio * plotHeight
-            return (
-              <g key={'grid-' + index}>
-                <line x1={left} x2={width - right} y1={y} y2={y} stroke="var(--app-chart-grid)" strokeDasharray="2 5" />
-                <text x={left - 10} y={y + 4} textAnchor="end" className="fill-vpos-muted text-[11px]">
-                  {formatCompactCurrency(maxValue * ratio, currency)}
-                </text>
-              </g>
-            )
-          })}
-
-          {coordinates.map(({ point, x, barHeight, darkHeight }, index) => (
-            <g key={point.date}>
-              <rect
-                x={x - barWidth / 2}
-                y={top}
-                width={barWidth}
-                height={plotHeight}
-                fill={hoveredIndex === index ? 'var(--app-primary-soft)' : 'transparent'}
-                onMouseEnter={() => setHoveredIndex(index)}
-              />
-              <rect
-                x={x - barWidth / 2}
-                y={baseline - barHeight}
-                width={barWidth}
-                height={barHeight}
-                rx="1.5"
-                fill="var(--app-chart-muted)"
-              />
-              <rect
-                x={x - barWidth / 2}
-                y={baseline - darkHeight}
-                width={barWidth}
-                height={darkHeight}
-                rx="1.5"
-                fill="var(--app-chart)"
-                className="cursor-pointer"
-                onMouseEnter={() => setHoveredIndex(index)}
-                aria-label={formatDateLabel(point.date) + ': ' + formatCurrency(point.grandTotal, currency) + ', ' + point.orderCount + ' orders'}
-              />
-            </g>
-          ))}
-
-          {labels.map((index) => {
-            const { point, x } = coordinates[index]
-            return (
-              <text key={'label-' + point.date} x={x} y={height - 12} textAnchor="middle" className="fill-vpos-muted text-[11px]">
-                {formatCompactDate(point.date)}
-              </text>
-            )
-          })}
-        </svg>
-
-        {hovered ? (
-          <div className="pointer-events-none absolute top-1 right-1 rounded-[3px] border border-vpos-line bg-vpos-surface px-3 py-2 text-right shadow-vpos">
-            <strong className="block text-[13px] text-vpos-text">{formatCurrency(hovered.point.grandTotal, currency)}</strong>
-            <span className="text-[11px] text-vpos-muted">{formatDateLabel(hovered.point.date)} · {hovered.point.orderCount} orders</span>
+    <div>
+      <div className="mb-3 flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+        <div className="min-w-0">
+          <strong className="block text-[25px] font-semibold leading-none tracking-[-0.04em] text-vpos-text">
+            {formatChartTotal(selected.grandTotal, currency)}
+          </strong>
+          <span className="mt-2 block text-[12px] text-vpos-muted">
+            Sales on {formatDateLabel(selected.date)}
+          </span>
+          <div className="mt-3 flex flex-wrap items-center gap-4 text-[12px] text-vpos-muted">
+            <span className="inline-flex items-center gap-1.5">
+              <i className="h-2 w-2 rounded-full bg-vpos-chart" />
+              Daily sales
+            </span>
+            <span className="inline-flex items-center gap-1.5">
+              <i className="h-2 w-2 rounded-full bg-vpos-chart-muted" />
+              Base volume
+            </span>
           </div>
-        ) : null}
+        </div>
+
+        <div className="flex shrink-0 flex-col items-start gap-2 sm:items-end">
+          <div className="inline-flex overflow-hidden rounded-[3px] border border-vpos-line">
+            {rangeOptions.map((option) => (
+              <button
+                key={option.days}
+                type="button"
+                onClick={() => onRangeChange?.(option.days)}
+                className={cn(
+                  'h-8 border-0 border-l border-vpos-line px-3 text-[12px] font-semibold text-vpos-text first:border-l-0',
+                  activeRange === option.days ? 'bg-vpos-primary-soft' : 'bg-vpos-surface hover:bg-vpos-subtle',
+                )}
+              >
+                {option.label}
+              </button>
+            ))}
+          </div>
+          <span className={cn('text-[12px] font-medium', deltaTone)}>
+            {deltaArrow} {Math.abs(delta).toFixed(1)}% <span className="text-vpos-muted">vs period average</span>
+          </span>
+        </div>
       </div>
 
-      <div className="mt-1 flex flex-wrap items-center justify-between gap-3 border-t border-vpos-line pt-3 text-[12px] text-vpos-muted">
-        <span className="inline-flex items-center gap-1.5"><i className="h-2 w-2 rounded-[1px] bg-vpos-chart" /> Daily net sales</span>
-        <span>Peak <strong className="text-vpos-text">{formatCurrency(peak.grandTotal, currency)}</strong> on {formatCompactDate(peak.date)} · {orderTotal} orders</span>
-      </div>
+      <svg
+        viewBox={'0 0 ' + width + ' ' + height}
+        className="h-[318px] w-full overflow-visible"
+        role="img"
+        aria-label="Daily sales stacked block chart"
+      >
+        {Array.from({ length: 5 }, (_, index) => {
+          const ratio = index / 4
+          const y = baseline - ratio * plotHeight
+          return (
+            <g key={'horizontal-grid-' + index}>
+              <line
+                x1={left}
+                x2={width - right}
+                y1={y}
+                y2={y}
+                stroke="var(--app-chart-grid)"
+                strokeDasharray="2 5"
+              />
+              <text x={left - 10} y={y + 4} textAnchor="end" className="fill-vpos-muted text-[11px]">
+                {formatAxisValue(maxValue * ratio)}
+              </text>
+            </g>
+          )
+        })}
+
+        {coordinates.map(({ point, x, totalBlocks, lightBlocks }, index) => (
+          <g
+            key={point.date}
+            onMouseEnter={() => setSelectedIndex(index)}
+          >
+            <line
+              x1={x}
+              x2={x}
+              y1={top}
+              y2={baseline}
+              stroke="var(--app-chart-grid)"
+              strokeDasharray="2 5"
+            />
+            <rect
+              x={x - barWidth / 2}
+              y={top}
+              width={barWidth}
+              height={plotHeight}
+              fill={selectedIndex === index ? 'var(--app-primary-soft)' : 'transparent'}
+              opacity={selectedIndex === index ? 0.65 : 1}
+              aria-label={formatDateLabel(point.date) + ': ' + formatCurrency(point.grandTotal, currency)}
+            />
+            {Array.from({ length: totalBlocks }, (_, blockIndex) => {
+              const y = baseline - (blockIndex + 1) * blockHeight - blockIndex * rowGap
+              const isDark = blockIndex >= lightBlocks
+              return (
+                <rect
+                  key={blockIndex}
+                  x={x - barWidth / 2}
+                  y={y}
+                  width={barWidth}
+                  height={blockHeight}
+                  rx="1.5"
+                  fill={isDark ? 'var(--app-chart)' : 'var(--app-chart-muted)'}
+                  className="cursor-pointer"
+                />
+              )
+            })}
+          </g>
+        ))}
+
+        {labels.map((index) => {
+          const { point, x } = coordinates[index]
+          return (
+            <text key={'label-' + point.date} x={x} y={height - 12} textAnchor="middle" className="fill-vpos-muted text-[11px]">
+              {formatCompactDate(point.date)}
+            </text>
+          )
+        })}
+      </svg>
     </div>
   )
 }
@@ -562,11 +631,14 @@ function trendLabelIndices(count: number): number[] {
   return Array.from({ length: labelCount }, (_, index) => Math.round(index * (count - 1) / (labelCount - 1)))
 }
 
-function formatCompactCurrency(amount: number, currency: string): string {
-  const absolute = Math.abs(amount)
-  const divisor = absolute >= 1_000_000_000 ? 1_000_000_000 : absolute >= 1_000_000 ? 1_000_000 : absolute >= 1_000 ? 1_000 : 1
-  const suffix = divisor === 1_000_000_000 ? 'B' : divisor === 1_000_000 ? 'M' : divisor === 1_000 ? 'K' : ''
-  return `${formatCurrency(amount / divisor, currency)}${suffix}`
+function formatChartTotal(amount: number, currency: string): string {
+  if (Math.abs(amount) < 1_000) return formatCurrency(amount, currency)
+  return formatCurrency(Math.round(amount / 1_000), currency).replace(/\.00$/, '') + 'K'
+}
+
+function formatAxisValue(amount: number): string {
+  if (amount < 1_000) return String(Math.round(amount))
+  return String(Math.round(amount / 1_000)) + 'k'
 }
 
 function buildTrendPoints(from: string, to: string, rows: SalesTrend[]): TrendPoint[] {

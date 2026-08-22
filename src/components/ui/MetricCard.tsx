@@ -40,7 +40,6 @@ export function MetricCard({
   className,
   ...rest
 }: MetricCardProps) {
-  const maxBar = Math.max(1, ...(miniBars ?? []))
   const compact = miniBars != null
 
   return (
@@ -78,12 +77,23 @@ export function MetricCard({
 
         {compact ? (
           <span className="dashboard-mini-bars shrink-0" aria-hidden="true">
-            {(miniBars ?? []).map((bar, index) => (
-              <span
-                key={index}
-                style={{ height: Math.max(5, Math.round((bar / maxBar) * 36)) }}
-              />
-            ))}
+            {(miniBars ?? []).map((bar, index) => {
+              const blockCount = Math.max(1, Math.min(9, Math.round(bar)))
+              const darkFrom = Math.max(0, blockCount - 2)
+              return (
+                <span className="dashboard-mini-bar" key={index}>
+                  {Array.from({ length: blockCount }, (_, blockIndex) => (
+                    <i
+                      key={blockIndex}
+                      className={cn(
+                        'dashboard-mini-block',
+                        blockIndex >= darkFrom && 'dashboard-mini-block-dark',
+                      )}
+                    />
+                  ))}
+                </span>
+              )
+            })}
           </span>
         ) : icon != null ? (
           <span
