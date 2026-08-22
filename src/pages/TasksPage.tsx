@@ -466,7 +466,7 @@ export function TasksPage() {
               {columns.map((column) => {
                 const columnTasks = filteredTasks.filter((task) => task.status === column.status)
                 return (
-                  <section key={column.status} className="min-w-0 rounded-[4px] border border-vpos-line bg-[#f8f9fb] p-3">
+                  <section key={column.status} className="min-w-0 rounded-[4px] border border-vpos-line bg-vpos-subtle p-3">
                     <div className="mb-3 flex items-start justify-between gap-2 px-1">
                       <div>
                         <h3 className="m-0 flex items-center gap-2 text-[13px] font-extrabold text-vpos-text"><i className={cn('h-2 w-2 rounded-full', column.dot)} />{column.label}</h3>
@@ -477,7 +477,7 @@ export function TasksPage() {
                     <div className="space-y-3">
                       {columnTasks.map((task) => <TaskCard key={task.id} task={task} onStatusChange={changeStatus} />)}
                       {columnTasks.length === 0 ? (
-                        <div className="grid min-h-[128px] place-items-center rounded-[4px] border border-dashed border-vpos-line bg-white/60 p-5 text-center">
+                        <div className="grid min-h-[128px] place-items-center rounded-[4px] border border-dashed border-vpos-line bg-vpos-surface/60 p-5 text-center">
                           <div>
                             <Icon name="inbox-archive-line" className="text-[23px] text-vpos-muted/55" />
                             <p className="mt-2 text-[11px] font-semibold text-vpos-muted">No matching tasks</p>

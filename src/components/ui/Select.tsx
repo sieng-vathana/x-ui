@@ -300,7 +300,7 @@ export function MultiSelect({
           {selectedOptions.length > 0 ? selectedOptions.map((option) => (
             <span
               key={option.value}
-              className="inline-flex max-w-full items-center gap-1 rounded-[5px] bg-[#e5e7eb] px-2 py-1 text-[11px] font-semibold text-vpos-text"
+              className="inline-flex max-w-full items-center gap-1 rounded-[5px] bg-vpos-subtle px-2 py-1 text-[11px] font-semibold text-vpos-text"
             >
               <span className="truncate">{option.label}</span>
               <span

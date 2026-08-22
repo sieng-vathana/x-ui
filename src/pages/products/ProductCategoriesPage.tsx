@@ -223,7 +223,7 @@ function CategoryActionsMenu({
         <div
           ref={menuRef}
           style={{ top: `${coords.top}px`, left: `${coords.left}px` }}
-          className="fixed z-[99999] w-44 rounded-xl border border-vpos-line/80 bg-white/95 backdrop-blur-md p-1.5 shadow-[0_12px_32px_rgba(0,0,0,0.12)] transition-all duration-150 ease-out animate-in fade-in zoom-in-95"
+          className="fixed z-[99999] w-44 rounded-xl border border-vpos-line/80 bg-vpos-surface p-1.5 shadow-[0_12px_32px_rgba(0,0,0,0.12)] transition-all duration-150 ease-out animate-in fade-in zoom-in-95"
         >
           <button
             type="button"
@@ -322,7 +322,7 @@ function CategoryDetailsModal({
     >
       <div className="flex flex-col gap-4">
         {/* Header preview banner */}
-        <div className="flex items-center gap-4 rounded-xl border border-vpos-line bg-[#fbfcfd] p-4">
+        <div className="flex items-center gap-4 rounded-xl border border-vpos-line bg-vpos-subtle/30 p-4">
           {hasImage ? (
             <img
               src={category.image}
@@ -795,7 +795,7 @@ function CategoryFormModal({ open, category, onClose, onSave, isSaving }: Catego
         </div>
 
         {/* Coverage & Store Selection */}
-        <div className="rounded-xl border border-vpos-line bg-[#fbfcfd] p-4">
+        <div className="rounded-xl border border-vpos-line bg-vpos-subtle/30 p-4">
           <label className="mb-2 block text-[13px] font-extrabold uppercase tracking-[.12em] text-vpos-primary">
             Store Coverage
           </label>

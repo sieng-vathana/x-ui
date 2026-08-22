@@ -74,9 +74,9 @@ export function Modal({
   const panelRef = useRef<HTMLDivElement>(null)
   const onCloseRef = useRef(onClose)
   onCloseRef.current = onClose
-  // Preserve the tone API for callers while keeping every dialog on the
-  // shared Velzon light surface.
-  const isDark = false
+  // Honour the tone API so specialised dialogs can opt into the dark panel
+  // treatment while the default tone continues to follow the app surface.
+  const isDark = tone === 'dark'
 
   useEffect(() => {
     if (!open || !mounted) return

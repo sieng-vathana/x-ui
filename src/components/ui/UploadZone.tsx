@@ -30,7 +30,7 @@ export function UploadZone({
   return (
     <div
       className={cn(
-        'flex min-h-[184px] w-full cursor-pointer flex-col items-center justify-center gap-2 rounded-xl border-[1.5px] border-dashed border-vpos-primary-2 bg-[#f7f9fb] px-4',
+        'flex min-h-[184px] w-full cursor-pointer flex-col items-center justify-center gap-2 rounded-xl border-[1.5px] border-dashed border-vpos-primary-2 bg-vpos-subtle px-4',
         'hover:border-vpos-primary hover:bg-vpos-sand/30',
         'focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-vpos-primary',
         className,

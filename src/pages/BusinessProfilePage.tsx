@@ -31,7 +31,7 @@ export function BusinessProfilePage() {
       <main className={pageContent}>
         <section className="mb-6"><Breadcrumb items={[{ label: 'Settings', to: paths.settings }, { label: sectionLabel }]} /></section>
         {section === 'profile' ? <section className={`${card} overflow-hidden p-0`}>
-          <div className="border-b border-vpos-line bg-[linear-gradient(105deg,#f5faf8,white_62%)] px-6 py-6 sm:px-7">
+          <div className="border-b border-vpos-line bg-vpos-subtle/45 px-6 py-6 sm:px-7">
             <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
               <div className="flex items-center gap-3"><span className="grid h-12 w-12 place-items-center overflow-hidden rounded-xl bg-vpos-primary text-[22px] text-white">{user?.business.logoUrl ? <img src={user.business.logoUrl} alt="Current business logo" className="h-full w-full object-cover" /> : <Icon name="store-3-fill" />}</span><span><h2 className="m-0 text-[19px] font-extrabold text-vpos-text">Business identity</h2><p className="mt-1 mb-0 text-[13px] text-vpos-muted">Name and logo are reused in the left navigation.</p></span></div>
               <span className="inline-flex w-fit items-center gap-1.5 rounded-full bg-vpos-green-bg px-3 py-1.5 text-[12px] font-bold text-vpos-green"><Icon name="checkbox-circle-line" /> Workspace owner</span>

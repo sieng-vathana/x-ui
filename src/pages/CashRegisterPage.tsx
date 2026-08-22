@@ -252,7 +252,7 @@ function OpenRegisterCard({
 }) {
   return (
     <section className={`${card} mt-[18px] overflow-hidden`}>
-      <div className="border-b border-vpos-line bg-[linear-gradient(105deg,#f5faf8,white_62%)] px-5 py-5 sm:px-6">
+      <div className="border-b border-vpos-line bg-vpos-subtle/45 px-5 py-5 sm:px-6">
         <div className="flex items-start gap-3">
           <span className="grid h-11 w-11 shrink-0 place-items-center rounded-md bg-vpos-sand text-[22px] text-vpos-primary"><Icon name="safe-2-line" /></span>
           <div>

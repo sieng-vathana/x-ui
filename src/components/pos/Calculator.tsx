@@ -191,7 +191,7 @@ export function Calculator() {
                 type="button"
                 onClick={k.onClick}
                 className={cn(
-                  'h-11 rounded-lg border-0 bg-vpos-subtle text-[15px] font-bold text-vpos-text transition-colors hover:bg-[#e0e7ed]',
+                  'h-11 rounded-lg border-0 bg-vpos-subtle text-[15px] font-bold text-vpos-text transition-colors hover:bg-vpos-primary-soft',
                   k.className,
                 )}
               >

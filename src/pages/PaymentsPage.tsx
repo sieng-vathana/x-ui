@@ -246,9 +246,9 @@ export function PaymentsPage() {
                 ) : null}
               </header>
 
-              <div className="relative min-h-[560px] bg-[#edf3f1] p-3 sm:p-5">
+              <div className="relative min-h-[560px] bg-vpos-subtle p-3 sm:p-5">
                 {checkout?.qrImageUrl ? (
-                  <div className="grid min-h-[520px] place-items-center rounded-[6px] border border-vpos-line/70 bg-[radial-gradient(circle_at_top,#ffffff_0%,#f5f9f8_54%,#e4edeb_100%)] px-4 py-8">
+                  <div className="grid min-h-[520px] place-items-center rounded-[6px] border border-vpos-line/70 bg-vpos-surface px-4 py-8">
                     <div className="w-full max-w-[430px] overflow-hidden rounded-[10px] border border-vpos-line bg-white shadow-[0_22px_55px_rgba(15,34,58,.16)]">
                       <div className="flex items-center justify-between bg-[#d9222a] px-5 py-3.5 text-white">
                         <span className="flex items-center gap-2 text-[18px] font-black tracking-[-0.03em]">
@@ -293,7 +293,7 @@ export function PaymentsPage() {
                     </div>
                   </div>
                 ) : (
-                  <div className="grid min-h-[520px] place-items-center rounded-[6px] border border-dashed border-vpos-line bg-white/70 px-6 text-center">
+                  <div className="grid min-h-[520px] place-items-center rounded-[6px] border border-dashed border-vpos-line bg-vpos-surface/70 px-6 text-center">
                     <span className="max-w-[420px]">
                       <span className="mx-auto grid h-16 w-16 place-items-center rounded-[6px] bg-vpos-sand text-[30px] text-vpos-primary">
                         <Icon name="qr-scan-2-line" />

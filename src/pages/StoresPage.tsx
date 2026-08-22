@@ -26,7 +26,7 @@ import { resolveImageUrl } from '../features/files/fileApi'
 
 const STATUS_MAP: Record<number, { label: string; className: string }> = {
   1: { label: 'Active', className: 'bg-vpos-green-bg text-vpos-green' },
-  0: { label: 'Inactive', className: 'bg-[#ededf0] text-vpos-muted' },
+  0: { label: 'Inactive', className: 'bg-vpos-subtle text-vpos-muted' },
   2: { label: 'Maintenance', className: 'bg-vpos-orange-bg text-vpos-orange' },
 }
 
@@ -63,7 +63,7 @@ function storeAddress(store: BffStore): string {
 }
 
 function storeStatus(store: BffStore): { label: string; className: string } {
-  return STATUS_MAP[store.status] ?? { label: 'Unknown', className: 'bg-[#ededf0] text-vpos-muted' }
+  return STATUS_MAP[store.status] ?? { label: 'Unknown', className: 'bg-vpos-subtle text-vpos-muted' }
 }
 
 function StoresPageSkeleton({ storeId, setStoreId }: { storeId: string; setStoreId: (id: string) => void }) {

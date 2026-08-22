@@ -93,7 +93,7 @@ function ProductActionsMenu({
         <div
           ref={menuRef}
           style={{ top: `${coords.top}px`, left: `${coords.left}px` }}
-          className="fixed z-[99999] w-44 rounded-xl border border-vpos-line/80 bg-white/95 backdrop-blur-md p-1.5 shadow-[0_12px_32px_rgba(0,0,0,0.12)] transition-all duration-150 ease-out animate-in fade-in zoom-in-95"
+          className="fixed z-[99999] w-44 rounded-xl border border-vpos-line/80 bg-vpos-surface p-1.5 shadow-[0_12px_32px_rgba(0,0,0,0.12)] transition-all duration-150 ease-out animate-in fade-in zoom-in-95"
         >
           <button
             type="button"

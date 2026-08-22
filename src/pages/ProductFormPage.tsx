@@ -1102,7 +1102,7 @@ export function ProductFormPage() {
                       <button
                         type="button"
                         onClick={() => fileInputRef.current?.click()}
-                        className="flex aspect-square flex-col items-center justify-center gap-1.5 rounded-xl border-[1.5px] border-dashed border-vpos-primary-2 bg-[#f7f9fb] hover:border-vpos-primary hover:bg-vpos-sand/30"
+                        className="flex aspect-square flex-col items-center justify-center gap-1.5 rounded-xl border-[1.5px] border-dashed border-vpos-primary-2 bg-vpos-subtle hover:border-vpos-primary hover:bg-vpos-sand/30"
                       >
                         <Icon name="add-line" className="text-[21px] text-vpos-primary" />
                         <span className="text-[11px] font-bold text-vpos-muted">Add more</span>
@@ -1113,7 +1113,7 @@ export function ProductFormPage() {
                   <button
                     type="button"
                     onClick={() => fileInputRef.current?.click()}
-                    className="flex min-h-[184px] w-full cursor-pointer flex-col items-center justify-center gap-2 rounded-xl border-[1.5px] border-dashed border-vpos-primary-2 bg-[#f7f9fb] px-4 hover:border-vpos-primary hover:bg-vpos-sand/30"
+                    className="flex min-h-[184px] w-full cursor-pointer flex-col items-center justify-center gap-2 rounded-xl border-[1.5px] border-dashed border-vpos-primary-2 bg-vpos-subtle px-4 hover:border-vpos-primary hover:bg-vpos-sand/30"
                   >
                     <span className="grid h-11 w-11 place-items-center rounded-full bg-vpos-sand text-[21px] text-vpos-primary">
                       <Icon name="upload-cloud-2-line" />
@@ -1585,7 +1585,7 @@ export function ProductFormPage() {
 
               <div className="overflow-x-auto rounded-xl border border-vpos-line">
                 <table className="w-full text-left text-[13px]">
-                  <thead className="border-b border-vpos-line bg-[#f8f9fc] text-[11px] font-extrabold uppercase tracking-wider text-vpos-muted">
+                  <thead className="border-b border-vpos-line bg-vpos-subtle text-[11px] font-extrabold uppercase tracking-wider text-vpos-muted">
                     <tr>
                       <th className="py-3 px-4">Variant</th>
                       <th className="py-3 px-4">SKU</th>
@@ -1635,7 +1635,7 @@ export function ProductFormPage() {
         )}
 
         <footer
-          className="fixed right-0 bottom-0 z-[9] flex h-[76px] items-center justify-between border-t border-vpos-line bg-white/95 backdrop-blur-md px-[clamp(24px,2.5vw,48px)] shadow-[0_-8px_25px_#0c2b4e12] transition-[left] duration-200 ease-out"
+          className="fixed right-0 bottom-0 z-[9] flex h-[76px] items-center justify-between border-t border-vpos-line bg-vpos-surface px-[clamp(24px,2.5vw,48px)] shadow-[0_-8px_25px_#0c2b4e12] transition-[left] duration-200 ease-out"
           style={{ left: sidebarWidth }}
         >
           <div className="flex items-center gap-3">

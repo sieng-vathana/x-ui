@@ -34,7 +34,7 @@ export function ProductMode({
               'grid min-h-[86px] grid-cols-[24px_1fr_auto] items-center gap-3 rounded-xl border bg-white p-4 text-left transition',
               'hover:-translate-y-px hover:border-vpos-accent',
               selected
-                ? 'border-vpos-primary bg-[#eef3f6] text-vpos-dark shadow-[0_0_0_3px_#1d546c1f]'
+                ? 'border-vpos-primary bg-vpos-subtle text-vpos-dark shadow-[0_0_0_3px_#1d546c1f]'
                 : 'border-vpos-line text-vpos-muted',
             )}
             onClick={() => onChange?.(opt.id)}
@@ -56,7 +56,7 @@ export function ProductMode({
                   'rounded-full px-2.5 py-1 text-[11px] font-bold',
                   selected
                     ? 'bg-vpos-primary text-white'
-                    : 'bg-[#e6edf3] text-vpos-dark',
+                    : 'bg-vpos-subtle text-vpos-text',
                 )}
               >
                 {opt.badge}

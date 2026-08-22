@@ -162,9 +162,9 @@ function CustomerDetailsModal({
 
         {/* Note */}
         {customer.note ? (
-          <div className="rounded-xl border border-vpos-line bg-amber-50/50 p-4">
-            <span className="text-[11px] font-extrabold uppercase tracking-wider text-amber-700">Internal Note</span>
-            <p className="mt-1 text-[13px] leading-relaxed text-amber-900">{customer.note}</p>
+          <div className="rounded-xl border border-vpos-line bg-vpos-orange-bg/60 p-4">
+            <span className="text-[11px] font-extrabold uppercase tracking-wider text-vpos-orange">Internal Note</span>
+            <p className="mt-1 text-[13px] leading-relaxed text-vpos-text">{customer.note}</p>
           </div>
         ) : null}
 

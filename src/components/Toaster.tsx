@@ -52,7 +52,7 @@ function ToastCard({ toast, onDismiss }: { toast: ToastItem; onDismiss: () => vo
     <div
       role="alert"
       className={cn(
-        'pointer-events-auto relative flex w-full flex-col overflow-hidden rounded-2xl border border-slate-200/90 bg-white/95 p-4 shadow-[0_20px_48px_-10px_rgba(15,23,42,0.18),0_4px_16px_rgba(15,23,42,0.06)] ring-1 ring-black/5 backdrop-blur-xl transition-all duration-200 hover:shadow-[0_24px_56px_-10px_rgba(15,23,42,0.22)]',
+        'pointer-events-auto relative flex w-full flex-col overflow-hidden rounded-2xl border border-vpos-line bg-vpos-surface p-4 shadow-[0_20px_48px_-10px_rgba(15,23,42,0.18),0_4px_16px_rgba(15,23,42,0.06)] ring-1 ring-black/5 backdrop-blur-xl transition-all duration-200 hover:shadow-[0_24px_56px_-10px_rgba(15,23,42,0.22)]',
         styles.borderHighlight,
         toast.isClosing ? 'animate-toast-exit' : 'animate-toast-enter',
       )}
@@ -65,10 +65,10 @@ function ToastCard({ toast, onDismiss }: { toast: ToastItem; onDismiss: () => vo
 
         {/* Text content */}
         <div className="min-w-0 flex-1 pt-0.5">
-          <h4 className="m-0 text-[14px] font-extrabold tracking-tight text-slate-900">{title}</h4>
-          <p className="mt-1 m-0 text-[13px] font-medium leading-relaxed text-slate-600">{toast.message}</p>
+          <h4 className="m-0 text-[14px] font-extrabold tracking-tight text-vpos-text">{title}</h4>
+          <p className="mt-1 m-0 text-[13px] font-medium leading-relaxed text-vpos-text">{toast.message}</p>
           {toast.description ? (
-            <p className="mt-1.5 m-0 text-[12px] text-slate-500 leading-normal">{toast.description}</p>
+            <p className="mt-1.5 m-0 text-[12px] text-vpos-muted leading-normal">{toast.description}</p>
           ) : null}
         </div>
 
@@ -77,14 +77,14 @@ function ToastCard({ toast, onDismiss }: { toast: ToastItem; onDismiss: () => vo
           type="button"
           aria-label="Dismiss notification"
           onClick={onDismiss}
-          className="-mr-1 -mt-1 grid h-7 w-7 shrink-0 place-items-center rounded-full text-slate-400 transition hover:bg-slate-100 hover:text-slate-700 active:scale-95 border-0 bg-transparent"
+          className="-mr-1 -mt-1 grid h-7 w-7 shrink-0 place-items-center rounded-full text-vpos-muted transition hover:bg-vpos-subtle hover:text-vpos-text active:scale-95 border-0 bg-transparent"
         >
           <Icon name="close-line" className="text-[16px]" />
         </button>
       </div>
 
       {/* Progress countdown bar */}
-      <div className="absolute bottom-0 left-0 right-0 h-[2.5px] bg-slate-100/80">
+      <div className="absolute bottom-0 left-0 right-0 h-[2.5px] bg-vpos-subtle">
         <div
           className={cn('h-full', styles.progressBg)}
           style={{
