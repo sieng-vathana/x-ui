@@ -42,16 +42,16 @@ export function Topbar({
   const { user } = useAuth()
   const headerOffset = !sidebar.isMobile && sidebar.config.visibility === 'show' && sidebar.config.layout !== 'horizontal' ? sidebarWidth : 0
   const renderBrand = showBrand && sidebar.config.layout === 'horizontal'
-  const darkTopbar = sidebar.config.topbar === 'dark'
+  const darkTopbar = sidebar.config.topbar === 'dark' || sidebar.config.colorMode === 'dark'
 
   return (
     <>
       {/* Full-width top bar — spans to left edge of the viewport */}
       <header
-        data-app-topbar={sidebar.config.topbar}
+        data-app-topbar={darkTopbar ? 'dark' : sidebar.config.topbar}
         className={cn(
-          'fixed top-0 right-0 left-0 z-30 flex h-[70px] items-center justify-between gap-2 border-b border-vpos-line bg-white px-[clamp(16px,2vw,32px)] max-sm:px-3',
-          darkTopbar && 'border-[#32363d] bg-vpos-dark text-white',
+          'fixed top-0 right-0 left-0 z-30 flex h-[70px] items-center justify-between gap-2 border-b border-vpos-line bg-vpos-surface px-[clamp(16px,2vw,32px)] max-sm:px-3',
+          darkTopbar && 'border-vpos-topbar-border bg-vpos-topbar-dark text-white',
           className,
         )}
         style={{ left: headerOffset }}
@@ -63,7 +63,12 @@ export function Topbar({
             onClick={toggleSidebar}
             aria-label={sidebarCollapsed ? 'Expand sidebar' : 'Collapse sidebar'}
             title={sidebarCollapsed ? 'Expand menu' : 'Collapse menu'}
-            className="grid h-[38px] w-[38px] shrink-0 place-items-center rounded-[4px] border border-vpos-line bg-vpos-surface text-[19px] text-vpos-text transition-colors hover:bg-vpos-subtle hover:text-vpos-primary"
+            className={cn(
+              'grid h-[38px] w-[38px] shrink-0 place-items-center rounded-[3px] text-[19px] transition-colors',
+              darkTopbar
+                ? 'border border-vpos-topbar-border bg-vpos-topbar-control text-vpos-topbar-text hover:bg-vpos-topbar-hover'
+                : 'border border-vpos-line bg-vpos-surface text-vpos-text hover:bg-vpos-subtle hover:text-vpos-primary',
+            )}
           >
             <Icon
               name={sidebarCollapsed ? 'menu-unfold-line' : 'menu-fold-line'}
@@ -106,7 +111,12 @@ export function Topbar({
             <button
               type="button"
               onClick={onBack}
-              className="inline-flex h-[38px] shrink-0 items-center justify-center gap-1.5 rounded-[4px] border border-vpos-line bg-white px-2 text-[13px] font-semibold text-vpos-text transition-colors hover:bg-vpos-subtle sm:px-3.5"
+              className={cn(
+                'inline-flex h-[38px] shrink-0 items-center justify-center gap-1.5 rounded-[3px] px-2 text-[13px] font-semibold transition-colors sm:px-3.5',
+                darkTopbar
+                  ? 'border border-vpos-topbar-border bg-vpos-topbar-control text-vpos-topbar-text hover:bg-vpos-topbar-hover'
+                  : 'border border-vpos-line bg-vpos-surface text-vpos-text hover:bg-vpos-subtle',
+              )}
             >
               <Icon name="arrow-left-line" className="text-[17px]" />
               <span className="hidden sm:inline">{backLabel}</span>
@@ -118,19 +128,30 @@ export function Topbar({
             <button
               type="button"
               className={cn(
-                'relative grid h-[38px] w-[38px] place-items-center rounded-[4px] border-0 bg-vpos-subtle text-[19px] text-vpos-text transition-colors hover:bg-vpos-sand hover:text-vpos-primary',
+                'relative grid h-[38px] w-[38px] place-items-center rounded-[3px] text-[19px] transition-colors',
+                darkTopbar
+                  ? 'border border-vpos-topbar-border bg-vpos-topbar-control text-vpos-topbar-text hover:bg-vpos-topbar-hover'
+                  : 'border-0 bg-vpos-subtle text-vpos-text hover:bg-vpos-sand hover:text-vpos-primary',
                 hideNotificationsOnMobile && 'max-md:hidden',
               )}
               aria-label="Notifications"
             >
               <Icon name="notification-3-line" />
-              <span className="absolute top-[11px] right-[11px] h-[7px] w-[7px] rounded-full bg-[#f04438] shadow-[0_0_0_3px_#fff]" />
+              <span className={cn(
+                'absolute top-[11px] right-[11px] h-[7px] w-[7px] rounded-full bg-vpos-red',
+                darkTopbar ? 'shadow-[0_0_0_3px_var(--app-topbar-dark-bg)]' : 'shadow-[0_0_0_3px_var(--app-surface)]',
+              )} />
             </button>
           ) : null}
           <button
             type="button"
             onClick={() => sidebar.setSettingsOpen(true)}
-            className="grid h-[38px] w-[38px] place-items-center rounded-[4px] border-0 bg-vpos-subtle text-[19px] text-vpos-text transition-colors hover:bg-vpos-sand hover:text-vpos-primary"
+            className={cn(
+              'grid h-[38px] w-[38px] place-items-center rounded-[3px] text-[19px] transition-colors',
+              darkTopbar
+                ? 'border border-vpos-topbar-border bg-vpos-topbar-control text-vpos-topbar-text hover:bg-vpos-topbar-hover'
+                : 'border-0 bg-vpos-subtle text-vpos-text hover:bg-vpos-sand hover:text-vpos-primary',
+            )}
             aria-label="Open sidebar settings"
             title="Sidebar settings"
           >

@@ -85,16 +85,33 @@ const managementItems = [
 
 function themeClasses(style: SidebarLayoutState['config']['color']) {
   if (style === 'light') return {
-    shell: 'bg-white text-vpos-text border-r border-vpos-line shadow-[0_2px_4px_rgba(15,34,58,.12)]', item: 'text-[#6d7080] hover:bg-vpos-subtle hover:text-vpos-primary', active: 'bg-vpos-sand text-vpos-primary', icon: 'bg-transparent text-[#6d7080]', divider: 'bg-vpos-line', title: 'text-[#919da9]', flyout: 'bg-white text-vpos-text border-vpos-line shadow-vpos', subActive: 'bg-vpos-sand text-vpos-primary', subItem: 'text-[#6d7080] hover:bg-vpos-subtle hover:text-vpos-primary',
+    shell: 'border-r border-vpos-line bg-vpos-surface text-vpos-text shadow-none',
+    item: 'text-vpos-sidebar hover:bg-vpos-subtle hover:text-vpos-text',
+    active: 'bg-vpos-primary text-white',
+    icon: 'bg-transparent text-vpos-sidebar',
+    divider: 'bg-vpos-line',
+    title: 'text-vpos-sidebar-heading',
+    flyout: 'border-vpos-line bg-vpos-surface text-vpos-text shadow-vpos',
+    subActive: 'bg-vpos-primary-soft text-vpos-text',
+    subItem: 'text-vpos-sidebar hover:bg-vpos-subtle hover:text-vpos-text',
   }
   return {
-    shell: style.startsWith('gradient') ? (style === 'gradient-2' ? 'bg-gradient-to-b from-[#022832] to-[#045064] text-white' : style === 'gradient-3' ? 'bg-gradient-to-b from-[#0c2a1b] to-[#185436] text-white' : style === 'gradient-4' ? 'bg-gradient-to-b from-[#331913] to-[#663325] text-white' : 'bg-gradient-to-b from-[#151933] to-vpos-primary text-white') : 'bg-vpos-dark text-white',
-    item: 'text-[#d7d5e4] hover:bg-white/10 hover:text-white', active: 'bg-vpos-primary text-white shadow-[inset_3px_0_0_#f4f4f4]', icon: 'bg-white/10 text-white/90', divider: 'bg-white/10', title: 'text-white/40', flyout: 'bg-vpos-dark text-white border-white/10', subActive: 'bg-white/15 text-white', subItem: 'text-white/55 hover:bg-white/10 hover:text-white',
+    shell: style.startsWith('gradient')
+      ? 'bg-gradient-to-b from-vpos-topbar-dark to-vpos-bg text-white'
+      : 'bg-vpos-topbar-dark text-white',
+    item: 'text-white/70 hover:bg-white/10 hover:text-white',
+    active: 'bg-vpos-primary text-white',
+    icon: 'bg-white/10 text-white/90',
+    divider: 'bg-white/10',
+    title: 'text-white/45',
+    flyout: 'border-white/10 bg-vpos-topbar-dark text-white shadow-vpos',
+    subActive: 'bg-white/15 text-white',
+    subItem: 'text-white/60 hover:bg-white/10 hover:text-white',
   }
 }
 
 function Tooltip({ icon, label, hint, visible, theme }: { icon: string; label: string; hint?: string; visible: boolean; theme: ReturnType<typeof themeClasses> }) {
-  return <span role="tooltip" className={cn('pointer-events-none absolute top-1/2 left-[calc(100%+12px)] z-[70] flex w-max max-w-[240px] origin-left -translate-y-1/2 items-center gap-3 rounded-xl border px-3 py-2.5 text-left shadow-[0_12px_40px_rgba(8,31,56,.32)] transition-[opacity,transform,visibility] duration-200 ease-out', visible ? 'visible translate-x-0 scale-100 opacity-100' : 'invisible translate-x-1 scale-95 opacity-0', theme.flyout)}>
+  return <span role="tooltip" className={cn('pointer-events-none absolute top-1/2 left-[calc(100%+12px)] z-[70] flex w-max max-w-[240px] origin-left -translate-y-1/2 items-center gap-3 rounded-xl border px-3 py-2.5 text-left shadow-vpos transition-[opacity,transform,visibility] duration-200 ease-out', visible ? 'visible translate-x-0 scale-100 opacity-100' : 'invisible translate-x-1 scale-95 opacity-0', theme.flyout)}>
     <span className={cn('grid h-7 w-7 shrink-0 place-items-center rounded-md text-[15px]', theme.icon)}><Icon name={icon} /></span>
     <span className="min-w-0 pr-1"><span className="block text-[14px] font-extrabold">{label}</span>{hint ? <span className="mt-0.5 block text-[12px] font-medium opacity-60">{hint}</span> : null}</span>
   </span>
@@ -127,7 +144,7 @@ function StaticNavItem({ icon, label, iconOnly, hint, theme, hovered, onHover }:
 function SidebarDropdownPanel({ id, icon, label, items, iconOnly, theme, onNavigate }: {
   id: string; icon: string; label: string; items: Array<{ to: string; label: string; end?: boolean; permission?: string }>; iconOnly: boolean; theme: ReturnType<typeof themeClasses>; onNavigate: () => void
 }) {
-  return <div id={`${id}-submenu`} className={cn(iconOnly ? 'animate-slide-in-right absolute top-0 left-[calc(100%+12px)] z-[70] w-[232px] rounded-xl border p-2 shadow-[0_16px_42px_rgba(8,31,56,.32)]' : 'flex flex-col gap-0.5', iconOnly && theme.flyout)}>
+  return <div id={`${id}-submenu`} className={cn(iconOnly ? 'animate-slide-in-right absolute top-0 left-[calc(100%+12px)] z-[70] w-[232px] rounded-xl border p-2 shadow-vpos' : 'flex flex-col gap-0.5', iconOnly && theme.flyout)}>
     {iconOnly ? <div className={cn('mb-1 flex items-center gap-2 rounded-lg px-2 py-1.5', theme.icon)}><span className="grid h-6 w-6 place-items-center rounded-md bg-white/10 text-[15px]"><Icon name={icon} /></span><span className="text-[13px] font-extrabold">{label}</span></div> : null}
     {items.map((item) => <NavLink key={item.to} to={item.to} end={item.end} onClick={onNavigate} className={({ isActive }) => cn(iconOnly ? 'flex h-9 items-center gap-2 rounded-lg px-3 text-[13px] font-semibold no-underline transition-colors' : 'ml-4 flex h-9 items-center gap-2 rounded-lg px-3 text-[13px] font-semibold no-underline transition-colors', isActive ? theme.subActive : theme.subItem)}>{({ isActive }) => <><span className={cn('h-1.5 w-1.5 rounded-full', isActive ? 'bg-current' : 'bg-current opacity-40')} /><span className="truncate">{item.label}</span></>}</NavLink>)}
   </div>
@@ -180,13 +197,13 @@ export function Sidebar({ state }: SidebarProps) {
   const onNavigate = () => { if (isMobile) setMobileOpen(false) }
 
   const backgroundImages: Record<string, string> = { 'img-1': sidebarGrid, 'img-2': sidebarOrbit, 'img-3': sidebarLines, 'img-4': sidebarDots }
-  const imageStyle = config.image === 'none' ? undefined : { backgroundImage: `linear-gradient(rgba(39,42,58,.76), rgba(39,42,58,.82)), url(${backgroundImages[config.image]})`, backgroundSize: 'cover', backgroundPosition: 'center' }
+  const imageStyle = config.image === 'none' ? undefined : { backgroundImage: `linear-gradient(rgba(17,17,17,.76), rgba(17,17,17,.82)), url(${backgroundImages[config.image]})`, backgroundSize: 'cover', backgroundPosition: 'center' }
 
   if (!isMobile && config.layout === 'horizontal') return <HorizontalMenu />
   if (!isMobile && config.visibility === 'hidden') return null
   if (!isMobile && config.layout === 'two-column') return <TwoColumnMenu state={state} theme={theme} />
 
-  return <aside aria-label="Primary navigation" data-sidebar-theme={config.color} onMouseEnter={() => hoverView && setHovered(true)} onMouseLeave={() => hoverView && setHovered(false)} className={cn('z-40 flex flex-col transition-[width,transform,opacity] duration-200 ease-out', isMobile ? 'fixed top-0 bottom-0 left-0 shadow-2xl' : config.position === 'fixed' ? 'fixed top-0 bottom-0 left-0' : 'absolute top-0 bottom-0 left-0', detached && (config.layout === 'semi-box' ? 'top-6 bottom-6 left-4 rounded-lg shadow-[0_12px_30px_rgba(8,31,56,.16)]' : 'top-4 bottom-4 left-4 rounded-xl shadow-[0_12px_30px_rgba(8,31,56,.16)]'), theme.shell)} style={{ width, transform: isMobile && !mobileOpen ? 'translateX(-100%)' : undefined, ...imageStyle }}>
+  return <aside aria-label="Primary navigation" data-sidebar-theme={config.color} onMouseEnter={() => hoverView && setHovered(true)} onMouseLeave={() => hoverView && setHovered(false)} className={cn('z-40 flex flex-col transition-[width,transform,opacity] duration-200 ease-out', isMobile ? 'fixed top-0 bottom-0 left-0 shadow-2xl' : config.position === 'fixed' ? 'fixed top-0 bottom-0 left-0' : 'absolute top-0 bottom-0 left-0', detached && (config.layout === 'semi-box' ? 'top-6 bottom-6 left-4 rounded-lg shadow-vpos' : 'top-4 bottom-4 left-4 rounded-xl shadow-vpos'), theme.shell)} style={{ width, transform: isMobile && !mobileOpen ? 'translateX(-100%)' : undefined, ...imageStyle }}>
     <SidebarBrand iconOnly={iconOnly} compact={effectiveSize === 'compact'} theme={theme} />
     <nav className={cn('flex flex-1 flex-col', iconOnly ? 'items-center gap-1.5 overflow-visible py-3' : effectiveSize === 'compact' ? 'gap-1 overflow-y-auto overflow-x-hidden px-2 py-3' : 'gap-1 overflow-y-auto overflow-x-hidden px-3 py-3')}>
       {navPrimary.filter((item) => item.key !== 'products' && canVisit(item.key)).map((item) => <NavItem key={item.key} to={keyToPath[item.key] ?? paths.home} icon={item.icon} label={item.label} end={item.key === 'dashboard'} iconOnly={iconOnly} hint={navMeta[item.key]?.hint} theme={theme} onNavigate={onNavigate} hovered={state.hoveredMenuItem === item.label} onHover={state.setHoveredMenuItem} />)}

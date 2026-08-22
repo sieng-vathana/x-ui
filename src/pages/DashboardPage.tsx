@@ -21,7 +21,7 @@ import { usePosSettings } from '../features/pos/posSettings'
 import { useAdminStore } from '../hooks/useAdminStore'
 import { formatCurrency } from '../lib/currency'
 import { cn } from '../lib/cn'
-import { firstName, getGreeting } from '../lib/greeting'
+import { firstName } from '../lib/greeting'
 import { formatReportDate, defaultReportFrom, localDateValue, reportDateTimeRange } from '../lib/reporting'
 import { paths } from '../lib/paths'
 import { card, pageContent, tdClass, thClass } from '../lib/ui'
@@ -74,9 +74,7 @@ export function DashboardPage() {
   const netSales = Number(summary?.grandTotal ?? 0)
   const averageOrder = orderCount > 0 ? netSales / orderCount : 0
   const paymentTotal = paymentRows.reduce((total, row) => total + Number(row.totalAmount || 0), 0)
-  const refundedTotal = paymentRows.reduce((total, row) => total + Number(row.refundedAmount || 0), 0)
   const paymentCount = paymentRows.reduce((total, row) => total + Number(row.paymentCount || 0), 0)
-  const greeting = getGreeting()
   const displayName = firstName(user?.name || 'there')
   const reportError = [summaryQuery, trendQuery, topProductsQuery, paymentsQuery, ordersQuery, catalogQuery, cashSessionQuery]
     .find((query) => query.isError)?.error
@@ -114,15 +112,15 @@ export function DashboardPage() {
         subtitle="A live view of sales, payments, register status, and stock."
         actions={<StoreSwitcher value={storeId} onChange={setStoreId} />}
       />
-      <main className={pageContent}>
+      <main className={cn(pageContent, 'dashboard-page')}>
         <section className="mb-5 flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
           <div>
             <Breadcrumb items={[{ label: 'Overview' }]} />
-            <h2 className="mt-4 mb-0 text-[21px] font-semibold text-vpos-text">
-              {greeting.text}, {displayName}!
+            <h2 className="mt-4 mb-0 text-[24px] font-semibold text-vpos-text">
+              Welcome back, {displayName}! <span aria-hidden="true">👋</span>
             </h2>
-            <p className="mt-1 mb-0 text-[14px] text-vpos-muted">
-              See what needs attention in your store today.
+            <p className="mt-1 mb-0 text-[13px] text-vpos-muted">
+              Here is what is happening across your store today.
             </p>
           </div>
           <div className="flex flex-wrap items-center gap-2">
@@ -181,14 +179,15 @@ export function DashboardPage() {
           </div>
         ) : null}
 
-        <section className="mt-[18px] grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-5">
+        <section className="mt-[18px] grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4">
           <MetricCard
             label="Net sales"
             value={summaryQuery.isLoading ? '—' : formatCurrency(netSales, currency)}
-            trend={`${orderCount} completed orders`}
+            trend={orderCount + ' completed orders'}
             trendAs="small"
             icon={<Icon name="funds-line" />}
             iconTone="positive"
+            miniBars={[12, 16, 18, 14, 22, 25, 28, 30, 34]}
           />
           <MetricCard
             label="Completed orders"
@@ -197,6 +196,7 @@ export function DashboardPage() {
             trendAs="small"
             icon={<Icon name="file-list-3-line" />}
             iconTone="primary"
+            miniBars={[10, 14, 12, 18, 22, 17, 24, 29, 26]}
           />
           <MetricCard
             label="Average order"
@@ -205,28 +205,21 @@ export function DashboardPage() {
             trendAs="small"
             icon={<Icon name="bar-chart-box-line" />}
             iconTone="primary"
+            miniBars={[23, 18, 20, 16, 25, 21, 29, 24, 27]}
           />
           <MetricCard
             label="Collected payments"
             value={paymentsQuery.isLoading ? '—' : formatCurrency(paymentTotal, currency)}
-            trend={`${paymentCount} payments`}
+            trend={paymentCount + ' payments'}
             trendAs="small"
             icon={<Icon name="secure-payment-line" />}
             iconTone="positive"
-          />
-          <MetricCard
-            label="Refunded"
-            value={paymentsQuery.isLoading ? '—' : formatCurrency(refundedTotal, currency)}
-            trend="Payment refunds"
-            trendAs="small"
-            trendTone="danger"
-            icon={<Icon name="refund-2-line" />}
-            iconTone="danger"
+            miniBars={[8, 14, 11, 16, 20, 18, 23, 27, 22]}
           />
         </section>
 
-        <section className="mt-[18px] grid grid-cols-1 gap-[18px] xl:grid-cols-[minmax(0,1.45fr)_minmax(320px,.75fr)]">
-          <article className={cn(card, 'min-h-[355px] overflow-hidden p-5')}>
+        <section className="mt-[18px] grid grid-cols-1 gap-[18px] xl:grid-cols-[minmax(0,1.55fr)_minmax(320px,.8fr)]">
+          <article className={cn(card, 'dashboard-panel min-h-[355px] overflow-hidden p-5')}>
             <SectionHeader
               title="Sales trend"
               subtitle={`${formatDateLabel(from)} – ${formatDateLabel(to)} · completed sales`}
@@ -241,7 +234,7 @@ export function DashboardPage() {
             )}
           </article>
 
-          <article className={cn(card, 'min-h-[355px] overflow-hidden p-5')}>
+          <article className={cn(card, 'dashboard-panel min-h-[355px] overflow-hidden p-5')}>
             <SectionHeader
               title="Payment mix"
               subtitle="Collected and refunded by method"
@@ -277,7 +270,7 @@ export function DashboardPage() {
         </section>
 
         <section className="mt-[18px] grid grid-cols-1 gap-[18px] xl:grid-cols-[minmax(0,1.15fr)_minmax(330px,.85fr)]">
-          <article className={cn(card, 'overflow-hidden p-0')}>
+          <article className={cn(card, 'dashboard-panel overflow-hidden p-0')}>
             <div className="flex items-start justify-between gap-3 border-b border-vpos-line px-5 py-4">
               <SectionHeader title="Top-selling products" subtitle="Ranked by completed units sold" />
               <Link to={paths.reportsProducts} className="shrink-0 text-[12px] font-semibold text-vpos-primary no-underline hover:underline">View all</Link>
@@ -316,7 +309,7 @@ export function DashboardPage() {
             )}
           </article>
 
-          <article className={cn(card, 'overflow-hidden p-0')}>
+          <article className={cn(card, 'dashboard-panel overflow-hidden p-0')}>
             <div className="flex items-start justify-between gap-3 border-b border-vpos-line px-5 py-4">
               <SectionHeader title="Low-stock alerts" subtitle="Items that need attention" />
               <Link to={paths.productLowStock} className="shrink-0 text-[12px] font-semibold text-vpos-primary no-underline hover:underline">View all</Link>
@@ -343,7 +336,7 @@ export function DashboardPage() {
         </section>
 
         <section className="mt-[18px] grid grid-cols-1 gap-[18px] xl:grid-cols-[minmax(0,1.15fr)_minmax(330px,.85fr)]">
-          <article className={cn(card, 'overflow-hidden p-0')}>
+          <article className={cn(card, 'dashboard-panel overflow-hidden p-0')}>
             <div className="flex items-start justify-between gap-3 border-b border-vpos-line px-5 py-4">
               <SectionHeader title="Recent sales" subtitle="Latest orders for the selected store" />
               <Link to={paths.sales} className="shrink-0 text-[12px] font-semibold text-vpos-primary no-underline hover:underline">View all</Link>
@@ -376,7 +369,7 @@ export function DashboardPage() {
             )}
           </article>
 
-          <article className={cn(card, 'overflow-hidden p-5')}>
+          <article className={cn(card, 'dashboard-panel overflow-hidden p-5')}>
             <SectionHeader
               title="Cash register"
               subtitle="Your current register session"
@@ -466,15 +459,17 @@ function SalesTrendChart({ points, currency }: { points: TrendPoint[]; currency:
   const plotWidth = width - left - right
   const plotHeight = height - top - bottom
   const maxValue = Math.max(1, ...points.map((point) => point.grandTotal))
-  const coordinates = points.map((point, index) => ({
-    point,
-    x: left + (points.length === 1 ? plotWidth / 2 : (index / (points.length - 1)) * plotWidth),
-    y: top + plotHeight - (point.grandTotal / maxValue) * plotHeight,
-  }))
-  const linePath = coordinates.map(({ x, y }, index) => `${index === 0 ? 'M' : 'L'} ${x} ${y}`).join(' ')
-  const firstPoint = coordinates[0]
-  const lastPoint = coordinates[coordinates.length - 1]
-  const areaPath = `${linePath} L ${lastPoint.x} ${top + plotHeight} L ${firstPoint.x} ${top + plotHeight} Z`
+  const barWidth = Math.max(6, Math.min(18, (plotWidth / Math.max(1, points.length)) * 0.62))
+  const baseline = top + plotHeight
+  const coordinates = points.map((point, index) => {
+    const barHeight = (point.grandTotal / maxValue) * plotHeight
+    return {
+      point,
+      x: left + ((index + 0.5) / Math.max(1, points.length)) * plotWidth,
+      barHeight,
+      darkHeight: Math.min(barHeight, Math.max(5, barHeight * 0.56)),
+    }
+  })
   const labels = trendLabelIndices(points.length)
   const peak = points.reduce((highest, point) => point.grandTotal > highest.grandTotal ? point : highest, points[0])
   const orderTotal = points.reduce((total, point) => total + point.orderCount, 0)
@@ -484,25 +479,18 @@ function SalesTrendChart({ points, currency }: { points: TrendPoint[]; currency:
     <div className="mt-4">
       <div className="relative">
         <svg
-          viewBox={`0 0 ${width} ${height}`}
+          viewBox={'0 0 ' + width + ' ' + height}
           className="h-[270px] w-full overflow-visible"
           role="img"
-          aria-label="Sales trend line chart"
+          aria-label="Sales trend bar chart"
           onMouseLeave={() => setHoveredIndex(null)}
         >
-          <defs>
-            <linearGradient id="overview-sales-area" x1="0" x2="0" y1="0" y2="1">
-              <stop offset="0%" stopColor="rgb(22 112 91)" stopOpacity="0.26" />
-              <stop offset="100%" stopColor="rgb(22 112 91)" stopOpacity="0.02" />
-            </linearGradient>
-          </defs>
-
           {Array.from({ length: 5 }, (_, index) => {
             const ratio = index / 4
             const y = top + plotHeight - ratio * plotHeight
             return (
-              <g key={`grid-${index}`}>
-                <line x1={left} x2={width - right} y1={y} y2={y} stroke="rgb(137 161 152 / 0.2)" strokeDasharray="3 5" />
+              <g key={'grid-' + index}>
+                <line x1={left} x2={width - right} y1={y} y2={y} stroke="var(--app-chart-grid)" strokeDasharray="2 5" />
                 <text x={left - 10} y={y + 4} textAnchor="end" className="fill-vpos-muted text-[11px]">
                   {formatCompactCurrency(maxValue * ratio, currency)}
                 </text>
@@ -510,20 +498,34 @@ function SalesTrendChart({ points, currency }: { points: TrendPoint[]; currency:
             )
           })}
 
-          <path d={areaPath} fill="url(#overview-sales-area)" />
-          <path d={linePath} fill="none" stroke="rgb(22 112 91)" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" />
-
-          {coordinates.map(({ point, x, y }, index) => (
+          {coordinates.map(({ point, x, barHeight, darkHeight }, index) => (
             <g key={point.date}>
-              <circle cx={x} cy={y} r={hoveredIndex === index ? 5 : 3} fill="white" stroke="rgb(22 112 91)" strokeWidth="2" />
-              <circle
-                cx={x}
-                cy={y}
-                r="16"
-                fill="transparent"
+              <rect
+                x={x - barWidth / 2}
+                y={top}
+                width={barWidth}
+                height={plotHeight}
+                fill={hoveredIndex === index ? 'var(--app-primary-soft)' : 'transparent'}
+                onMouseEnter={() => setHoveredIndex(index)}
+              />
+              <rect
+                x={x - barWidth / 2}
+                y={baseline - barHeight}
+                width={barWidth}
+                height={barHeight}
+                rx="1.5"
+                fill="var(--app-chart-muted)"
+              />
+              <rect
+                x={x - barWidth / 2}
+                y={baseline - darkHeight}
+                width={barWidth}
+                height={darkHeight}
+                rx="1.5"
+                fill="var(--app-chart)"
                 className="cursor-pointer"
                 onMouseEnter={() => setHoveredIndex(index)}
-                aria-label={`${formatDateLabel(point.date)}: ${formatCurrency(point.grandTotal, currency)}, ${point.orderCount} orders`}
+                aria-label={formatDateLabel(point.date) + ': ' + formatCurrency(point.grandTotal, currency) + ', ' + point.orderCount + ' orders'}
               />
             </g>
           ))}
@@ -531,7 +533,7 @@ function SalesTrendChart({ points, currency }: { points: TrendPoint[]; currency:
           {labels.map((index) => {
             const { point, x } = coordinates[index]
             return (
-              <text key={`label-${point.date}`} x={x} y={height - 12} textAnchor="middle" className="fill-vpos-muted text-[11px]">
+              <text key={'label-' + point.date} x={x} y={height - 12} textAnchor="middle" className="fill-vpos-muted text-[11px]">
                 {formatCompactDate(point.date)}
               </text>
             )
@@ -539,7 +541,7 @@ function SalesTrendChart({ points, currency }: { points: TrendPoint[]; currency:
         </svg>
 
         {hovered ? (
-          <div className="pointer-events-none absolute top-1 right-1 rounded-[4px] border border-vpos-line bg-white px-3 py-2 text-right shadow-vpos">
+          <div className="pointer-events-none absolute top-1 right-1 rounded-[3px] border border-vpos-line bg-vpos-surface px-3 py-2 text-right shadow-vpos">
             <strong className="block text-[13px] text-vpos-text">{formatCurrency(hovered.point.grandTotal, currency)}</strong>
             <span className="text-[11px] text-vpos-muted">{formatDateLabel(hovered.point.date)} · {hovered.point.orderCount} orders</span>
           </div>
@@ -547,7 +549,7 @@ function SalesTrendChart({ points, currency }: { points: TrendPoint[]; currency:
       </div>
 
       <div className="mt-1 flex flex-wrap items-center justify-between gap-3 border-t border-vpos-line pt-3 text-[12px] text-vpos-muted">
-        <span className="inline-flex items-center gap-1.5"><i className="h-2 w-2 rounded-full bg-vpos-primary" /> Daily net sales</span>
+        <span className="inline-flex items-center gap-1.5"><i className="h-2 w-2 rounded-[1px] bg-vpos-chart" /> Daily net sales</span>
         <span>Peak <strong className="text-vpos-text">{formatCurrency(peak.grandTotal, currency)}</strong> on {formatCompactDate(peak.date)} · {orderTotal} orders</span>
       </div>
     </div>

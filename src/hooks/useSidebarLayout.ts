@@ -27,8 +27,8 @@ export interface SidebarConfig {
 
 export const THEME_STORAGE_KEY = 'app-theme-customizer'
 export const defaultSidebarConfig: SidebarConfig = {
-  layout: 'semi-box', visibility: 'show', width: 'fluid', position: 'fixed',
-  size: 'default', view: 'default', color: 'light', image: 'none',
+  layout: 'vertical', visibility: 'show', width: 'fluid', position: 'fixed',
+  size: 'small', view: 'default', color: 'light', image: 'none',
   colorMode: 'light', topbar: 'light', preloader: true,
 }
 
