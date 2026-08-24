@@ -68,6 +68,14 @@ export interface ProductAttribute {
   values?: ProductAttributeValue[]
 }
 
+export interface ProductVariantAttributeValue {
+  id?: number
+  attributeId?: number
+  attributeValueId?: number
+  attributeName?: string
+  value?: string
+}
+
 export interface ProductAttributeValue {
   id: number
   attribute?: ProductAttribute
@@ -103,6 +111,7 @@ export interface CreateProductOptionApiPayload {
 }
 
 export interface UpdateProductOptionApiPayload {
+  businessId?: number
   attributeName: string
   status?: number | string
   values: ProductOptionValueApi[]

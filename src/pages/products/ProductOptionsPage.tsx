@@ -14,9 +14,6 @@ import {
   type DataTableColumn,
 } from '../../components'
 import { ProductsSubnav } from '../../components/products/ProductsSubnav'
-import {
-  productOptionTypes as initialOptions,
-} from '../../data/mockup'
 import { useAdminStore } from '../../hooks/useAdminStore'
 import { cn } from '../../lib/cn'
 import { paths } from '../../lib/paths'
@@ -48,11 +45,6 @@ export interface ProductOptionType {
   isGlobal?: boolean
   storeIds?: number[]
 }
-
-const fallbackMockOptions: ProductOptionType[] = initialOptions.map((o) => ({
-  ...o,
-  values: o.values.map((v) => (typeof v === 'string' ? { value: v } : v)),
-}))
 
 interface OptionFormData {
   name: string
