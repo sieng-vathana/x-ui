@@ -75,9 +75,44 @@ export interface ProductAttributeValue {
   value: string
 }
 
-export interface ProductVariantAttributeValue {
+export interface ProductOptionValueApi {
   id?: number
-  attributeValue?: ProductAttributeValue
+  value: string
+}
+
+export interface ProductOptionApi {
+  id: number | string
+  businessId?: number
+  attributeName: string
+  status?: number | string
+  values?: ProductOptionValueApi[]
+  isGlobal?: boolean
+  storeIds?: number[]
+  description?: string
+  usedOnProducts?: number
+}
+
+export interface CreateProductOptionApiPayload {
+  businessId?: number
+  attributeName: string
+  status?: number | string
+  values: ProductOptionValueApi[]
+  isGlobal?: boolean
+  storeIds?: number[]
+  description?: string
+}
+
+export interface UpdateProductOptionApiPayload {
+  attributeName: string
+  status?: number | string
+  values: ProductOptionValueApi[]
+  isGlobal?: boolean
+  storeIds?: number[]
+  description?: string
+}
+
+export interface AddOptionValueApiPayload {
+  value: string
 }
 
 export interface ProductVariant {
@@ -177,6 +212,31 @@ export interface CreateProductPayload {
   images?: { imageUrl: string }[]
 }
 
+export interface ProductOption {
+  id: number | string
+  businessId?: number
+  storeIds?: number[]
+  optionCode?: string
+  name: string
+  values: string[]
+  usedOnProducts?: number
+  description?: string
+  isGlobal?: boolean
+  status?: string
+}
+
+export interface CreateProductOptionPayload {
+  businessId?: number
+  storeIds?: number[]
+  optionCode?: string
+  name: string
+  values: string[]
+  usedOnProducts?: number
+  description?: string
+  isGlobal?: boolean
+  status?: string
+}
+
 export interface PageEnvelope<T> {
   content?: T[]
   pageNumber?: number
@@ -191,3 +251,4 @@ export interface ApiEnvelope<T> {
   message?: string
   data?: T
 }
+

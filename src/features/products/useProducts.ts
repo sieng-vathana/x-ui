@@ -291,3 +291,135 @@ export function useDeleteProduct() {
     },
   })
 }
+
+export function useProductOptionsList(businessIdOverride?: string | number) {
+  const { user } = useAuth()
+  const businessId = businessIdOverride ?? user?.business?.id ?? 1
+
+  return useQuery({
+    queryKey: ['product-options-list', { businessId }],
+    queryFn: () => productApi.getProductOptions(businessId),
+    enabled: Boolean(businessId),
+    staleTime: 5 * 60 * 1000,
+    retry: (failureCount, error) => {
+      if (error instanceof ApiError && (error.status === 401 || error.status === 403)) return false
+      return failureCount < 1
+    },
+  })
+}
+
+export function useProductOption(optionId?: string | number) {
+  return useQuery({
+    queryKey: ['product-option', { optionId }],
+    queryFn: () => productApi.getSingleOption(optionId!),
+    enabled: Boolean(optionId),
+    staleTime: 5 * 60 * 1000,
+  })
+}
+
+export function useCreateProductOption() {
+  const queryClient = useQueryClient()
+  const { user } = useAuth()
+
+  return useMutation({
+    mutationFn: (payload: {
+      businessId?: number
+      attributeName: string
+      status?: number
+      values: { id?: number; value: string }[]
+      isGlobal?: boolean
+      storeIds?: number[]
+      description?: string
+    }) =>
+      productApi.createProductOption({
+        businessId: payload.businessId ?? (Number(user?.business?.id) || 1),
+        attributeName: payload.attributeName,
+        status: payload.status ?? 1,
+        values: payload.values.map((v) => (v.id ? { id: Number(v.id), value: v.value } : { value: v.value })),
+        ...(payload.isGlobal !== undefined ? { isGlobal: payload.isGlobal } : {}),
+        ...(payload.storeIds ? { storeIds: payload.storeIds } : {}),
+        ...(payload.description ? { description: payload.description } : {}),
+      }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['product-options-list'] })
+    },
+  })
+}
+
+export function useUpdateProductOption() {
+  const queryClient = useQueryClient()
+  const { user } = useAuth()
+  const businessId = Number(user?.business?.id) || 1
+
+  return useMutation({
+    mutationFn: ({
+      id,
+      payload,
+    }: {
+      id: number | string
+      payload: {
+        attributeName: string
+        status?: number
+        values: { id?: number; value: string }[]
+        isGlobal?: boolean
+        storeIds?: number[]
+        description?: string
+      }
+    }) =>
+      productApi.updateProductOption(id, {
+        businessId,
+        attributeName: payload.attributeName,
+        status: payload.status ?? 1,
+        values: payload.values.map((v) => (v.id ? { id: Number(v.id), value: v.value } : { value: v.value })),
+        ...(payload.isGlobal !== undefined ? { isGlobal: payload.isGlobal } : {}),
+        ...(payload.storeIds ? { storeIds: payload.storeIds } : {}),
+        ...(payload.description ? { description: payload.description } : {}),
+      }),
+    onSuccess: (_, variables) => {
+      queryClient.invalidateQueries({ queryKey: ['product-options-list'] })
+      queryClient.invalidateQueries({ queryKey: ['product-option', { optionId: variables.id }] })
+    },
+  })
+}
+
+export function useAddOptionValue() {
+  const queryClient = useQueryClient()
+
+  return useMutation({
+    mutationFn: ({ optionId, value }: { optionId: number | string; value: string }) =>
+      productApi.addOptionValue(optionId, { value }),
+    onSuccess: (_, variables) => {
+      queryClient.invalidateQueries({ queryKey: ['product-options-list'] })
+      queryClient.invalidateQueries({ queryKey: ['product-option', { optionId: variables.optionId }] })
+    },
+  })
+}
+
+export function useDeleteOptionValue() {
+  const queryClient = useQueryClient()
+
+  return useMutation({
+    mutationFn: (variables: { valueId: number | string; optionId?: number | string }) =>
+      productApi.deleteOptionValue(variables.valueId),
+    onSuccess: (_, variables) => {
+      queryClient.invalidateQueries({ queryKey: ['product-options-list'] })
+      if (variables.optionId) {
+        queryClient.invalidateQueries({ queryKey: ['product-option', { optionId: variables.optionId }] })
+      }
+    },
+  })
+}
+
+export function useDeleteProductOption() {
+  const queryClient = useQueryClient()
+
+  return useMutation({
+    mutationFn: (id: number | string) => productApi.deleteProductOption(id),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['product-options-list'] })
+    },
+  })
+}
+
+
+

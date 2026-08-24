@@ -1,8 +1,10 @@
 import { API_BASE_URL, ApiClient } from '../../lib/api'
 import type {
+  AddOptionValueApiPayload,
   ApiEnvelope,
   CreateProductBrandPayload,
   CreateProductCategoryPayload,
+  CreateProductOptionApiPayload,
   CreateProductPayload,
   CreateProductUnitPayload,
   PageEnvelope,
@@ -11,9 +13,12 @@ import type {
   ProductBrand,
   ProductCategory,
   ProductItem,
+  ProductOptionApi,
+  ProductOptionValueApi,
   ProductSupplier,
   ProductTax,
   ProductUnit,
+  UpdateProductOptionApiPayload,
 } from './types'
 
 const api = new ApiClient({ baseUrl: API_BASE_URL })
@@ -196,6 +201,82 @@ export const productApi = {
     )
     return response.data ?? []
   },
+
+  // 2. Get All Options by Business ID (GET /api/v1/products/attributes?businessId={{businessId}})
+  async getProductOptions(businessId: string | number): Promise<ProductOptionApi[]> {
+    const response = await api.request<ApiEnvelope<ProductOptionApi[] | PageEnvelope<ProductOptionApi>> | ProductOptionApi[]>(
+      `/products/attributes?businessId=${businessId}`,
+    )
+    if (Array.isArray(response)) return response
+    if (Array.isArray((response as ApiEnvelope<ProductOptionApi[]>).data)) {
+      return (response as ApiEnvelope<ProductOptionApi[]>).data ?? []
+    }
+    return ((response as ApiEnvelope<PageEnvelope<ProductOptionApi>>).data as PageEnvelope<ProductOptionApi>)?.content ?? []
+  },
+
+  // 3. Get Single Option by ID (GET /api/v1/products/attributes/{{optionId}})
+  async getSingleOption(optionId: string | number): Promise<ProductOptionApi> {
+    const response = await api.request<ApiEnvelope<ProductOptionApi> | ProductOptionApi>(
+      `/products/attributes/${optionId}`,
+    )
+    if (response && typeof response === 'object' && 'data' in response && response.data) {
+      return response.data
+    }
+    return response as ProductOptionApi
+  },
+
+  // 1. Create Product Option (POST /api/v1/products/attributes)
+  async createProductOption(payload: CreateProductOptionApiPayload): Promise<ProductOptionApi> {
+    const response = await api.request<ApiEnvelope<ProductOptionApi>>('/products/attributes', {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    })
+    if (response && typeof response === 'object' && 'data' in response && response.data) {
+      return response.data
+    }
+    return response as ProductOptionApi
+  },
+
+  // 4. Update Option & Values (PUT Edit) (PUT /api/v1/products/attributes/{{optionId}})
+  async updateProductOption(id: number | string, payload: UpdateProductOptionApiPayload): Promise<ProductOptionApi> {
+    const response = await api.request<ApiEnvelope<ProductOptionApi>>(`/products/attributes/${id}`, {
+      method: 'PUT',
+      body: JSON.stringify(payload),
+    })
+    if (response && typeof response === 'object' && 'data' in response && response.data) {
+      return response.data
+    }
+    return response as ProductOptionApi
+  },
+
+  // 5. Add Single Value to Option (POST /api/v1/products/attributes/{{optionId}}/values)
+  async addOptionValue(optionId: number | string, payload: AddOptionValueApiPayload): Promise<ProductOptionValueApi> {
+    const response = await api.request<ApiEnvelope<ProductOptionValueApi>>(`/products/attributes/${optionId}/values`, {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    })
+    if (response && typeof response === 'object' && 'data' in response && response.data) {
+      return response.data
+    }
+    return response as ProductOptionValueApi
+  },
+
+  // 6. Delete Option Value (DELETE /api/v1/products/attributes/values/{{valueId}})
+  async deleteOptionValue(valueId: number | string): Promise<void> {
+    await api.request<ApiEnvelope<void>>(`/products/attributes/values/${valueId}`, {
+      method: 'DELETE',
+    })
+  },
+
+  // 7. Soft Delete Option (DELETE /api/v1/products/attributes/{{optionId}})
+  async deleteProductOption(id: number | string): Promise<void> {
+    await api.request<ApiEnvelope<void>>(`/products/attributes/${id}`, {
+      method: 'DELETE',
+    })
+  },
+
+
+
 
   async uploadFile(file: File): Promise<{ id: number; url: string }> {
     const formData = new FormData()
