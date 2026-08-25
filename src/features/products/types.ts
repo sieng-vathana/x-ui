@@ -65,6 +65,11 @@ export interface ProductAttribute {
   id: number
   businessId: number
   attributeName: string
+  storeIds?: number[]
+  description?: string
+  isGlobal?: boolean
+  status?: number
+  usedOnProducts?: number
   values?: ProductAttributeValue[]
 }
 
@@ -74,6 +79,12 @@ export interface ProductVariantAttributeValue {
   attributeValueId?: number
   attributeName?: string
   value?: string
+  /**
+   * Product variants returned by the product service include the linked
+   * attribute value. Keep the flattened fields above for older responses,
+   * but preserve the canonical nested response shape as well.
+   */
+  attributeValue?: ProductAttributeValue
 }
 
 export interface ProductAttributeValue {

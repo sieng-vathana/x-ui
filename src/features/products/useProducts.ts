@@ -294,11 +294,11 @@ export function useDeleteProduct() {
 
 export function useProductOptionsList(businessIdOverride?: string | number) {
   const { user } = useAuth()
-  const businessId = businessIdOverride ?? user?.business?.id ?? 1
+  const businessId = businessIdOverride ?? user?.business?.id
 
   return useQuery({
     queryKey: ['product-options-list', { businessId }],
-    queryFn: () => productApi.getProductOptions(businessId),
+    queryFn: () => productApi.getProductOptions(businessId!),
     enabled: Boolean(businessId),
     staleTime: 5 * 60 * 1000,
     retry: (failureCount, error) => {
@@ -330,18 +330,24 @@ export function useCreateProductOption() {
       isGlobal?: boolean
       storeIds?: number[]
       description?: string
-    }) =>
-      productApi.createProductOption({
-        businessId: payload.businessId ?? (Number(user?.business?.id) || 1),
+    }) => {
+      const businessId = payload.businessId ?? Number(user?.business?.id)
+      if (!businessId || businessId <= 0) {
+        throw new Error('A business is required before creating a product option.')
+      }
+      return productApi.createProductOption({
+        businessId,
         attributeName: payload.attributeName,
         status: payload.status ?? 1,
         values: payload.values.map((v) => (v.id ? { id: Number(v.id), value: v.value } : { value: v.value })),
         ...(payload.isGlobal !== undefined ? { isGlobal: payload.isGlobal } : {}),
         ...(payload.storeIds ? { storeIds: payload.storeIds } : {}),
         ...(payload.description ? { description: payload.description } : {}),
-      }),
+      })
+    },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['product-options-list'] })
+      queryClient.invalidateQueries({ queryKey: ['product-attributes'] })
     },
   })
 }
@@ -349,7 +355,7 @@ export function useCreateProductOption() {
 export function useUpdateProductOption() {
   const queryClient = useQueryClient()
   const { user } = useAuth()
-  const businessId = Number(user?.business?.id) || 1
+  const businessId = Number(user?.business?.id)
 
   return useMutation({
     mutationFn: ({
@@ -365,8 +371,11 @@ export function useUpdateProductOption() {
         storeIds?: number[]
         description?: string
       }
-    }) =>
-      productApi.updateProductOption(id, {
+    }) => {
+      if (!businessId || businessId <= 0) {
+        throw new Error('A business is required before updating a product option.')
+      }
+      return productApi.updateProductOption(id, {
         businessId,
         attributeName: payload.attributeName,
         status: payload.status ?? 1,
@@ -374,9 +383,11 @@ export function useUpdateProductOption() {
         ...(payload.isGlobal !== undefined ? { isGlobal: payload.isGlobal } : {}),
         ...(payload.storeIds ? { storeIds: payload.storeIds } : {}),
         ...(payload.description ? { description: payload.description } : {}),
-      }),
+      })
+    },
     onSuccess: (_, variables) => {
       queryClient.invalidateQueries({ queryKey: ['product-options-list'] })
+      queryClient.invalidateQueries({ queryKey: ['product-attributes'] })
       queryClient.invalidateQueries({ queryKey: ['product-option', { optionId: variables.id }] })
     },
   })
@@ -390,6 +401,7 @@ export function useAddOptionValue() {
       productApi.addOptionValue(optionId, { value }),
     onSuccess: (_, variables) => {
       queryClient.invalidateQueries({ queryKey: ['product-options-list'] })
+      queryClient.invalidateQueries({ queryKey: ['product-attributes'] })
       queryClient.invalidateQueries({ queryKey: ['product-option', { optionId: variables.optionId }] })
     },
   })
@@ -403,6 +415,7 @@ export function useDeleteOptionValue() {
       productApi.deleteOptionValue(variables.valueId),
     onSuccess: (_, variables) => {
       queryClient.invalidateQueries({ queryKey: ['product-options-list'] })
+      queryClient.invalidateQueries({ queryKey: ['product-attributes'] })
       if (variables.optionId) {
         queryClient.invalidateQueries({ queryKey: ['product-option', { optionId: variables.optionId }] })
       }
@@ -417,6 +430,7 @@ export function useDeleteProductOption() {
     mutationFn: (id: number | string) => productApi.deleteProductOption(id),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['product-options-list'] })
+      queryClient.invalidateQueries({ queryKey: ['product-attributes'] })
     },
   })
 }
