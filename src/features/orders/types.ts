@@ -54,6 +54,23 @@ export interface OrderItem {
   total: number
 }
 
+export type FulfillmentType = 'CUSTOMER_PICKUP' | 'OWN_RIDER' | 'THIRD_PARTY'
+export type OrderChannelType = 'POS' | 'ONLINE'
+
+export interface DeliveryAddress {
+  receiverName?: string
+  phone?: string
+  provinceCity?: string
+  district?: string
+  commune?: string
+  village?: string
+  streetAddress?: string
+  landmark?: string
+  deliveryInstructions?: string
+  latitude?: number
+  longitude?: number
+}
+
 export interface PosOrder {
   id: number
   orderNo: string
@@ -61,7 +78,7 @@ export interface PosOrder {
   storeId: number
   customerId: number
   cashierId: number
-  orderChannel?: string
+  orderChannel?: OrderChannelType | string
   paymentMethod?: string | null
   orderStatus: string
   paymentStatus: string
@@ -69,11 +86,24 @@ export interface PosOrder {
   subtotal: number
   discount: number
   tax: number
+  deliveryFee?: number | null
   grandTotal: number
+  fulfillmentType?: FulfillmentType | null
+  deliveryAddress?: DeliveryAddress | null
   note?: string | null
   items: OrderItem[]
   createdAt?: string
   completedAt?: string
+}
+
+export interface OrderFilters {
+  storeId?: string | number
+  channel?: string
+  status?: string
+  fulfillmentType?: string
+  search?: string
+  page?: number
+  size?: number
 }
 
 export interface OrderPage {

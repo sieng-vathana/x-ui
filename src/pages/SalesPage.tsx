@@ -24,8 +24,20 @@ import { formatReportDate } from '../lib/reporting'
 import { openReceiptWindow, printReceipt } from '../lib/receipt'
 import { readPosSettings } from '../features/pos/posSettings'
 import { pageContent } from '../lib/ui'
+import { OrderDetailModal } from '../components/orders/OrderDetailModal'
+import { BookCourierModal } from '../components/deliveries/BookCourierModal'
 
-const statuses = ['All status', 'COMPLETED', 'DRAFT', 'CANCELLED'] as const
+const channels = ['All channels', 'ONLINE', 'POS'] as const
+const statuses = [
+  'All status',
+  'PENDING_CONFIRMATION',
+  'CONFIRMED',
+  'PACKING',
+  'SHIPPED',
+  'DELIVERED',
+  'COMPLETED',
+  'CANCELLED',
+] as const
 const payments = ['All payments', 'CASH', 'CARD', 'QR'] as const
 
 export function SalesPage() {
@@ -33,16 +45,30 @@ export function SalesPage() {
   const { toast } = useToast()
   const { storeId, setStoreId } = useAdminStore()
   const storesQuery = useStoresRaw()
-  const ordersQuery = useRecentOrders(storeId, true, 0, 100)
+
+  const [channel, setChannel] = useState<(typeof channels)[number]>('All channels')
   const [status, setStatus] = useState<(typeof statuses)[number]>('All status')
   const [payment, setPayment] = useState<(typeof payments)[number]>('All payments')
-  const orders = ordersQuery.data?.content ?? []
+
+  const [selectedOrderForDetail, setSelectedOrderForDetail] = useState<PosOrder | null>(null)
+  const [selectedOrderForCourier, setSelectedOrderForCourier] = useState<PosOrder | null>(null)
+
+  const ordersQuery = useRecentOrders({
+    storeId,
+    channel: channel === 'All channels' ? undefined : channel,
+    status: status === 'All status' ? undefined : status,
+    size: 100,
+  })
+
+  const orders = useMemo(() => ordersQuery.data?.content ?? [], [ordersQuery.data])
   const currency = (user?.business.defaultCurrencyCode || 'USD').toUpperCase()
   const selectedStore = storesQuery.data?.find((store) => String(store.id) === String(storeId))
+
   const filteredOrders = useMemo(() => orders.filter((order) => (
-    (status === 'All status' || order.orderStatus === status)
-    && (payment === 'All payments' || order.paymentMethod === payment)
-  )), [orders, payment, status])
+    (payment === 'All payments' || order.paymentMethod === payment)
+  )), [orders, payment])
+
+  const onlineCount = orders.filter((order) => order.orderChannel === 'ONLINE').length
   const completedCount = orders.filter((order) => order.orderStatus === 'COMPLETED').length
   const loadedSales = orders
     .filter((order) => order.orderStatus === 'COMPLETED')
@@ -84,46 +110,175 @@ export function SalesPage() {
       id: 'orderNo',
       header: 'Order',
       searchable: (order) => `${order.orderNo} ${order.id}`,
-      cell: (order) => <strong className="text-vpos-primary">{order.orderNo || `#${order.id}`}</strong>,
+      cell: (order) => (
+        <div>
+          <button
+            type="button"
+            className="text-left font-bold text-vpos-primary hover:underline"
+            onClick={() => setSelectedOrderForDetail(order)}
+          >
+            {order.orderNo || `#${order.id}`}
+          </button>
+          <div className="text-[11px] text-vpos-muted">
+            {order.orderChannel === 'ONLINE' ? '🌐 Online' : '🏪 In-Store'}
+          </div>
+        </div>
+      ),
     },
     { id: 'date', header: 'Date', hideOnMobile: true, cell: (order) => formatReportDate(order.completedAt || order.createdAt) },
-    { id: 'customer', header: 'Customer', hideOnMobile: true, cell: (order) => Number(order.customerId) > 0 ? `Customer #${order.customerId}` : 'Walk-in customer' },
+    {
+      id: 'customer',
+      header: 'Customer',
+      hideOnMobile: true,
+      cell: (order) => order.deliveryAddress?.receiverName || (Number(order.customerId) > 0 ? `Customer #${order.customerId}` : 'Walk-in customer'),
+    },
     { id: 'payment', header: 'Payment', cell: (order) => paymentLabel(order.paymentMethod) },
     { id: 'total', header: 'Total', cell: (order) => <strong>{formatCurrency(order.grandTotal, order.currencyCode || currency)}</strong> },
-    { id: 'status', header: 'Status', searchable: (order) => order.orderStatus, cell: (order) => <Status value={statusLabel(order.orderStatus)} /> },
-    { id: 'actions', header: '', cell: (order) => <Button variant="text" onClick={() => void printOrder(order)}><Icon name="printer-line" /> Receipt</Button> },
+    {
+      id: 'status',
+      header: 'Status',
+      searchable: (order) => order.orderStatus,
+      cell: (order) => <Status value={statusLabel(order.orderStatus)} />,
+    },
+    {
+      id: 'actions',
+      header: '',
+      cell: (order) => (
+        <div className="flex items-center justify-end gap-1">
+          <Button variant="secondary" onClick={() => setSelectedOrderForDetail(order)}>
+            <Icon name="eye-line" /> Details
+          </Button>
+          {order.orderStatus === 'CONFIRMED' && order.orderChannel === 'ONLINE' && (
+            <Button
+              variant="secondary"
+              onClick={() => setSelectedOrderForCourier(order)}
+            >
+              <Icon name="truck-line" /> Courier
+            </Button>
+          )}
+          <Button variant="text" onClick={() => void printOrder(order)}>
+            <Icon name="printer-line" /> Receipt
+          </Button>
+        </div>
+      ),
+    },
   ], [currency, selectedStore, toast, user])
 
   return (
     <>
-      <Topbar title="Sales" subtitle="Orders, receipts, payments, and daily sales activity" actions={<StoreSwitcher value={storeId} onChange={setStoreId} />} />
+      <Topbar
+        title="Sales & Orders"
+        subtitle="Manage in-store POS sales, online orders, delivery fulfillment, and receipts"
+        actions={<StoreSwitcher value={storeId} onChange={setStoreId} />}
+      />
       <main className={pageContent}>
         <section className="mb-5 flex min-h-12 flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-          <Breadcrumb items={[{ label: 'Sales' }, { label: 'All sales' }]} />
-          <Button variant="secondary" onClick={() => void ordersQuery.refetch()}><Icon name="refresh-line" /> Refresh sales</Button>
+          <Breadcrumb items={[{ label: 'Sales' }, { label: 'All orders & sales' }]} />
+          <Button variant="secondary" onClick={() => void ordersQuery.refetch()}>
+            <Icon name="refresh-line" /> Refresh orders
+          </Button>
         </section>
         <SalesSubnav />
 
-        {ordersQuery.isError ? <div className="mb-4 rounded-[4px] border border-vpos-red/25 bg-vpos-red-bg p-4 text-[13px] text-vpos-red">{ordersQuery.error instanceof Error ? ordersQuery.error.message : 'Sales could not be loaded.'}</div> : null}
+        {ordersQuery.isError ? (
+          <div className="mb-4 rounded-[4px] border border-vpos-red/25 bg-vpos-red-bg p-4 text-[13px] text-vpos-red">
+            {ordersQuery.error instanceof Error ? ordersQuery.error.message : 'Orders could not be loaded.'}
+          </div>
+        ) : null}
+
         <section className="mb-[18px] grid grid-cols-1 gap-[18px] sm:grid-cols-2 xl:grid-cols-4">
-          <MetricCard label="Orders" value={String(ordersQuery.data?.totalElements ?? orders.length)} trend="Selected store" trendAs="small" icon={<Icon name="file-list-3-line" />} />
-          <MetricCard label="Completed shown" value={String(completedCount)} trend="Loaded page" trendAs="small" icon={<Icon name="checkbox-circle-line" />} iconTone="positive" />
-          <MetricCard label="Sales shown" value={formatCurrency(loadedSales, currency)} trend="Completed orders" trendAs="small" icon={<Icon name="funds-line" />} iconTone="positive" />
-          <MetricCard label="Store" value={selectedStore?.name || String(storeId || '—')} trend="Current filter" trendAs="small" icon={<Icon name="store-2-line" />} />
+          <MetricCard
+            label="Total Orders"
+            value={String(ordersQuery.data?.totalElements ?? orders.length)}
+            trend="Selected store"
+            trendAs="small"
+            icon={<Icon name="file-list-3-line" />}
+          />
+          <MetricCard
+            label="Online Orders"
+            value={String(onlineCount)}
+            trend="Marketplace / Delivery"
+            trendAs="small"
+            icon={<Icon name="global-line" />}
+            iconTone="primary"
+          />
+          <MetricCard
+            label="Completed Sales"
+            value={formatCurrency(loadedSales, currency)}
+            trend={`${completedCount} completed`}
+            trendAs="small"
+            icon={<Icon name="funds-line" />}
+            iconTone="positive"
+          />
+          <MetricCard
+            label="Store"
+            value={selectedStore?.name || String(storeId || '—')}
+            trend="Current active store"
+            trendAs="small"
+            icon={<Icon name="store-2-line" />}
+          />
         </section>
 
         <DataTable
           data={filteredOrders}
           columns={columns}
           rowKey={(order) => order.id}
-          title="All sales"
+          title="All orders & sales"
           searchPlaceholder="Search order number or ID…"
           pageSize={10}
           isLoading={ordersQuery.isLoading}
-          emptyMessage="No sales match the selected filters."
-          toolbar={<><Select variant="toolbar" value={status === 'All status' ? '' : status} onChange={(value) => setStatus((value || 'All status') as (typeof statuses)[number])} placeholder="All status" options={statuses.slice(1).map((value) => ({ value, label: statusLabel(value) }))} /><Select variant="toolbar" value={payment === 'All payments' ? '' : payment} onChange={(value) => setPayment((value || 'All payments') as (typeof payments)[number])} placeholder="All payments" options={payments.slice(1).map((value) => ({ value, label: paymentLabel(value) }))} /></>}
+          emptyMessage="No orders match the selected filters."
+          toolbar={
+            <>
+              <Select
+                variant="toolbar"
+                value={channel === 'All channels' ? '' : channel}
+                onChange={(value) => setChannel((value || 'All channels') as (typeof channels)[number])}
+                placeholder="All channels"
+                options={channels.slice(1).map((value) => ({ value, label: value === 'ONLINE' ? 'Online / Marketplace' : 'In-Store POS' }))}
+              />
+              <Select
+                variant="toolbar"
+                value={status === 'All status' ? '' : status}
+                onChange={(value) => setStatus((value || 'All status') as (typeof statuses)[number])}
+                placeholder="All status"
+                options={statuses.slice(1).map((value) => ({ value, label: statusLabel(value) }))}
+              />
+              <Select
+                variant="toolbar"
+                value={payment === 'All payments' ? '' : payment}
+                onChange={(value) => setPayment((value || 'All payments') as (typeof payments)[number])}
+                placeholder="All payments"
+                options={payments.slice(1).map((value) => ({ value, label: paymentLabel(value) }))}
+              />
+            </>
+          }
         />
-        <p className="mt-3 text-[12px] text-vpos-muted">The sales list loads the latest 100 orders for the selected store. Use the receipt action to reprint a completed sale.</p>
+
+        {/* Modals */}
+        <OrderDetailModal
+          order={selectedOrderForDetail}
+          store={selectedStore}
+          isOpen={Boolean(selectedOrderForDetail)}
+          onClose={() => {
+            setSelectedOrderForDetail(null)
+            void ordersQuery.refetch()
+          }}
+          onBookDelivery={(order) => {
+            setSelectedOrderForDetail(null)
+            setSelectedOrderForCourier(order)
+          }}
+        />
+
+        <BookCourierModal
+          order={selectedOrderForCourier}
+          isOpen={Boolean(selectedOrderForCourier)}
+          onClose={() => {
+            setSelectedOrderForCourier(null)
+            void ordersQuery.refetch()
+          }}
+          onSuccess={() => void ordersQuery.refetch()}
+        />
       </main>
     </>
   )

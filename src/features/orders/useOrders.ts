@@ -7,16 +7,37 @@ function normalizeStoreId(storeId?: string | number): number | undefined {
   return Number.isInteger(numericId) && numericId > 0 ? numericId : undefined
 }
 
-export function useRecentOrders(storeId?: string | number, enabled = true, page = 0, size = 20) {
+export function useRecentOrders(
+  filtersOrStoreId?: string | number | { storeId?: string | number; channel?: string; status?: string; fulfillmentType?: string; search?: string; page?: number; size?: number },
+  enabled = true,
+  page = 0,
+  size = 20,
+) {
+  const isObject = typeof filtersOrStoreId === 'object' && filtersOrStoreId !== null
+  const storeId = isObject ? filtersOrStoreId.storeId : filtersOrStoreId
   const normalizedStoreId = normalizeStoreId(storeId)
+  const channel = isObject ? filtersOrStoreId.channel : undefined
+  const status = isObject ? filtersOrStoreId.status : undefined
+  const fulfillmentType = isObject ? filtersOrStoreId.fulfillmentType : undefined
+  const search = isObject ? filtersOrStoreId.search : undefined
+  const pageNumber = isObject ? (filtersOrStoreId.page ?? 0) : page
+  const pageSize = isObject ? (filtersOrStoreId.size ?? 20) : size
 
   return useQuery({
-    queryKey: ['orders', 'recent', { storeId: normalizedStoreId, page, size }],
+    queryKey: ['orders', 'recent', { storeId: normalizedStoreId, channel, status, fulfillmentType, search, page: pageNumber, size: pageSize }],
     queryFn: () => {
       if (normalizedStoreId === undefined) {
         throw new Error('A valid store must be selected before loading orders.')
       }
-      return orderApi.list(normalizedStoreId, page, size)
+      return orderApi.list({
+        storeId: normalizedStoreId,
+        channel,
+        status,
+        fulfillmentType,
+        search,
+        page: pageNumber,
+        size: pageSize,
+      })
     },
     enabled: enabled && normalizedStoreId !== undefined,
     staleTime: 30 * 1000,
@@ -25,6 +46,18 @@ export function useRecentOrders(storeId?: string | number, enabled = true, page 
       if (error instanceof ApiError && (error.status === 401 || error.status === 403)) return false
       return failureCount < 1
     },
+  })
+}
+
+export function useOrder(id?: number, enabled = true) {
+  return useQuery({
+    queryKey: ['orders', 'detail', id],
+    queryFn: () => {
+      if (!id) throw new Error('Order ID is required.')
+      return orderApi.get(id)
+    },
+    enabled: enabled && Boolean(id && id > 0),
+    staleTime: 10 * 1000,
   })
 }
 
@@ -119,11 +152,63 @@ export function useDiscardHeldSale() {
   })
 }
 
+export function useConfirmOrder() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: orderApi.confirm,
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['orders'] }),
+  })
+}
+
+export function usePackOrder() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: orderApi.pack,
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['orders'] }),
+  })
+}
+
+export function useShipOrder() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: orderApi.ship,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['orders'] })
+      queryClient.invalidateQueries({ queryKey: ['deliveries'] })
+    },
+  })
+}
+
+export function useDeliverOrder() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: orderApi.deliver,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['orders'] })
+      queryClient.invalidateQueries({ queryKey: ['deliveries'] })
+    },
+  })
+}
+
+export function useCancelOrder() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: orderApi.cancel,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['orders'] })
+      queryClient.invalidateQueries({ queryKey: ['deliveries'] })
+    },
+  })
+}
+
 export function useCompleteOrder() {
   const queryClient = useQueryClient()
 
   return useMutation({
     mutationFn: orderApi.complete,
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['orders', 'recent'] }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['orders'] })
+      queryClient.invalidateQueries({ queryKey: ['deliveries'] })
+    },
   })
 }

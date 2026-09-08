@@ -17,6 +17,7 @@ export const paths = {
   inventory: '/products/low-stock',
   stores: '/stores',
   sales: '/sales',
+  salesShipments: '/sales/shipments',
   salesPayments: '/sales/payments',
   salesReturns: '/sales/returns',
   salesCashRegister: '/sales/cash-register',

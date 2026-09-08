@@ -3,7 +3,8 @@ import { cn } from '../../lib/cn'
 import { paths } from '../../lib/paths'
 
 const items: Array<{ to: string; label: string; end?: boolean }> = [
-  { to: paths.sales, label: 'All sales', end: true },
+  { to: paths.sales, label: 'All orders & sales', end: true },
+  { to: paths.salesShipments, label: 'Shipments & fulfillment' },
   { to: paths.salesPayments, label: 'Payments' },
   { to: paths.salesReturns, label: 'Returns & refunds' },
   { to: paths.salesCashRegister, label: 'Cash register' },

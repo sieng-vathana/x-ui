@@ -20,16 +20,36 @@ function requireData<T>(response: ApiEnvelope<T>, fallback: string): T {
 }
 
 export const orderApi = {
-  async list(storeId: string | number, page = 0, size = 20): Promise<OrderPage> {
+  async list(
+    paramsOrStoreId: string | number | { storeId: string | number; channel?: string; status?: string; fulfillmentType?: string; search?: string; page?: number; size?: number },
+    pageParam = 0,
+    sizeParam = 20,
+  ): Promise<OrderPage> {
+    const isObject = typeof paramsOrStoreId === 'object' && paramsOrStoreId !== null
+    const storeId = isObject ? paramsOrStoreId.storeId : paramsOrStoreId
+    const page = isObject ? (paramsOrStoreId.page ?? 0) : pageParam
+    const size = isObject ? (paramsOrStoreId.size ?? 20) : sizeParam
+    const channel = isObject ? paramsOrStoreId.channel : undefined
+    const status = isObject ? paramsOrStoreId.status : undefined
+    const fulfillmentType = isObject ? paramsOrStoreId.fulfillmentType : undefined
+    const search = isObject ? paramsOrStoreId.search : undefined
+
     const numericStoreId = Number(storeId)
     if (!Number.isInteger(numericStoreId) || numericStoreId <= 0) {
       throw new Error('A valid store must be selected before loading orders.')
     }
 
+    const query = new URLSearchParams()
+    query.set('storeId', String(numericStoreId))
+    query.set('page', String(page))
+    query.set('size', String(size))
+    if (channel) query.set('channel', channel)
+    if (status) query.set('status', status)
+    if (fulfillmentType) query.set('fulfillmentType', fulfillmentType)
+    if (search) query.set('search', search)
+
     return requireData(
-      await api.request<ApiEnvelope<OrderPage>>(
-        `/orders?storeId=${numericStoreId}&page=${page}&size=${size}`,
-      ),
+      await api.request<ApiEnvelope<OrderPage>>(`/orders?${query.toString()}`),
       'Recent orders could not be loaded.',
     )
   },
@@ -118,6 +138,51 @@ export const orderApi = {
         method: 'POST',
       }),
       'The held sale could not be discarded.',
+    )
+  },
+
+  async confirm(id: number): Promise<PosOrder> {
+    return requireData(
+      await api.request<ApiEnvelope<PosOrder>>(`/orders/${id}/confirm`, {
+        method: 'POST',
+      }),
+      'The order could not be confirmed.',
+    )
+  },
+
+  async pack(id: number): Promise<PosOrder> {
+    return requireData(
+      await api.request<ApiEnvelope<PosOrder>>(`/orders/${id}/pack`, {
+        method: 'POST',
+      }),
+      'The order could not be marked as packing.',
+    )
+  },
+
+  async ship(id: number): Promise<PosOrder> {
+    return requireData(
+      await api.request<ApiEnvelope<PosOrder>>(`/orders/${id}/ship`, {
+        method: 'POST',
+      }),
+      'The order could not be marked as shipped.',
+    )
+  },
+
+  async deliver(id: number): Promise<PosOrder> {
+    return requireData(
+      await api.request<ApiEnvelope<PosOrder>>(`/orders/${id}/deliver`, {
+        method: 'POST',
+      }),
+      'The order could not be marked as delivered.',
+    )
+  },
+
+  async cancel(id: number): Promise<PosOrder> {
+    return requireData(
+      await api.request<ApiEnvelope<PosOrder>>(`/orders/${id}/cancel`, {
+        method: 'POST',
+      }),
+      'The order could not be cancelled.',
     )
   },
 
