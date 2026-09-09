@@ -12,6 +12,17 @@ import { UploadZone } from '../ui/UploadZone'
 
 const FORM_ID = 'store-form'
 
+export const STORE_TYPE_OPTIONS = [
+  { value: 'CAFE_AND_BEVERAGE', label: 'Café & Drinks' },
+  { value: 'RESTAURANT', label: 'Food & Dining' },
+  { value: 'BAKERY', label: 'Bakery & Desserts' },
+  { value: 'GROCERY', label: 'Groceries & Minimart' },
+  { value: 'FASHION', label: 'Fashion & Accessories' },
+  { value: 'HEALTH_BEAUTY', label: 'Health & Beauty' },
+  { value: 'ELECTRONICS', label: 'Electronics & Tech' },
+  { value: 'GENERAL_RETAIL', label: 'General Retail' },
+]
+
 type StoreImageDraft = {
   key: string
   imageUrl: string
@@ -32,6 +43,7 @@ export function StoreFormModal({ open, onClose, store = null }: StoreFormModalPr
   const { toast } = useToast()
   const [name, setName] = useState('')
   const [code, setCode] = useState('')
+  const [storeType, setStoreType] = useState('GENERAL_RETAIL')
   const [addressLine1, setAddressLine1] = useState('')
   const [addressLine2, setAddressLine2] = useState('')
   const [landmark, setLandmark] = useState('')
@@ -65,6 +77,7 @@ export function StoreFormModal({ open, onClose, store = null }: StoreFormModalPr
   const resetForm = useCallback(() => {
     setName('')
     setCode('')
+    setStoreType('GENERAL_RETAIL')
     setAddressLine1('')
     setAddressLine2('')
     setLandmark('')
@@ -104,6 +117,7 @@ export function StoreFormModal({ open, onClose, store = null }: StoreFormModalPr
     lastPopulatedIdRef.current = store.id
     setName(store.name)
     setCode(store.code)
+    setStoreType(store.storeType || 'GENERAL_RETAIL')
     setAddressLine1(store.addressLine1)
     setAddressLine2(store.addressLine2 ?? '')
     setLandmark(store.landmark ?? '')
@@ -202,6 +216,7 @@ export function StoreFormModal({ open, onClose, store = null }: StoreFormModalPr
     const commonRequest = {
       name: name.trim(),
       code: code.trim(),
+      storeType: storeType || 'GENERAL_RETAIL',
       addressLine1: addressLine1.trim(),
       addressLine2: addressLine2.trim() || undefined,
       landmark: landmark.trim() || undefined,
@@ -252,6 +267,7 @@ export function StoreFormModal({ open, onClose, store = null }: StoreFormModalPr
           <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
             <div className="md:col-span-2"><FormField label="Store name" required value={name} onChange={(event) => setName(event.target.value)} placeholder="e.g. Riverside Flagship" /></div>
             <FormField label="Store code" required value={code} onChange={(event) => setCode(event.target.value.toUpperCase())} placeholder="e.g. PNH-001" />
+            <SelectField label="Store type / Category" value={storeType} onChange={(event) => setStoreType(event.target.value)} options={STORE_TYPE_OPTIONS} />
             {isEditing ? <SelectField label="Status" value={status} onChange={(event) => setStatus(event.target.value)} options={[{ value: '1', label: 'Active' }, { value: '0', label: 'Inactive' }, { value: '2', label: 'Maintenance' }]} /> : null}
           </div>
         </FormSection>

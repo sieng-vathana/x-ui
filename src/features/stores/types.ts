@@ -1,8 +1,11 @@
+export type MarketplaceStatus = 'NOT_LISTED' | 'PENDING_REVIEW' | 'APPROVED' | 'REJECTED'
+
 export interface BffStore {
   id: number
   businessId: number
   name: string
   code: string
+  storeType?: string
   addressLine1: string
   addressLine2: string | null
   landmark: string | null
@@ -18,6 +21,10 @@ export interface BffStore {
   longitude: number | null
   images?: BffStoreImage[]
   status: number
+  marketplaceStatus?: MarketplaceStatus
+  marketplaceAppliedAt?: string | null
+  marketplaceApprovedAt?: string | null
+  rejectionReason?: string | null
   createdAt: string
   updatedAt: string
 }
@@ -34,6 +41,7 @@ export interface CreateStoreRequest {
   businessId: number
   name: string
   code: string
+  storeType?: string
   addressLine1: string
   addressLine2?: string
   landmark?: string
@@ -53,3 +61,4 @@ export interface CreateStoreRequest {
 export type UpdateStoreRequest = Omit<CreateStoreRequest, 'businessId'> & {
   status?: number
 }
+

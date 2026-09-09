@@ -46,4 +46,36 @@ export const storeApi = {
   async softDelete(id: number): Promise<void> {
     await api.request<void>(`/stores/${id}`, { method: 'DELETE' })
   },
+
+  async applyMarketplace(id: number, storeType?: string): Promise<BffStore> {
+    const response = await api.request<ApiEnvelope<BffStore>>(`/stores/${id}/marketplace/apply`, {
+      method: 'POST',
+      body: JSON.stringify({ storeType }),
+    })
+    if (!response.data) throw new Error(response.message ?? 'Marketplace application failed.')
+    return withDirectImageUrls(response.data)
+  },
+
+  async approveMarketplace(id: number): Promise<BffStore> {
+    const response = await api.request<ApiEnvelope<BffStore>>(`/stores/${id}/marketplace/approve`, {
+      method: 'POST',
+    })
+    if (!response.data) throw new Error(response.message ?? 'Marketplace approval failed.')
+    return withDirectImageUrls(response.data)
+  },
+
+  async rejectMarketplace(id: number, reason?: string): Promise<BffStore> {
+    const response = await api.request<ApiEnvelope<BffStore>>(`/stores/${id}/marketplace/reject`, {
+      method: 'POST',
+      body: JSON.stringify({ reason }),
+    })
+    if (!response.data) throw new Error(response.message ?? 'Marketplace rejection failed.')
+    return withDirectImageUrls(response.data)
+  },
+
+  async getPendingMarketplace(): Promise<BffStore[]> {
+    const response = await api.request<ApiEnvelope<BffStore[]>>('/stores/marketplace/pending')
+    return Promise.all((response.data ?? []).map(withDirectImageUrls))
+  },
 }
+

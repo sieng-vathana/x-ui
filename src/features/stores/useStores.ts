@@ -91,3 +91,47 @@ export function useSoftDeleteStore() {
     },
   })
 }
+
+export function usePendingMarketplaceStores() {
+  return useQuery({
+    queryKey: ['stores', 'marketplace', 'pending'],
+    queryFn: () => storeApi.getPendingMarketplace(),
+    refetchOnMount: 'always',
+  })
+}
+
+export function useApplyMarketplace() {
+  const queryClient = useQueryClient()
+
+  return useMutation({
+    mutationFn: ({ id, storeType }: { id: number; storeType?: string }) =>
+      storeApi.applyMarketplace(id, storeType),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['stores'] })
+    },
+  })
+}
+
+export function useApproveMarketplace() {
+  const queryClient = useQueryClient()
+
+  return useMutation({
+    mutationFn: (id: number) => storeApi.approveMarketplace(id),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['stores'] })
+    },
+  })
+}
+
+export function useRejectMarketplace() {
+  const queryClient = useQueryClient()
+
+  return useMutation({
+    mutationFn: ({ id, reason }: { id: number; reason?: string }) =>
+      storeApi.rejectMarketplace(id, reason),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['stores'] })
+    },
+  })
+}
+
