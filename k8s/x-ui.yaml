@@ -21,7 +21,7 @@ spec:
       containers:
         - name: x-ui
           image: ghcr.io/sieng-vathana/x-ui-portal:main
-          imagePullPolicy: Always
+          imagePullPolicy: IfNotPresent
           ports:
             - name: http
               containerPort: 80
@@ -65,9 +65,8 @@ metadata:
   namespace: x-platform
   annotations:
     cert-manager.io/cluster-issuer: letsencrypt-production
-    nginx.ingress.kubernetes.io/ssl-redirect: "true"
 spec:
-  ingressClassName: nginx
+  ingressClassName: traefik
   tls:
     - hosts:
         - portal.learner-teach.online
