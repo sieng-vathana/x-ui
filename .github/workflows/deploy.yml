@@ -66,7 +66,7 @@ jobs:
     needs: build-image
     runs-on: [self-hosted, linux, x64, x-platform-deploy-new]
     steps:
-      - name: Create short lived GHCR pull secret
+      - name: Refresh GHCR image-pull secret
         env:
           GHCR_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
@@ -82,13 +82,6 @@ jobs:
           sudo k3s kubectl -n x-platform set image deployment/x-ui x-ui=${{ env.IMAGE_REPOSITORY }}:${{ github.sha }}
           sudo k3s kubectl -n x-platform patch deployment x-ui --type=strategic -p='{"spec":{"template":{"spec":{"imagePullSecrets":[{"name":"ghcr-pull-x-ui"}]}}}}'
           sudo k3s kubectl -n x-platform rollout status deployment/x-ui --timeout=180s
-      - name: Remove temporary GHCR pull secret
-        if: success()
-        run: |
-          sudo k3s kubectl -n x-platform patch deployment x-ui --type=json -p='[{"op":"remove","path":"/spec/template/spec/imagePullSecrets"}]'
-          sudo k3s kubectl -n x-platform rollout status deployment/x-ui --timeout=180s
-          sudo k3s kubectl -n x-platform delete secret ghcr-pull-x-ui --ignore-not-found=true
-
   notify:
     if: always()
     needs: [build-ui, build-image, deploy]
