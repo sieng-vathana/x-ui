@@ -86,6 +86,8 @@ export function SalesPage() {
       if (!printReceipt(fullOrder, {
         paperSize: settings.receiptPaperSize,
         businessName: user?.business.name,
+        taxRegistrationNumber: user?.business.taxRegistrationNumber,
+        taxRegistrationLabel: user?.business.taxRegistrationLabel,
         businessLogoUrl: user?.business.logoUrl,
         store: selectedStore,
         cashierName: user?.name,

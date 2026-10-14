@@ -147,12 +147,17 @@ export function PosPage() {
   const heldOrdersQuery = useHeldOrders(storeId, activityMode === 'hold')
   const completedQrPaymentIdRef = useRef<number | null>(null)
   const pendingQrReceiptWindowRef = useRef<Window | null>(null)
+  const qrPaymentQuery = usePaymentStatus(qrCheckout?.response.payment.id)
   const closeQrCheckout = useCallback(() => {
+    const paymentStatus = qrPaymentQuery.data?.status ?? qrCheckout?.response.payment.status
+    if (paymentStatus === 'PENDING') {
+      toast('This KHQR payment is still pending. Keep the checkout open until the provider confirms or rejects it.', 'warning')
+      return
+    }
     pendingQrReceiptWindowRef.current?.close()
     pendingQrReceiptWindowRef.current = null
     setQrCheckout(null)
-  }, [])
-  const qrPaymentQuery = usePaymentStatus(qrCheckout?.response.payment.id)
+  }, [qrCheckout, qrPaymentQuery.data?.status, toast])
   const catRef = useRef<HTMLDivElement>(null)
   const searchRef = useRef<HTMLInputElement>(null)
   const rootRef = useRef<HTMLDivElement>(null)
@@ -171,6 +176,8 @@ export function PosPage() {
     return {
       paperSize: settings.receiptPaperSize,
       businessName: user?.business.name,
+      taxRegistrationNumber: user?.business.taxRegistrationNumber,
+      taxRegistrationLabel: user?.business.taxRegistrationLabel,
       businessLogoUrl: user?.business.logoUrl,
       store: selectedStore,
       cashierName: user?.name,

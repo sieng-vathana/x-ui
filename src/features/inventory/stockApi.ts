@@ -11,6 +11,15 @@ export interface StockBalance {
   availableQuantity: number
 }
 
+export interface StockBalancePage {
+  content: StockBalance[]
+  page: number
+  size: number
+  totalElements: number
+  totalPages: number
+  hasNext: boolean
+}
+
 export type StockMovementType =
   | 'STOCK_IN'
   | 'STOCK_OUT'
@@ -84,6 +93,17 @@ async function changeStock(path: string, input: StockChangeInput): Promise<Stock
 }
 
 export const stockApi = {
+  async lowStock(storeId: number, threshold = 5, page = 0, size = 20): Promise<StockBalancePage> {
+    const params = new URLSearchParams({
+      storeId: String(storeId),
+      threshold: String(threshold),
+      page: String(page),
+      size: String(size),
+    })
+    const response = await api.request<ApiEnvelope<StockBalancePage>>('/stock/reports/low-stock?' + params.toString())
+    return requireData(response, 'Low stock items could not be loaded.')
+  },
+
   async getBalance(storeId: number, variantId: number): Promise<StockBalance> {
     const params = new URLSearchParams({
       storeId: String(storeId),

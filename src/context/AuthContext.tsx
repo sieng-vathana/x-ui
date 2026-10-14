@@ -18,6 +18,8 @@ type BusinessSettingsInput = {
   defaultCurrencyCode?: string
   usdToKhrExchangeRate?: number
   pricesIncludeTax?: boolean
+  taxRegistrationNumber?: string
+  taxRegistrationLabel?: string
 }
 
 interface AuthContextValue {
@@ -89,6 +91,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       defaultCurrencyCode: input.defaultCurrencyCode,
       usdToKhrExchangeRate: input.usdToKhrExchangeRate,
       pricesIncludeTax: input.pricesIncludeTax,
+      taxRegistrationNumber: input.taxRegistrationNumber,
+      taxRegistrationLabel: input.taxRegistrationLabel,
       logoUrl: user.business.logoUrl,
     })
     setUser({ ...user, business })

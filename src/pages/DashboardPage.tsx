@@ -6,6 +6,7 @@ import {
   Icon,
   MetricCard,
   ProductThumb,
+  Select,
   Status,
   StoreSwitcher,
   Topbar,
@@ -45,6 +46,8 @@ export function DashboardPage() {
   const { user } = useAuth()
   const { storeId, setStoreId } = useAdminStore()
   const { settings } = usePosSettings(user?.business.id)
+  const businessCurrency = (user?.business.defaultCurrencyCode || 'USD').toUpperCase()
+  const [currency, setCurrency] = useState(businessCurrency)
   const [from, setFrom] = useState(defaultReportFrom)
   const [to, setTo] = useState(() => localDateValue())
   const range = useMemo(() => reportDateTimeRange(from, to), [from, to])
@@ -54,16 +57,15 @@ export function DashboardPage() {
   const canReadOrders = permissions.includes('x-order:read')
   const canReadProducts = permissions.includes('x-product:read')
   const canReadPayments = permissions.includes('x-payment:read') || permissions.includes('x-payment:create')
-  const businessCurrency = (user?.business.defaultCurrencyCode || 'USD').toUpperCase()
-  const currency = settings.defaultCurrencyCode === 'BUSINESS' ? businessCurrency : settings.defaultCurrencyCode
+  const registerCurrency = settings.defaultCurrencyCode === 'BUSINESS' ? businessCurrency : settings.defaultCurrencyCode
 
-  const summaryQuery = useSalesSummary(storeId, range.from, range.to, canReadReports)
-  const trendQuery = useSalesTrend(storeId, range.from, range.to, canReadReports)
-  const topProductsQuery = useTopProducts(storeId, range.from, range.to, 5, canReadReports)
-  const paymentsQuery = usePaymentBreakdown(storeId, range.from, range.to, canReadReports && canReadPayments)
+  const summaryQuery = useSalesSummary(storeId, range.from, range.to, currency, canReadReports)
+  const trendQuery = useSalesTrend(storeId, range.from, range.to, currency, canReadReports)
+  const topProductsQuery = useTopProducts(storeId, range.from, range.to, currency, 5, canReadReports)
+  const paymentsQuery = usePaymentBreakdown(storeId, range.from, range.to, currency, canReadReports && canReadPayments)
   const ordersQuery = useRecentOrders(storeId, canReadOrders, 0, 8)
   const catalogQuery = useProductsList(storeId, canReadProducts)
-  const cashSessionQuery = useCurrentCashSession(storeId, user?.id, currency, canReadPayments)
+  const cashSessionQuery = useCurrentCashSession(storeId, user?.id, registerCurrency, canReadPayments)
 
   const summary = summaryQuery.data
   const paymentRows = paymentsQuery.data ?? []
@@ -150,6 +152,10 @@ export function DashboardPage() {
             onRefresh={refreshDashboard}
           />
           <div className="flex flex-wrap items-center gap-1.5 lg:pb-0.5">
+            <Select label="Report currency" value={currency} onChange={setCurrency} variant="toolbar" className="w-[190px]" options={[
+              { value: 'USD', label: 'USD / US Dollar' },
+              { value: 'KHR', label: 'KHR / Cambodian Riel' },
+            ]} />
             <span className="mr-1 text-[11px] font-bold uppercase tracking-[0.06em] text-vpos-muted">Quick range</span>
             {[['Today', 1], ['7 days', 7], ['30 days', 30], ['90 days', 90], ['1 year', 365]].map(([label, days]) => {
               const active = days === 7 && from === defaultReportFrom() && to === localDateValue()
@@ -385,8 +391,8 @@ export function DashboardPage() {
             ) : cashSession ? (
               <>
                 <div className="mt-5 grid grid-cols-2 gap-3">
-                  <SummaryTile label="Cash sales" value={formatCurrency(cashSession.cashSales, currency)} />
-                  <SummaryTile label="Expected cash" value={formatCurrency(cashSession.expectedCash, currency)} />
+                  <SummaryTile label="Cash sales" value={formatCurrency(cashSession.cashSales, registerCurrency)} />
+                  <SummaryTile label="Expected cash" value={formatCurrency(cashSession.expectedCash, registerCurrency)} />
                   <SummaryTile label="Payments" value={cashSession.paymentCount.toLocaleString('en-US')} />
                   <SummaryTile label="Opened" value={formatReportDate(cashSession.openedAt)} />
                 </div>
@@ -403,7 +409,7 @@ export function DashboardPage() {
         </section>
 
         <section className="mt-[18px] flex flex-wrap items-center justify-between gap-3 rounded-[4px] border border-vpos-line bg-vpos-subtle px-4 py-3 text-[12px] text-vpos-muted">
-          <span>All amounts are shown in <strong className="text-vpos-text">{currency}</strong> using the current POS currency setting.</span>
+          <span>Sales and payment reports are filtered to <strong className="text-vpos-text">{currency}</strong>. Cash register amounts use the register currency ({registerCurrency}).</span>
           <Button variant="text" onClick={refreshDashboard}><Icon name="refresh-line" /> Refresh overview</Button>
         </section>
       </main>

@@ -54,28 +54,28 @@ export const orderApi = {
     )
   },
 
-  async salesSummary(storeId: string | number, from: string, to: string): Promise<SalesSummary> {
+  async salesSummary(storeId: string | number, from: string, to: string, currencyCode: string): Promise<SalesSummary> {
     return requireData(
       await api.request<ApiEnvelope<SalesSummary>>(
-        `/orders/reports/sales-summary?storeId=${encodeURIComponent(storeId)}&from=${encodeURIComponent(from)}&to=${encodeURIComponent(to)}`,
+        `/orders/reports/sales-summary?storeId=${encodeURIComponent(storeId)}&currencyCode=${encodeURIComponent(currencyCode)}&from=${encodeURIComponent(from)}&to=${encodeURIComponent(to)}`,
       ),
       'The sales summary could not be loaded.',
     )
   },
 
-  async salesTrend(storeId: string | number, from: string, to: string): Promise<SalesTrend[]> {
+  async salesTrend(storeId: string | number, from: string, to: string, currencyCode: string): Promise<SalesTrend[]> {
     return requireData(
       await api.request<ApiEnvelope<SalesTrend[]>>(
-        `/orders/reports/sales-trend?storeId=${encodeURIComponent(storeId)}&from=${encodeURIComponent(from)}&to=${encodeURIComponent(to)}`,
+        `/orders/reports/sales-trend?storeId=${encodeURIComponent(storeId)}&currencyCode=${encodeURIComponent(currencyCode)}&from=${encodeURIComponent(from)}&to=${encodeURIComponent(to)}`,
       ),
       'The sales trend could not be loaded.',
     )
   },
 
-  async topProducts(storeId: string | number, from: string, to: string, limit = 10): Promise<TopProduct[]> {
+  async topProducts(storeId: string | number, from: string, to: string, currencyCode: string, limit = 10): Promise<TopProduct[]> {
     return requireData(
       await api.request<ApiEnvelope<TopProduct[]>>(
-        `/orders/reports/top-products?storeId=${encodeURIComponent(storeId)}&from=${encodeURIComponent(from)}&to=${encodeURIComponent(to)}&limit=${limit}`,
+        `/orders/reports/top-products?storeId=${encodeURIComponent(storeId)}&currencyCode=${encodeURIComponent(currencyCode)}&from=${encodeURIComponent(from)}&to=${encodeURIComponent(to)}&limit=${limit}`,
       ),
       'The product report could not be loaded.',
     )

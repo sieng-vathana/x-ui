@@ -8,6 +8,8 @@ type BusinessSettingsUpdate = (input: {
   defaultCurrencyCode?: string
   usdToKhrExchangeRate?: number
   pricesIncludeTax?: boolean
+  taxRegistrationNumber?: string
+  taxRegistrationLabel?: string
 }) => Promise<void>
 
 export function PosConfigurationForm({
@@ -23,13 +25,17 @@ export function PosConfigurationForm({
   const [currency, setCurrency] = useState(business.defaultCurrencyCode || 'USD')
   const [rate, setRate] = useState(String(business.usdToKhrExchangeRate || 4000))
   const [pricesIncludeTax, setPricesIncludeTax] = useState(business.pricesIncludeTax !== false)
+  const [taxRegistrationNumber, setTaxRegistrationNumber] = useState(business.taxRegistrationNumber || '')
+  const [taxRegistrationLabel, setTaxRegistrationLabel] = useState(business.taxRegistrationLabel || '')
   const [notice, setNotice] = useState('')
 
   useEffect(() => {
     setCurrency(business.defaultCurrencyCode || 'USD')
     setRate(String(business.usdToKhrExchangeRate || 4000))
     setPricesIncludeTax(business.pricesIncludeTax !== false)
-  }, [business.defaultCurrencyCode, business.id, business.pricesIncludeTax, business.usdToKhrExchangeRate])
+    setTaxRegistrationNumber(business.taxRegistrationNumber || '')
+    setTaxRegistrationLabel(business.taxRegistrationLabel || '')
+  }, [business.defaultCurrencyCode, business.id, business.pricesIncludeTax, business.taxRegistrationLabel, business.taxRegistrationNumber, business.usdToKhrExchangeRate])
 
   const saveBusinessDefaults = async () => {
     const numericRate = Number(rate.replace(/,/g, ''))
@@ -43,6 +49,8 @@ export function PosConfigurationForm({
         defaultCurrencyCode: currency,
         usdToKhrExchangeRate: numericRate,
         pricesIncludeTax,
+        taxRegistrationNumber: taxRegistrationNumber.trim(),
+        taxRegistrationLabel: taxRegistrationLabel.trim(),
       })
       setNotice('Business currency defaults saved. POS conversion will use this rate.')
     } catch (error) {
@@ -112,6 +120,14 @@ export function PosConfigurationForm({
           <label className="flex min-h-[39px] items-center gap-3 self-start rounded-lg border border-vpos-line bg-vpos-subtle/45 px-3.5 py-2.5 text-[13px] text-vpos-text md:mt-6">
             <input type="checkbox" checked={pricesIncludeTax} onChange={(event) => setPricesIncludeTax(event.target.checked)} className="h-4 w-4 accent-vpos-primary" />
             <span><strong className="block text-[13px]">Prices include tax</strong><small className="text-[11px] text-vpos-muted">Business default for new sales.</small></span>
+          </label>
+          <label className="block">
+            <span className="mb-2 block text-[12px] font-semibold tracking-[.02em] text-vpos-dark">Tax registration label</span>
+            <input value={taxRegistrationLabel} onChange={(event) => setTaxRegistrationLabel(event.target.value)} maxLength={32} placeholder="Tax registration" className="h-[39px] w-full rounded-[4px] border border-vpos-line bg-white px-3.5 text-[14px] text-vpos-text outline-none focus:border-vpos-primary" />
+          </label>
+          <label className="block">
+            <span className="mb-2 block text-[12px] font-semibold tracking-[.02em] text-vpos-dark">Tax registration number</span>
+            <input value={taxRegistrationNumber} onChange={(event) => setTaxRegistrationNumber(event.target.value)} maxLength={100} className="h-[39px] w-full rounded-[4px] border border-vpos-line bg-white px-3.5 text-[14px] text-vpos-text outline-none focus:border-vpos-primary" />
           </label>
         </div>
         {!business.usdToKhrExchangeRateConfigured ? (

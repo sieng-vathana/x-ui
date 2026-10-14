@@ -19,6 +19,8 @@ type BackendBusiness = {
   name: string
   code: string
   defaultCurrencyCode: string
+  taxRegistrationNumber?: string
+  taxRegistrationLabel?: string
   usdToKhrExchangeRate?: number
   pricesIncludeTax?: boolean
   timeZone: string
@@ -39,6 +41,8 @@ function asUser(source: BackendUser, business?: BackendBusiness): AuthenticatedU
         type: business.code,
         phone: '',
         address: business.timeZone,
+        taxRegistrationNumber: business.taxRegistrationNumber,
+        taxRegistrationLabel: business.taxRegistrationLabel,
         defaultCurrencyCode: business.defaultCurrencyCode || 'USD',
         usdToKhrExchangeRate: Number(business.usdToKhrExchangeRate ?? 4000),
         usdToKhrExchangeRateConfigured: Number(business.usdToKhrExchangeRate ?? 0) > 0,
@@ -132,6 +136,8 @@ export const authApi = {
     defaultCurrencyCode?: string
     usdToKhrExchangeRate?: number
     pricesIncludeTax?: boolean
+    taxRegistrationNumber?: string
+    taxRegistrationLabel?: string
   }): Promise<BusinessProfile> {
     const response = await api.request<ApiEnvelope<BackendBusiness & { id: number; name: string; code: string }>>(
       `/businesses/${input.businessId}`,
@@ -142,6 +148,8 @@ export const authApi = {
           ...(input.defaultCurrencyCode ? { defaultCurrencyCode: input.defaultCurrencyCode } : {}),
           ...(input.usdToKhrExchangeRate !== undefined ? { usdToKhrExchangeRate: input.usdToKhrExchangeRate } : {}),
           ...(input.pricesIncludeTax !== undefined ? { pricesIncludeTax: input.pricesIncludeTax } : {}),
+          ...(input.taxRegistrationNumber !== undefined ? { taxRegistrationNumber: input.taxRegistrationNumber } : {}),
+          ...(input.taxRegistrationLabel !== undefined ? { taxRegistrationLabel: input.taxRegistrationLabel } : {}),
         }),
       },
     )
@@ -157,6 +165,8 @@ export const authApi = {
       type: response.data.code,
       phone: '',
       address: response.data.timeZone,
+      taxRegistrationNumber: response.data.taxRegistrationNumber,
+      taxRegistrationLabel: response.data.taxRegistrationLabel,
       defaultCurrencyCode: response.data.defaultCurrencyCode || 'USD',
       usdToKhrExchangeRate: Number(response.data.usdToKhrExchangeRate ?? 4000),
       usdToKhrExchangeRateConfigured: Number(response.data.usdToKhrExchangeRate ?? 0) > 0,

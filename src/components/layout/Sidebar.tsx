@@ -17,6 +17,7 @@ export interface SidebarProps {
 
 const navMeta: Record<string, { hint: string }> = {
   dashboard: { hint: 'Business overview & metrics' }, pos: { hint: 'Sell products at the register' },
+  orders: { hint: 'Review and fulfill customer orders' },
   products: { hint: 'Catalog, stock movement & low stock' }, stores: { hint: 'Locations, hours & managers' },
   sales: { hint: 'Orders and invoices' }, payments: { hint: 'Generate and test KHQRPay' }, purchases: { hint: 'Supplier orders & receipts' },
   customers: { hint: 'Customer directory' }, reports: { hint: 'Analytics & exports' },
@@ -25,13 +26,13 @@ const navMeta: Record<string, { hint: string }> = {
 }
 
 const keyToPath: Record<string, string> = {
-  dashboard: paths.dashboard, pos: paths.pos, products: paths.products, stores: paths.stores,
+  dashboard: paths.dashboard, pos: paths.pos, orders: paths.orders, products: paths.products, stores: paths.stores,
   sales: paths.sales, payments: paths.payments, purchases: paths.purchases, customers: paths.customers, reports: paths.reports,
   settings: paths.settings, users: paths.users, roles: paths.roles,
 }
 
 const navigationPermissions: Record<string, string> = {
-  dashboard: 'x-bff:read', pos: 'x-order:create', products: 'x-product:read', stores: 'x-store:read',
+  dashboard: 'x-bff:read', pos: 'x-order:create', orders: 'x-order:read', products: 'x-product:read', stores: 'x-store:read',
   sales: 'x-order:read', payments: 'x-order:read', purchases: 'x-inventory:read', customers: 'x-customer:read',
   reports: 'x-report:read', settings: 'x-business:read', users: 'x-user:read', roles: 'x-user:read',
 }
@@ -72,6 +73,7 @@ const settingsSubItems = [
 ]
 
 const staticItems = [
+  { key: 'orders', icon: 'file-list-3-line', label: 'Order management' },
   { key: 'sales', icon: 'line-chart-line', label: 'Sales' }, { key: 'customers', icon: 'user-heart-line', label: 'Customers' },
   { key: 'reports', icon: 'bar-chart-box-line', label: 'Reports' },
 ]
@@ -234,7 +236,7 @@ function HorizontalMenu({ darkMode }: { darkMode: boolean }) {
 
 function TwoColumnMenu({ state, theme }: { state: SidebarLayoutState; theme: ReturnType<typeof themeClasses> }) {
   const { user } = useAuth()
-  const sections = [{ id: 'overview', label: 'Overview', icon: 'dashboard-line', items: navPrimary.slice(0, 2) }, { id: 'catalog', label: 'Products', icon: 'shopping-bag-3-line', items: [{ key: 'products', label: 'Products', icon: 'shopping-bag-3-line' }] }, { id: 'purchases', label: 'Purchases', icon: 'truck-line', items: [{ key: 'purchases', label: 'Purchases', icon: 'truck-line' }] }, { id: 'management', label: 'Management', icon: 'settings-3-line', items: managementItems }]
+  const sections = [{ id: 'overview', label: 'Overview', icon: 'dashboard-line', items: navPrimary.slice(0, 2) }, { id: 'orders', label: 'Orders', icon: 'file-list-3-line', items: staticItems.filter(item => item.key === 'orders' || item.key === 'sales') }, { id: 'catalog', label: 'Products', icon: 'shopping-bag-3-line', items: [{ key: 'products', label: 'Products', icon: 'shopping-bag-3-line' }] }, { id: 'purchases', label: 'Purchases', icon: 'truck-line', items: [{ key: 'purchases', label: 'Purchases', icon: 'truck-line' }] }, { id: 'management', label: 'Management', icon: 'settings-3-line', items: managementItems }]
   const selected = sections.find(section => section.id === state.twoColumnSection) ?? sections[0]
   const visibleItems = selected.items.filter((item) => !navigationPermissions[item.key] || user?.permissions.includes(navigationPermissions[item.key]))
   return <aside aria-label="Two column navigation" className={cn('fixed top-0 bottom-0 left-0 z-40 flex overflow-hidden shadow-sm', theme.shell)} style={{ width: state.twoColumnOpen ? 290 : 70 }}><div className="flex w-[70px] shrink-0 flex-col items-center gap-3 py-5">{sections.map(section => <button key={section.id} type="button" title={section.label} aria-label={section.label} aria-pressed={selected.id === section.id} onClick={() => { state.setTwoColumnSection(section.id); state.setTwoColumnOpen(true) }} className={cn('grid h-10 w-10 place-items-center rounded-md border-0 bg-transparent text-[20px]', selected.id === section.id ? theme.active : theme.item)}><Icon name={section.icon} /></button>)}</div>{state.twoColumnOpen ? <div className="flex w-[220px] flex-col border-l border-white/10"><div className="flex h-20 items-center px-5 text-[16px] font-bold">{selected.label}<button type="button" onClick={() => state.setTwoColumnOpen(false)} className="ml-auto border-0 bg-transparent text-inherit" aria-label="Collapse secondary navigation"><Icon name="arrow-left-s-line" /></button></div><nav className="flex-1 overflow-y-auto px-3 py-3">{visibleItems.map(item => <NavItem key={item.key} to={keyToPath[item.key] ?? paths.dashboard} icon={item.icon} label={item.label} iconOnly={false} hint={navMeta[item.key]?.hint} theme={theme} onNavigate={() => undefined} />)}</nav></div> : null}</aside>

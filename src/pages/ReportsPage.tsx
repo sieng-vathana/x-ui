@@ -5,6 +5,7 @@ import {
   DataTable,
   Icon,
   MetricCard,
+  Select,
   StoreSwitcher,
   Topbar,
   type DataTableColumn,
@@ -27,16 +28,17 @@ export type ReportsSection = 'overview' | 'products' | 'payments' | 'stores' | '
 export function ReportsPage({ section = 'overview' }: { section?: ReportsSection }) {
   const { user } = useAuth()
   const { storeId, setStoreId } = useAdminStore()
+  const businessCurrency = (user?.business.defaultCurrencyCode || 'USD').toUpperCase()
+  const [currency, setCurrency] = useState(businessCurrency)
   const [from, setFrom] = useState(defaultReportFrom)
   const [to, setTo] = useState(() => localDateValue())
   const range = useMemo(() => reportDateTimeRange(from, to), [from, to])
-  const currency = (user?.business.defaultCurrencyCode || 'USD').toUpperCase()
   const showSummary = section !== 'products' && section !== 'payments'
   const showProducts = section === 'overview' || section === 'products'
   const showPayments = section === 'overview' || section === 'payments'
-  const summaryQuery = useSalesSummary(storeId, range.from, range.to, showSummary)
-  const productsQuery = useTopProducts(storeId, range.from, range.to, 10, showProducts)
-  const paymentsQuery = usePaymentBreakdown(storeId, range.from, range.to, showPayments)
+  const summaryQuery = useSalesSummary(storeId, range.from, range.to, currency, showSummary)
+  const productsQuery = useTopProducts(storeId, range.from, range.to, currency, 10, showProducts)
+  const paymentsQuery = usePaymentBreakdown(storeId, range.from, range.to, currency, showPayments)
   const summary = summaryQuery.data
   const products = productsQuery.data ?? []
   const payments = paymentsQuery.data ?? []
@@ -60,7 +62,15 @@ export function ReportsPage({ section = 'overview' }: { section?: ReportsSection
 
   return (
     <>
-      <Topbar title={title} subtitle={subtitle} actions={<StoreSwitcher value={storeId} onChange={setStoreId} />} />
+      <Topbar title={title} subtitle={subtitle} actions={(
+        <div className="flex items-end gap-3">
+          <Select label="Report currency" value={currency} onChange={setCurrency} variant="toolbar" className="w-[190px]" options={[
+            { value: 'USD', label: 'USD / US Dollar' },
+            { value: 'KHR', label: 'KHR / Cambodian Riel' },
+          ]} />
+          <StoreSwitcher value={storeId} onChange={setStoreId} />
+        </div>
+      )} />
       <main className={pageContent}>
         <section className="mb-5 flex min-h-12 flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           <Breadcrumb items={[{ label: 'Reports', to: paths.reports }, { label: title }]} />

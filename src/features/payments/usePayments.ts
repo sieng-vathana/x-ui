@@ -64,10 +64,10 @@ export function useRefundPayment() {
   })
 }
 
-export function usePaymentBreakdown(storeId: string | number | undefined, from: string, to: string, enabled = true) {
+export function usePaymentBreakdown(storeId: string | number | undefined, from: string, to: string, currencyCode: string, enabled = true) {
   return useQuery({
-    queryKey: ['reports', 'payment-breakdown', { storeId, from, to }],
-    queryFn: () => paymentApi.breakdown(storeId!, from, to),
+    queryKey: ['reports', 'payment-breakdown', { storeId, from, to, currencyCode }],
+    queryFn: () => paymentApi.breakdown(storeId!, from, to, currencyCode),
     enabled: enabled && Boolean(storeId) && Boolean(from) && Boolean(to),
     staleTime: 30 * 1000,
   })

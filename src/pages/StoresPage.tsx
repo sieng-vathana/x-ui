@@ -22,7 +22,7 @@ import {
 } from '../features/stores/useStores'
 import { STORE_TYPE_OPTIONS } from '../components/stores/StoreFormModal'
 import { useAuth } from '../context/AuthContext'
-import type { BffStore } from '../features/stores/types'
+import type { BffStore, StoreDay, StoreOpeningHours } from '../features/stores/types'
 import { useToast } from '../context/ToastContext'
 import { useAdminStore } from '../hooks/useAdminStore'
 import { useDelayedLoading } from '../hooks/useDelayedLoading'
@@ -60,6 +60,8 @@ function marketplaceStatusBadge(status?: string): { label: string; className: st
       return { label: 'Pending Review', className: 'bg-amber-50 text-amber-700 border border-amber-200' }
     case 'REJECTED':
       return { label: 'Rejected', className: 'bg-rose-50 text-rose-700 border border-rose-200' }
+    case 'NEEDS_CHANGES':
+      return { label: 'Updates Requested', className: 'bg-amber-50 text-amber-800 border border-amber-200' }
     case 'NOT_LISTED':
     default:
       return { label: 'POS Only', className: 'bg-slate-100 text-slate-600 border border-slate-200' }
@@ -96,6 +98,39 @@ function StoreTableImage({ source }: { source: string | undefined }) {
 
 function storeAddress(store: BffStore): string {
   return [store.addressLine1, store.city, store.countryCode].filter(Boolean).join(', ')
+}
+
+const HOURS_DAYS: { key: StoreDay; short: string }[] = [
+  { key: 'MONDAY', short: 'Mon' },
+  { key: 'TUESDAY', short: 'Tue' },
+  { key: 'WEDNESDAY', short: 'Wed' },
+  { key: 'THURSDAY', short: 'Thu' },
+  { key: 'FRIDAY', short: 'Fri' },
+  { key: 'SATURDAY', short: 'Sat' },
+  { key: 'SUNDAY', short: 'Sun' },
+]
+
+function storeHoursSummary(hours?: StoreOpeningHours | null): string {
+  if (!hours?.days) return 'Opening hours not set'
+  const runs: { start: number; end: number; value: string }[] = []
+  for (let index = 0; index < HOURS_DAYS.length; index += 1) {
+    const schedule = hours.days[HOURS_DAYS[index].key]
+    const value = !schedule || schedule.closed
+      ? 'Closed'
+      : schedule.openTime && schedule.closeTime
+        ? `${schedule.openTime}-${schedule.closeTime}`
+        : 'Hours not set'
+    const last = runs[runs.length - 1]
+    if (last?.value === value) last.end = index
+    else runs.push({ start: index, end: index, value })
+  }
+  const summary = runs.map(({ start, end, value }) => {
+    const days = start === end
+      ? HOURS_DAYS[start].short
+      : `${HOURS_DAYS[start].short}-${HOURS_DAYS[end].short}`
+    return `${days} ${value}`
+  }).join(' · ')
+  return `${summary} · Cambodia time`
 }
 
 function storeStatus(store: BffStore): { label: string; className: string } {
@@ -495,6 +530,7 @@ export function StoresPage() {
                         <th className="px-4 py-3">Code</th>
                         <th className="px-4 py-3">Category</th>
                         <th className="px-4 py-3">Address</th>
+                        <th className="px-4 py-3">Opening hours</th>
                         <th className="px-4 py-3">Status</th>
                         <th className="px-4 py-3">Marketplace</th>
                         <th className="px-4 py-3" />
@@ -522,6 +558,7 @@ export function StoresPage() {
                             <td className="px-4 py-3 text-vpos-muted">
                               {store.addressLine1}, {store.city}
                             </td>
+                            <td className="max-w-[260px] px-4 py-3 text-[11px] leading-5 text-vpos-muted">{storeHoursSummary(store.openingHours)}</td>
                             <td className="px-4 py-3">
                               <span
                                 className={cn(
@@ -542,7 +579,7 @@ export function StoresPage() {
                                 >
                                   {mp.label}
                                 </span>
-                                {store.marketplaceStatus === 'NOT_LISTED' || !store.marketplaceStatus || store.marketplaceStatus === 'REJECTED' ? (
+                                {store.marketplaceStatus === 'NOT_LISTED' || !store.marketplaceStatus || store.marketplaceStatus === 'REJECTED' || store.marketplaceStatus === 'NEEDS_CHANGES' ? (
                                   <Button
                                     variant="text"
                                     className="text-[11px] text-vpos-primary font-bold"
@@ -722,10 +759,16 @@ function StoreCard({
           </span>
         </div>
 
-        {store.marketplaceStatus === 'REJECTED' ? (
-          <div className="mb-3 rounded-lg border border-rose-200 bg-rose-50 p-2.5 text-[12px] text-rose-700">
-            <strong className="block font-bold">Marketplace feedback:</strong>
+        <div className="mb-3 rounded-md bg-vpos-subtle px-3 py-2">
+          <p className="m-0 mb-0.5 text-[10px] font-extrabold uppercase tracking-[.08em] text-vpos-muted">Opening hours · Cambodia time</p>
+          <p className="m-0 text-[11px] leading-5 text-vpos-text">{storeHoursSummary(store.openingHours)}</p>
+        </div>
+
+        {store.marketplaceStatus === 'REJECTED' || store.marketplaceStatus === 'NEEDS_CHANGES' ? (
+          <div className={`mb-3 rounded-lg border p-2.5 text-[12px] ${store.marketplaceStatus === 'NEEDS_CHANGES' ? 'border-amber-200 bg-amber-50 text-amber-900' : 'border-rose-200 bg-rose-50 text-rose-700'}`}>
+            <strong className="block font-bold">{store.marketplaceStatus === 'NEEDS_CHANGES' ? 'Updates requested by marketplace review:' : 'Marketplace feedback:'}</strong>
             <span>{store.rejectionReason || 'Store application requires updates before listing.'}</span>
+            {store.marketplaceStatus === 'NEEDS_CHANGES' ? <span className="mt-1 block text-[11px]">Edit this store, then submit the updated listing for review.</span> : null}
           </div>
         ) : null}
 
@@ -741,13 +784,13 @@ function StoreCard({
           </div>
         ) : null}
 
-        {store.marketplaceStatus === 'NOT_LISTED' || !store.marketplaceStatus || store.marketplaceStatus === 'REJECTED' ? (
+        {store.marketplaceStatus === 'NOT_LISTED' || !store.marketplaceStatus || store.marketplaceStatus === 'REJECTED' || store.marketplaceStatus === 'NEEDS_CHANGES' ? (
           <Button
             variant="secondary"
             className="mb-3 w-full border-emerald-300 text-[12px] text-emerald-700 hover:bg-emerald-50"
             onClick={onApplyMarketplace}
           >
-            <Icon name="global-line" /> {store.marketplaceStatus === 'REJECTED' ? 'Re-apply for Marketplace' : 'List on Marketplace'}
+            <Icon name="global-line" /> {store.marketplaceStatus === 'NEEDS_CHANGES' ? 'Resubmit for Review' : store.marketplaceStatus === 'REJECTED' ? 'Re-apply for Marketplace' : 'List on Marketplace'}
           </Button>
         ) : null}
 

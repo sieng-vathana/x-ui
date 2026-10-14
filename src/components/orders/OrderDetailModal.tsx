@@ -154,6 +154,8 @@ export function OrderDetailModal({
     printReceipt(order, {
       paperSize: settings.receiptPaperSize,
       businessName: user?.business.name,
+      taxRegistrationNumber: user?.business.taxRegistrationNumber,
+      taxRegistrationLabel: user?.business.taxRegistrationLabel,
       businessLogoUrl: user?.business.logoUrl,
       store,
       cashierName: user?.name,

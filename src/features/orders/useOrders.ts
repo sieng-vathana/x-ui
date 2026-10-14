@@ -61,42 +61,42 @@ export function useOrder(id?: number, enabled = true) {
   })
 }
 
-export function useSalesSummary(storeId: string | number | undefined, from: string, to: string, enabled = true) {
+export function useSalesSummary(storeId: string | number | undefined, from: string, to: string, currencyCode: string, enabled = true) {
   const normalizedStoreId = normalizeStoreId(storeId)
 
   return useQuery({
-    queryKey: ['reports', 'sales-summary', { storeId: normalizedStoreId, from, to }],
+    queryKey: ['reports', 'sales-summary', { storeId: normalizedStoreId, from, to, currencyCode }],
     queryFn: () => {
       if (normalizedStoreId === undefined) throw new Error('A valid store must be selected before loading reports.')
-      return orderApi.salesSummary(normalizedStoreId, from, to)
+      return orderApi.salesSummary(normalizedStoreId, from, to, currencyCode)
     },
     enabled: enabled && normalizedStoreId !== undefined && Boolean(from) && Boolean(to),
     staleTime: 30 * 1000,
   })
 }
 
-export function useSalesTrend(storeId: string | number | undefined, from: string, to: string, enabled = true) {
+export function useSalesTrend(storeId: string | number | undefined, from: string, to: string, currencyCode: string, enabled = true) {
   const normalizedStoreId = normalizeStoreId(storeId)
 
   return useQuery({
-    queryKey: ['reports', 'sales-trend', { storeId: normalizedStoreId, from, to }],
+    queryKey: ['reports', 'sales-trend', { storeId: normalizedStoreId, from, to, currencyCode }],
     queryFn: () => {
       if (normalizedStoreId === undefined) throw new Error('A valid store must be selected before loading reports.')
-      return orderApi.salesTrend(normalizedStoreId, from, to)
+      return orderApi.salesTrend(normalizedStoreId, from, to, currencyCode)
     },
     enabled: enabled && normalizedStoreId !== undefined && Boolean(from) && Boolean(to),
     staleTime: 30 * 1000,
   })
 }
 
-export function useTopProducts(storeId: string | number | undefined, from: string, to: string, limit = 10, enabled = true) {
+export function useTopProducts(storeId: string | number | undefined, from: string, to: string, currencyCode: string, limit = 10, enabled = true) {
   const normalizedStoreId = normalizeStoreId(storeId)
 
   return useQuery({
-    queryKey: ['reports', 'top-products', { storeId: normalizedStoreId, from, to, limit }],
+    queryKey: ['reports', 'top-products', { storeId: normalizedStoreId, from, to, currencyCode, limit }],
     queryFn: () => {
       if (normalizedStoreId === undefined) throw new Error('A valid store must be selected before loading reports.')
-      return orderApi.topProducts(normalizedStoreId, from, to, limit)
+      return orderApi.topProducts(normalizedStoreId, from, to, currencyCode, limit)
     },
     enabled: enabled && normalizedStoreId !== undefined && Boolean(from) && Boolean(to),
     staleTime: 30 * 1000,

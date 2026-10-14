@@ -27,6 +27,8 @@ type RegistrationForm = {
   confirmPassword: string
   businessName: string
   businessCode: string
+  taxRegistrationNumber: string
+  taxRegistrationLabel: string
   defaultCurrencyCode: string
   usdToKhrExchangeRate: string
   timeZone: string
@@ -48,9 +50,11 @@ const initialForm: RegistrationForm = {
   confirmPassword: '',
   businessName: '',
   businessCode: '',
+  taxRegistrationNumber: '',
+  taxRegistrationLabel: '',
   defaultCurrencyCode: 'USD',
   usdToKhrExchangeRate: '4000',
-  timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone || 'Asia/Phnom_Penh',
+  timeZone: 'Asia/Phnom_Penh',
   storeName: '',
   storeCode: 'MAIN',
   storeAddressLine1: '',
@@ -146,6 +150,8 @@ export function BusinessRegistrationPage() {
         phone: form.phone || undefined,
         businessName: form.businessName,
         businessCode: form.businessCode,
+        taxRegistrationNumber: form.taxRegistrationNumber.trim() || undefined,
+        taxRegistrationLabel: form.taxRegistrationLabel.trim() || undefined,
         defaultCurrencyCode: form.defaultCurrencyCode,
         usdToKhrExchangeRate: Number(form.usdToKhrExchangeRate),
         pricesIncludeTax: true,
@@ -249,6 +255,8 @@ function BusinessStep({ form, updateField }: StepProps) {
       <div className="auth-step-fields">
         <Field label="Business name" value={form.businessName} onChange={(value) => updateField('businessName', value)} required />
         <Field label="Business code" value={form.businessCode} onChange={(value) => updateField('businessCode', value.toUpperCase())} required />
+        <Field label="Tax registration number (optional)" value={form.taxRegistrationNumber} onChange={(value) => updateField('taxRegistrationNumber', value)} />
+        <Field label="Tax registration label (optional)" value={form.taxRegistrationLabel} onChange={(value) => updateField('taxRegistrationLabel', value)} placeholder="For example, TIN" />
         <Select
           label="Primary currency"
           className="auth-select"

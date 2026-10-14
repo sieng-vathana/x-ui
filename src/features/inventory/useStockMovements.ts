@@ -2,6 +2,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { ApiError } from '../../lib/api'
 import type {
   StockBalance,
+  StockBalancePage,
   StockChangeInput,
   StockMovementFilters,
   StockMovementType,
@@ -60,6 +61,21 @@ export function useStockMovements(options: StockMovementQueryOptions = {}) {
   })
 }
 
+export function useLowStock(storeId?: string | number, threshold = 5, page = 0, size = 20, enabled = true) {
+  const normalizedStoreId = Number(storeId)
+  const validStoreId = Number.isInteger(normalizedStoreId) && normalizedStoreId > 0
+    ? normalizedStoreId
+    : undefined
+
+  return useQuery<StockBalancePage>({
+    queryKey: ['stock-low', { storeId: validStoreId, threshold, page, size }],
+    queryFn: () => stockApi.lowStock(validStoreId!, threshold, page, size),
+    enabled: enabled && Boolean(validStoreId),
+    staleTime: 15 * 1000,
+    retry: shouldRetryStockQuery,
+  })
+}
+
 function useStockChange(mutationFn: (input: StockChangeInput) => Promise<StockBalance>) {
   const queryClient = useQueryClient()
 
@@ -69,6 +85,7 @@ function useStockChange(mutationFn: (input: StockChangeInput) => Promise<StockBa
       await Promise.all([
         queryClient.invalidateQueries({ queryKey: ['stock-balance'] }),
         queryClient.invalidateQueries({ queryKey: ['stock-movements'] }),
+        queryClient.invalidateQueries({ queryKey: ['stock-low'] }),
       ])
     },
   })

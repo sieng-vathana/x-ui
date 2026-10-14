@@ -2,7 +2,7 @@ import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react'
 import { useToast } from '../../context/ToastContext'
 import { fileApi, fileContentPath, resolveImageUrl } from '../../features/files/fileApi'
 import { useCreateStore, useUpdateStore } from '../../features/stores/useStores'
-import type { BffStore } from '../../features/stores/types'
+import type { BffStore, StoreDay, StoreOpeningHours } from '../../features/stores/types'
 import { StoreLocationPicker } from '../business/StoreLocationPicker'
 import { Button } from '../ui/Button'
 import { FormField, SelectField } from '../ui/FormField'
@@ -11,6 +11,26 @@ import { Modal } from '../ui/Modal'
 import { UploadZone } from '../ui/UploadZone'
 
 const FORM_ID = 'store-form'
+const STORE_DAYS: { key: StoreDay; label: string }[] = [
+  { key: 'MONDAY', label: 'Monday' },
+  { key: 'TUESDAY', label: 'Tuesday' },
+  { key: 'WEDNESDAY', label: 'Wednesday' },
+  { key: 'THURSDAY', label: 'Thursday' },
+  { key: 'FRIDAY', label: 'Friday' },
+  { key: 'SATURDAY', label: 'Saturday' },
+  { key: 'SUNDAY', label: 'Sunday' },
+]
+
+function defaultOpeningHours(): StoreOpeningHours {
+  return {
+    timeZone: 'Asia/Phnom_Penh',
+    days: Object.fromEntries(STORE_DAYS.map(({ key }) => [key, {
+      closed: false,
+      openTime: '09:00',
+      closeTime: '18:00',
+    }])) as StoreOpeningHours['days'],
+  }
+}
 
 export const STORE_TYPE_OPTIONS = [
   { value: 'CAFE_AND_BEVERAGE', label: 'Café & Drinks' },
@@ -58,6 +78,8 @@ export function StoreFormModal({ open, onClose, store = null }: StoreFormModalPr
   const [latitude, setLatitude] = useState('')
   const [longitude, setLongitude] = useState('')
   const [status, setStatus] = useState('1')
+  const [openingHoursEnabled, setOpeningHoursEnabled] = useState(true)
+  const [openingHours, setOpeningHours] = useState<StoreOpeningHours>(defaultOpeningHours)
   const [images, setImages] = useState<StoreImageDraft[]>([])
   const [isUploading, setIsUploading] = useState(false)
   const [uploadError, setUploadError] = useState<string | null>(null)
@@ -92,6 +114,8 @@ export function StoreFormModal({ open, onClose, store = null }: StoreFormModalPr
     setLatitude('')
     setLongitude('')
     setStatus('1')
+    setOpeningHoursEnabled(true)
+    setOpeningHours(defaultOpeningHours())
     setImages((current) => {
       current.forEach((image) => revokePreview(image.previewUrl))
       return []
@@ -132,6 +156,8 @@ export function StoreFormModal({ open, onClose, store = null }: StoreFormModalPr
     setLatitude(store.latitude?.toString() ?? '')
     setLongitude(store.longitude?.toString() ?? '')
     setStatus(String(store.status ?? 1))
+    setOpeningHoursEnabled(Boolean(store.openingHours))
+    setOpeningHours(store.openingHours ?? defaultOpeningHours())
     void Promise.all((store.images ?? []).map(async (image, index) => ({ image, index, url: await resolveImageUrl(image.imageUrl) })))
       .then((resolvedImages) => {
         if (lastPopulatedIdRef.current !== store.id) return
@@ -201,6 +227,13 @@ export function StoreFormModal({ open, onClose, store = null }: StoreFormModalPr
     setLongitude(nextLongitude)
   }, [])
 
+  const updateDaySchedule = (day: StoreDay, values: Partial<StoreOpeningHours['days'][StoreDay]>) => {
+    setOpeningHours((current) => ({
+      ...current,
+      days: { ...current.days, [day]: { ...current.days[day], ...values } },
+    }))
+  }
+
   const handleSubmit = async (event: React.FormEvent) => {
     event.preventDefault()
     setSubmitError(null)
@@ -211,6 +244,16 @@ export function StoreFormModal({ open, onClose, store = null }: StoreFormModalPr
     if (!Number.isFinite(Number(latitude)) || !Number.isFinite(Number(longitude))) {
       setSubmitError('Choose your store location on the map or enter valid coordinates.')
       return
+    }
+    if (openingHoursEnabled) {
+      const invalidDay = STORE_DAYS.find(({ key }) => {
+        const schedule = openingHours.days[key]
+        return !schedule.closed && (!schedule.openTime || !schedule.closeTime || schedule.openTime === schedule.closeTime)
+      })
+      if (invalidDay) {
+        setSubmitError(`Enter different opening and closing times for ${invalidDay.label}, or mark it closed.`)
+        return
+      }
     }
 
     const commonRequest = {
@@ -231,8 +274,9 @@ export function StoreFormModal({ open, onClose, store = null }: StoreFormModalPr
       latitude: Number(latitude),
       longitude: Number(longitude),
       images: images.map((image, index) => ({ imageUrl: image.imageUrl, isPrimary: image.isPrimary, sortOrder: index })),
+      openingHours: openingHoursEnabled ? { ...openingHours, timeZone: 'Asia/Phnom_Penh' } : null,
     }
-    const request = store ? { ...commonRequest, status: Number(status) } : commonRequest
+    const request = store ? { ...commonRequest, status: Number(status), clearOpeningHours: !openingHoursEnabled } : commonRequest
 
     try {
       if (store) {
@@ -300,6 +344,36 @@ export function StoreFormModal({ open, onClose, store = null }: StoreFormModalPr
             <FormField label="Email" type="email" value={email} onChange={(event) => setEmail(event.target.value)} placeholder="store@example.com" />
             <FormField label="Website" type="url" value={website} onChange={(event) => setWebsite(event.target.value)} placeholder="https://example.com" />
           </div>
+        </FormSection>
+
+        <FormSection eyebrow="OPENING HOURS" title="Weekly opening hours" description="Set the hours customers can visit. Times are shown in Cambodia time (UTC+7).">
+          <div className="mb-3 flex items-center justify-between gap-3 rounded-md border border-vpos-line bg-vpos-subtle px-3 py-2.5">
+            <div>
+              <p className="m-0 text-[13px] font-bold text-vpos-text">Use weekly hours</p>
+              <p className="m-0 text-[11px] text-vpos-muted">Starter hours are 09:00-18:00 each day. Review them before saving.</p>
+            </div>
+            <input
+              type="checkbox"
+              checked={openingHoursEnabled}
+              onChange={(event) => setOpeningHoursEnabled(event.target.checked)}
+              aria-label="Use weekly opening hours"
+              className="h-4 w-4 shrink-0 accent-vpos-primary"
+            />
+          </div>
+          {openingHoursEnabled ? <div className="space-y-2">
+            {STORE_DAYS.map(({ key, label }) => {
+              const schedule = openingHours.days[key]
+              return <div key={key} className="grid grid-cols-2 items-center gap-2 rounded-md border border-vpos-line px-3 py-2 sm:grid-cols-[minmax(75px,1fr)_80px_minmax(105px,1fr)_minmax(105px,1fr)]">
+                <span className="text-[12px] font-semibold text-vpos-text">{label}</span>
+                <label className="flex items-center gap-1.5 text-[11px] text-vpos-muted">
+                  <input type="checkbox" checked={schedule.closed} onChange={(event) => updateDaySchedule(key, { closed: event.target.checked })} className="h-3.5 w-3.5 accent-vpos-primary" />
+                  Closed
+                </label>
+                <FormField label="Opens" type="time" value={schedule.openTime ?? ''} disabled={schedule.closed} onChange={(event) => updateDaySchedule(key, { openTime: event.target.value })} className="text-[11px]" />
+                <FormField label="Closes" type="time" value={schedule.closeTime ?? ''} disabled={schedule.closed} onChange={(event) => updateDaySchedule(key, { closeTime: event.target.value })} className="text-[11px]" />
+              </div>
+            })}
+          </div> : <p className="m-0 text-[12px] text-vpos-muted">No weekly opening hours will be shown for this store.</p>}
         </FormSection>
 
         <FormSection eyebrow="BRAND ASSETS" title="Store images" description="Use a primary image for the store logo and add supporting images for the storefront or location.">

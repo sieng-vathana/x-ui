@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react'
-import { Breadcrumb, Button, Icon, MetricCard, StoreSwitcher, Topbar } from '../components'
+import { Breadcrumb, Button, Icon, MetricCard, Select, StoreSwitcher, Topbar } from '../components'
 import { PaymentBreakdownTable } from '../components/reports/PaymentBreakdownTable'
 import { ReportDateFilter } from '../components/reports/ReportDateFilter'
 import { SalesSubnav } from '../components/sales/SalesSubnav'
@@ -13,19 +13,28 @@ import { card, pageContent } from '../lib/ui'
 export function SalesPaymentsPage() {
   const { user } = useAuth()
   const { storeId, setStoreId } = useAdminStore()
+  const businessCurrency = (user?.business.defaultCurrencyCode || 'USD').toUpperCase()
+  const [currency, setCurrency] = useState(businessCurrency)
   const [from, setFrom] = useState(defaultReportFrom)
   const [to, setTo] = useState(() => localDateValue())
   const range = useMemo(() => reportDateTimeRange(from, to), [from, to])
-  const query = usePaymentBreakdown(storeId, range.from, range.to)
+  const query = usePaymentBreakdown(storeId, range.from, range.to, currency)
   const rows = query.data ?? []
-  const currency = (user?.business.defaultCurrencyCode || 'USD').toUpperCase()
   const collected = rows.reduce((total, row) => total + Number(row.totalAmount || 0), 0)
   const refunded = rows.reduce((total, row) => total + Number(row.refundedAmount || 0), 0)
   const paymentCount = rows.reduce((total, row) => total + Number(row.paymentCount || 0), 0)
 
   return (
     <>
-      <Topbar title="Payments" subtitle="Payment methods and settled amounts for the selected store" actions={<StoreSwitcher value={storeId} onChange={setStoreId} />} />
+      <Topbar title="Payments" subtitle="Payment methods and settled amounts for the selected store" actions={(
+        <div className="flex items-end gap-3">
+          <Select label="Report currency" value={currency} onChange={setCurrency} variant="toolbar" className="w-[190px]" options={[
+            { value: 'USD', label: 'USD / US Dollar' },
+            { value: 'KHR', label: 'KHR / Cambodian Riel' },
+          ]} />
+          <StoreSwitcher value={storeId} onChange={setStoreId} />
+        </div>
+      )} />
       <main className={pageContent}>
         <section className="mb-5 flex min-h-12 flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           <Breadcrumb items={[{ label: 'Sales', to: '/sales' }, { label: 'Payments' }]} />

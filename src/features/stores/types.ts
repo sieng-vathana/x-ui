@@ -1,4 +1,17 @@
-export type MarketplaceStatus = 'NOT_LISTED' | 'PENDING_REVIEW' | 'APPROVED' | 'REJECTED'
+export type MarketplaceStatus = 'NOT_LISTED' | 'PENDING_REVIEW' | 'NEEDS_CHANGES' | 'APPROVED' | 'REJECTED'
+
+export type StoreDay = 'MONDAY' | 'TUESDAY' | 'WEDNESDAY' | 'THURSDAY' | 'FRIDAY' | 'SATURDAY' | 'SUNDAY'
+
+export interface StoreDaySchedule {
+  closed: boolean
+  openTime: string | null
+  closeTime: string | null
+}
+
+export interface StoreOpeningHours {
+  timeZone: string
+  days: Record<StoreDay, StoreDaySchedule>
+}
 
 export interface BffStore {
   id: number
@@ -17,6 +30,7 @@ export interface BffStore {
   alternatePhone: string | null
   email: string | null
   website: string | null
+  openingHours?: StoreOpeningHours | null
   latitude: number | null
   longitude: number | null
   images?: BffStoreImage[]
@@ -56,9 +70,11 @@ export interface CreateStoreRequest {
   latitude?: number | null
   longitude?: number | null
   images?: { imageUrl: string; isPrimary?: boolean; sortOrder?: number }[]
+  openingHours?: StoreOpeningHours | null
 }
 
 export type UpdateStoreRequest = Omit<CreateStoreRequest, 'businessId'> & {
   status?: number
+  clearOpeningHours?: boolean
 }
 

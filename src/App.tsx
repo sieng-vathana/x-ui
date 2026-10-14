@@ -39,6 +39,7 @@ import { SalesPaymentsPage } from './pages/SalesPaymentsPage'
 import { RefundsPage } from './pages/RefundsPage'
 import { CashRegisterPage } from './pages/CashRegisterPage'
 import { ReportsPage } from './pages/ReportsPage'
+import { OrderManagementPage } from './pages/OrderManagementPage'
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -116,6 +117,7 @@ export default function App() {
                 <Route path="inventory" element={<Navigate to="/products/low-stock" replace />} />
                 <Route path="stores" element={<StoresPage />} />
                 <Route element={<RequirePermission permission="x-order:read" />}>
+                  <Route path="orders" element={<OrderManagementPage />} />
                   <Route path="sales" element={<SalesPage />} />
                   <Route path="sales/shipments" element={<ShipmentsPage />} />
                 </Route>

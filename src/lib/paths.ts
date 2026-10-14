@@ -3,6 +3,7 @@ export const paths = {
   home: '/',
   dashboard: '/',
   pos: '/pos',
+  orders: '/orders',
   products: '/products',
   productNew: '/products/new',
   productDetail: (id: string | number) => `/products/${encodeURIComponent(id)}`,
@@ -46,6 +47,7 @@ export const paths = {
 export const navPaths: Record<string, string> = {
   dashboard: paths.dashboard,
   pos: paths.pos,
+  orders: paths.orders,
   products: paths.products,
   stores: paths.stores,
   sales: paths.sales,

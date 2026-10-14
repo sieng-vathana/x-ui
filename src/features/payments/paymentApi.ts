@@ -107,10 +107,10 @@ export const paymentApi = {
     )
   },
 
-  async breakdown(storeId: string | number, from: string, to: string): Promise<PaymentBreakdown[]> {
+  async breakdown(storeId: string | number, from: string, to: string, currencyCode: string): Promise<PaymentBreakdown[]> {
     return requireData(
       await api.request<ApiEnvelope<PaymentBreakdown[]>>(
-        `/payments/reports/breakdown?storeId=${encodeURIComponent(storeId)}&from=${encodeURIComponent(from)}&to=${encodeURIComponent(to)}`,
+        `/payments/reports/breakdown?storeId=${encodeURIComponent(storeId)}&currencyCode=${encodeURIComponent(currencyCode)}&from=${encodeURIComponent(from)}&to=${encodeURIComponent(to)}`,
       ),
       'The payment breakdown could not be loaded.',
     )
