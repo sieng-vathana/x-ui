@@ -1,4 +1,4 @@
-import { API_BASE_URL, ApiClient } from '../../lib/api'
+import { API_BASE_URL, ApiClient, backgroundRequest } from '../../lib/api'
 import type {
   CreateCashPaymentInput,
   CashMovementInput,
@@ -89,7 +89,7 @@ export const paymentApi = {
   /** Asks Bakong (through the payment service) whether a pending KHQR has been paid. */
   async checkBakong(id: number): Promise<Payment> {
     return requireData(
-      await api.request<ApiEnvelope<Payment>>(`/payments/${id}/bakong-check`, { method: 'POST' }),
+      await api.request<ApiEnvelope<Payment>>(`/payments/${id}/bakong-check`, backgroundRequest({ method: 'POST' })),
       'The Bakong payment status could not be checked.',
     )
   },
@@ -201,9 +201,10 @@ export const paymentApi = {
     )
   },
 
+  /** Status polling runs in the background, so it does not show the app-wide loader. */
   async get(id: number): Promise<Payment> {
     return requireData(
-      await api.request<ApiEnvelope<Payment>>(`/payments/${encodeURIComponent(id)}`),
+      await api.request<ApiEnvelope<Payment>>(`/payments/${encodeURIComponent(id)}`, backgroundRequest()),
       'Payment status could not be loaded.',
     )
   },

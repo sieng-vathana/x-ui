@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from 'react'
-import { isPlatformApiRequest } from '../lib/api'
+import { isBackgroundRequest, isPlatformApiRequest } from '../lib/api'
 
 type LoadingListener = (pendingRequests: number) => void
 
@@ -32,7 +32,7 @@ if (typeof window !== 'undefined') {
   const nativeFetch = window.__vposNativeFetch
 
   window.fetch = async (...args) => {
-    if (!isPlatformApiRequest(args[0])) return nativeFetch(...args)
+    if (!isPlatformApiRequest(args[0]) || isBackgroundRequest(args[1])) return nativeFetch(...args)
 
     beginLoading()
 

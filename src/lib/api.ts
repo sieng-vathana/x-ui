@@ -28,6 +28,21 @@ export function isPlatformApiRequest(input: RequestInfo | URL) {
   return targetUrl.origin === apiUrl.origin && (targetUrl.pathname === apiUrl.pathname || targetUrl.pathname.startsWith(`${apiUrl.pathname}/`))
 }
 
+type BackgroundRequestInit = RequestInit & { vposBackground?: boolean }
+
+/**
+ * Marks a request as background polling so the app-wide loader stays hidden.
+ * fetch ignores the extra flag; only the loader's fetch wrapper reads it.
+ */
+export function backgroundRequest(init: RequestInit = {}): RequestInit {
+  const marked: BackgroundRequestInit = { ...init, vposBackground: true }
+  return marked
+}
+
+export function isBackgroundRequest(init?: RequestInit) {
+  return Boolean((init as BackgroundRequestInit | undefined)?.vposBackground)
+}
+
 export function resolveImageUrl(url?: string): string | undefined {
   if (!url) return undefined
   if (url.startsWith('http://') || url.startsWith('https://') || url.startsWith('data:') || url.startsWith('blob:')) {

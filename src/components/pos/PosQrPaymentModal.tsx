@@ -19,7 +19,6 @@ export interface PosQrPaymentModalProps {
 }
 
 export function PosQrPaymentModal({ checkout, orderNo, onClose, onConfirmPaid, confirming = false, autoCheckError }: PosQrPaymentModalProps) {
-  const [copied, setCopied] = useState(false)
   const qrImageSource = checkout?.qrImageDataUrl
   const qrImageUrl = checkout?.qrImageUrl
   const [qrImageFailed, setQrImageFailed] = useState(false)
@@ -27,7 +26,8 @@ export function PosQrPaymentModal({ checkout, orderNo, onClose, onConfirmPaid, c
   const isFailed = checkout?.payment.status === 'FAILED' || checkout?.payment.status === 'CANCELLED'
   const isSimulated = checkout?.payment.provider === 'SIMULATED'
   const isBakong = checkout?.payment.provider === 'BAKONG'
-  const canConfirm = isBakong && !isPaid && !isFailed && Boolean(onConfirmPaid)
+  // Bakong payments are confirmed automatically; the manual button only appears when that check cannot run.
+  const canConfirm = isBakong && !isPaid && !isFailed && Boolean(autoCheckError) && Boolean(onConfirmPaid)
   const paymentTitle = isSimulated ? 'Simulated QR payment' : 'KHQR payment'
 
   useEffect(() => {
@@ -35,12 +35,6 @@ export function PosQrPaymentModal({ checkout, orderNo, onClose, onConfirmPaid, c
     const timeoutId = window.setTimeout(onClose, SUCCESS_DISPLAY_MS)
     return () => window.clearTimeout(timeoutId)
   }, [isBakong, isPaid, isSimulated, onClose])
-
-  const copyQrData = async () => {
-    if (!checkout?.qrPayload) return
-    await navigator.clipboard.writeText(checkout.qrPayload)
-    setCopied(true)
-  }
 
   return (
     <Modal
@@ -57,12 +51,6 @@ export function PosQrPaymentModal({ checkout, orderNo, onClose, onConfirmPaid, c
       bodyClassName="[@media(min-height:800px)]:!max-h-none [@media(min-height:800px)]:!overflow-y-visible"
       footer={
         <>
-          {checkout?.qrPayload && !isPaid ? (
-            <Button variant="secondary" onClick={() => void copyQrData()}>
-              <Icon name={copied ? 'check-line' : 'file-copy-line'} />
-              {copied ? 'Copied' : 'Copy KHQR data'}
-            </Button>
-          ) : null}
           {canConfirm ? (
             <Button variant="primary" onClick={onConfirmPaid} disabled={confirming}>
               <Icon name="check-line" />
@@ -154,7 +142,7 @@ export function PosQrPaymentModal({ checkout, orderNo, onClose, onConfirmPaid, c
                     : isBakong
                       ? autoCheckError
                         ? `Automatic check unavailable: ${autoCheckError} Check your bank app, then tap Customer paid.`
-                        : 'Checking Bakong for the payment… You can also tap Customer paid once it shows in your bank app.'
+                        : 'The payment is confirmed automatically as soon as it arrives.'
                       : 'Keep this QR visible until the customer finishes in their bank app.'}
             </span>
             <code
