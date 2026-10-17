@@ -20,6 +20,7 @@ type BusinessSettingsInput = {
   pricesIncludeTax?: boolean
   taxRegistrationNumber?: string
   taxRegistrationLabel?: string
+  bakongAccountId?: string
 }
 
 interface AuthContextValue {
@@ -93,6 +94,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       pricesIncludeTax: input.pricesIncludeTax,
       taxRegistrationNumber: input.taxRegistrationNumber,
       taxRegistrationLabel: input.taxRegistrationLabel,
+      bakongAccountId: input.bakongAccountId,
       logoUrl: user.business.logoUrl,
     })
     setUser({ ...user, business })

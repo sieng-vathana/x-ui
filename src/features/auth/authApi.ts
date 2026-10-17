@@ -23,6 +23,7 @@ type BackendBusiness = {
   taxRegistrationLabel?: string
   usdToKhrExchangeRate?: number
   pricesIncludeTax?: boolean
+  bakongAccountId?: string | null
   timeZone: string
 }
 type BackendAuthResponse = { user?: BackendUser; business?: BackendBusiness; stores?: BffStore[] }
@@ -47,6 +48,7 @@ function asUser(source: BackendUser, business?: BackendBusiness): AuthenticatedU
         usdToKhrExchangeRate: Number(business.usdToKhrExchangeRate ?? 4000),
         usdToKhrExchangeRateConfigured: Number(business.usdToKhrExchangeRate ?? 0) > 0,
         pricesIncludeTax: business.pricesIncludeTax ?? true,
+        bakongAccountId: business.bakongAccountId || undefined,
       }
     : {
         id: 'workspace',
@@ -138,6 +140,7 @@ export const authApi = {
     pricesIncludeTax?: boolean
     taxRegistrationNumber?: string
     taxRegistrationLabel?: string
+    bakongAccountId?: string
   }): Promise<BusinessProfile> {
     const response = await api.request<ApiEnvelope<BackendBusiness & { id: number; name: string; code: string }>>(
       `/businesses/${input.businessId}`,
@@ -150,6 +153,7 @@ export const authApi = {
           ...(input.pricesIncludeTax !== undefined ? { pricesIncludeTax: input.pricesIncludeTax } : {}),
           ...(input.taxRegistrationNumber !== undefined ? { taxRegistrationNumber: input.taxRegistrationNumber } : {}),
           ...(input.taxRegistrationLabel !== undefined ? { taxRegistrationLabel: input.taxRegistrationLabel } : {}),
+          ...(input.bakongAccountId !== undefined ? { bakongAccountId: input.bakongAccountId } : {}),
         }),
       },
     )
@@ -171,6 +175,7 @@ export const authApi = {
       usdToKhrExchangeRate: Number(response.data.usdToKhrExchangeRate ?? 4000),
       usdToKhrExchangeRateConfigured: Number(response.data.usdToKhrExchangeRate ?? 0) > 0,
       pricesIncludeTax: response.data.pricesIncludeTax ?? true,
+      bakongAccountId: response.data.bakongAccountId || undefined,
       logoUrl: input.logoUrl,
     }
   },

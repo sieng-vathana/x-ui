@@ -36,6 +36,9 @@ import {
   useCreateCashPayment,
   useCreateCardPayment,
   useCreateSimulatedPosQrCheckout,
+  useCreateBakongPosQrCheckout,
+  useConfirmPayment,
+  useBakongPaymentCheck,
   useCurrentCashSession,
   usePaymentStatus,
   useSimulatePaymentCallback,
@@ -118,8 +121,13 @@ export function PosPage() {
   const createOrderMutation = useCreatePosOrder()
   const createCashPaymentMutation = useCreateCashPayment()
   const createCardPaymentMutation = useCreateCardPayment()
-  const createPosQrCheckoutMutation = useCreateSimulatedPosQrCheckout()
+  const createSimulatedQrCheckoutMutation = useCreateSimulatedPosQrCheckout()
+  const createBakongQrCheckoutMutation = useCreateBakongPosQrCheckout()
+  // A saved Bakong account switches the POS from the demo QR to a real KHQR paid into that account.
+  const usesBakongKhqr = Boolean(user?.business.bakongAccountId)
+  const createPosQrCheckoutMutation = usesBakongKhqr ? createBakongQrCheckoutMutation : createSimulatedQrCheckoutMutation
   const simulatePaymentCallbackMutation = useSimulatePaymentCallback()
+  const confirmPaymentMutation = useConfirmPayment()
   const currentCashSessionQuery = useCurrentCashSession(
     storeId,
     Number(user?.id),
@@ -148,11 +156,20 @@ export function PosPage() {
   const completedQrPaymentIdRef = useRef<number | null>(null)
   const pendingQrReceiptWindowRef = useRef<Window | null>(null)
   const qrPaymentQuery = usePaymentStatus(qrCheckout?.response.payment.id)
+  const bakongCheckQuery = useBakongPaymentCheck(
+    qrCheckout?.response.payment.id,
+    qrCheckout?.response.payment.provider === 'BAKONG'
+      && (qrPaymentQuery.data?.status ?? qrCheckout.response.payment.status) === 'PENDING',
+  )
   const closeQrCheckout = useCallback(() => {
     const paymentStatus = qrPaymentQuery.data?.status ?? qrCheckout?.response.payment.status
     if (paymentStatus === 'PENDING') {
-      toast('This KHQR payment is still pending. Keep the checkout open until the provider confirms or rejects it.', 'warning')
-      return
+      // Nothing reports Bakong payments back, so the cashier may close an unpaid KHQR.
+      if (qrCheckout?.response.payment.provider !== 'BAKONG') {
+        toast('This KHQR payment is still pending. Keep the checkout open until the provider confirms or rejects it.', 'warning')
+        return
+      }
+      toast(`Payment not confirmed. Order ${qrCheckout.orderNo} was not completed.`, 'warning')
     }
     pendingQrReceiptWindowRef.current?.close()
     pendingQrReceiptWindowRef.current = null
@@ -753,16 +770,20 @@ export function PosPage() {
           paymentNote: items,
         })
         if (!checkout.payment.qrImageDataUrl?.startsWith('data:image/')) {
-          throw new Error('The simulated payment service did not return a valid QR image.')
+          throw new Error('The payment service did not return a valid QR image.')
         }
         setQrCheckout({ orderNo: checkout.order.orderNo, response: checkout.payment })
-        toast(`Simulated QR payment is ready for ${checkout.order.orderNo}.`, 'info')
-        window.setTimeout(() => {
-          void simulatePaymentCallbackMutation.mutateAsync(checkout.payment.payment.id)
-            .catch((error) => {
-              toast(error instanceof Error ? error.message : 'The simulated QR payment could not be verified.', 'error')
-            })
-        }, SIMULATED_QR_CALLBACK_DELAY_MS)
+        if (usesBakongKhqr) {
+          toast(`KHQR is ready for ${checkout.order.orderNo}. Tap Customer paid when the money arrives in your bank app.`, 'info')
+        } else {
+          toast(`Simulated QR payment is ready for ${checkout.order.orderNo}.`, 'info')
+          window.setTimeout(() => {
+            void simulatePaymentCallbackMutation.mutateAsync(checkout.payment.payment.id)
+              .catch((error) => {
+                toast(error instanceof Error ? error.message : 'The simulated QR payment could not be verified.', 'error')
+              })
+          }, SIMULATED_QR_CALLBACK_DELAY_MS)
+        }
       }
       setMobileOrderOpen(false)
       setCart({})
@@ -772,7 +793,7 @@ export function PosPage() {
       if (pendingQrReceiptWindowRef.current === receiptWindow) pendingQrReceiptWindowRef.current = null
       toast(error instanceof Error ? error.message : 'Checkout could not be completed.', 'error')
     }
-  }, [completeOrderMutation, createCardPaymentMutation, createCashPaymentMutation, createOrderMutation, createPosQrCheckoutMutation, currencyCode, currentCashSessionQuery.data, currentCashSessionQuery.isLoading, customerId, getReceiptOptions, lines, payment, settings.allowNegativeStock, settings.autoPrintReceipt, settings.requireCustomer, settings.roundingIncrement, simulatePaymentCallbackMutation, storeId, taxRate, toast, user])
+  }, [completeOrderMutation, createCardPaymentMutation, createCashPaymentMutation, createOrderMutation, createPosQrCheckoutMutation, currencyCode, currentCashSessionQuery.data, currentCashSessionQuery.isLoading, customerId, getReceiptOptions, lines, payment, settings.allowNegativeStock, settings.autoPrintReceipt, settings.requireCustomer, settings.roundingIncrement, simulatePaymentCallbackMutation, storeId, taxRate, toast, user, usesBakongKhqr])
 
   const checkoutPending = createOrderMutation.isPending
     || createCashPaymentMutation.isPending
@@ -780,6 +801,19 @@ export function PosPage() {
     || createPosQrCheckoutMutation.isPending
     || completeOrderMutation.isPending
     || createHeldSaleMutation.isPending
+
+  const confirmQrPayment = useCallback(async () => {
+    if (!qrCheckout) return
+    try {
+      // The KHQR hash stays as the reference so the payment can still be matched in Bakong later.
+      await confirmPaymentMutation.mutateAsync({
+        id: qrCheckout.response.payment.id,
+        externalReference: qrCheckout.response.transactionId,
+      })
+    } catch (error) {
+      toast(error instanceof Error ? error.message : 'The payment could not be confirmed.', 'error')
+    }
+  }, [confirmPaymentMutation, qrCheckout, toast])
 
   const liveQrPayment = qrPaymentQuery.data ?? qrCheckout?.response.payment
   const liveQrCheckout = qrCheckout && liveQrPayment
@@ -1581,6 +1615,9 @@ export function PosPage() {
         checkout={liveQrCheckout?.response ?? null}
         orderNo={liveQrCheckout?.orderNo}
         onClose={closeQrCheckout}
+        onConfirmPaid={() => void confirmQrPayment()}
+        confirming={confirmPaymentMutation.isPending}
+        autoCheckError={bakongCheckQuery.error instanceof Error ? bakongCheckQuery.error.message : undefined}
       />
     </div>
   )

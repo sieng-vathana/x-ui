@@ -23,6 +23,42 @@ export function useCreateSimulatedPosQrCheckout() {
   return useMutation({ mutationFn: paymentApi.createSimulatedPosQr })
 }
 
+export function useCreateBakongPosQrCheckout() {
+  return useMutation({ mutationFn: paymentApi.createBakongPosQr })
+}
+
+/** While a Bakong KHQR is pending, asks Bakong every few seconds whether it has been paid. */
+export function useBakongPaymentCheck(id: number | undefined, enabled: boolean) {
+  const queryClient = useQueryClient()
+
+  return useQuery({
+    queryKey: ['payment', id, 'bakong-check'],
+    queryFn: async () => {
+      const payment = await paymentApi.checkBakong(id!)
+      queryClient.setQueryData(['payment', payment.id], payment)
+      return payment
+    },
+    enabled: enabled && Boolean(id),
+    refetchInterval: (query) => (
+      query.state.status !== 'error' && query.state.data?.status === 'PENDING' ? 4000 : false
+    ),
+    retry: false,
+    refetchOnWindowFocus: false,
+    gcTime: 0,
+  })
+}
+
+export function useConfirmPayment() {
+  const queryClient = useQueryClient()
+
+  return useMutation({
+    mutationFn: paymentApi.confirm,
+    onSuccess: (payment) => {
+      queryClient.setQueryData(['payment', payment.id], payment)
+    },
+  })
+}
+
 export function useSimulatePaymentCallback() {
   const queryClient = useQueryClient()
 

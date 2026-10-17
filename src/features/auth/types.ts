@@ -12,6 +12,8 @@ export interface BusinessProfile {
   usdToKhrExchangeRate: number
   usdToKhrExchangeRateConfigured: boolean
   pricesIncludeTax: boolean
+  /** Bakong account that receives POS KHQR payments, e.g. shopname@aclb. */
+  bakongAccountId?: string
 }
 
 export interface AuthenticatedUser {

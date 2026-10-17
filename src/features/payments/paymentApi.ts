@@ -76,6 +76,35 @@ export const paymentApi = {
     )
   },
 
+  async createBakongPosQr(input: CreatePosQrCheckoutInput): Promise<PosQrCheckoutResponse> {
+    return requireData(
+      await api.request<ApiEnvelope<PosQrCheckoutResponse>>('/payments/pos-qr-bakong', {
+        method: 'POST',
+        body: JSON.stringify(input),
+      }),
+      'The Bakong KHQR checkout could not be created.',
+    )
+  },
+
+  /** Asks Bakong (through the payment service) whether a pending KHQR has been paid. */
+  async checkBakong(id: number): Promise<Payment> {
+    return requireData(
+      await api.request<ApiEnvelope<Payment>>(`/payments/${id}/bakong-check`, { method: 'POST' }),
+      'The Bakong payment status could not be checked.',
+    )
+  },
+
+  /** Cashier confirmation after the payment shows up in the shop's bank app. */
+  async confirm({ id, externalReference }: { id: number; externalReference: string }): Promise<Payment> {
+    return requireData(
+      await api.request<ApiEnvelope<Payment>>(`/payments/${id}/confirm`, {
+        method: 'POST',
+        body: JSON.stringify({ externalReference }),
+      }),
+      'The payment could not be confirmed.',
+    )
+  },
+
   async simulateCallback(id: number): Promise<Payment> {
     return requireData(
       await api.request<ApiEnvelope<Payment>>(`/payments/${encodeURIComponent(id)}/simulate-callback`, {

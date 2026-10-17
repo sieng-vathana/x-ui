@@ -11,9 +11,14 @@ export interface PosQrPaymentModalProps {
   checkout: QrPaymentResponse | null
   orderNo?: string
   onClose: () => void
+  /** Bakong KHQR only: the cashier saw the money arrive in the shop's bank app. */
+  onConfirmPaid?: () => void
+  confirming?: boolean
+  /** Why the automatic Bakong check is not running, e.g. no API token on the server. */
+  autoCheckError?: string
 }
 
-export function PosQrPaymentModal({ checkout, orderNo, onClose }: PosQrPaymentModalProps) {
+export function PosQrPaymentModal({ checkout, orderNo, onClose, onConfirmPaid, confirming = false, autoCheckError }: PosQrPaymentModalProps) {
   const [copied, setCopied] = useState(false)
   const qrImageSource = checkout?.qrImageDataUrl
   const qrImageUrl = checkout?.qrImageUrl
@@ -21,13 +26,15 @@ export function PosQrPaymentModal({ checkout, orderNo, onClose }: PosQrPaymentMo
   const isPaid = checkout?.payment.status === 'PAID'
   const isFailed = checkout?.payment.status === 'FAILED' || checkout?.payment.status === 'CANCELLED'
   const isSimulated = checkout?.payment.provider === 'SIMULATED'
+  const isBakong = checkout?.payment.provider === 'BAKONG'
+  const canConfirm = isBakong && !isPaid && !isFailed && Boolean(onConfirmPaid)
   const paymentTitle = isSimulated ? 'Simulated QR payment' : 'KHQR payment'
 
   useEffect(() => {
-    if (!isPaid || !isSimulated) return
+    if (!isPaid || !(isSimulated || isBakong)) return
     const timeoutId = window.setTimeout(onClose, SUCCESS_DISPLAY_MS)
     return () => window.clearTimeout(timeoutId)
-  }, [isPaid, isSimulated, onClose])
+  }, [isBakong, isPaid, isSimulated, onClose])
 
   const copyQrData = async () => {
     if (!checkout?.qrPayload) return
@@ -43,7 +50,9 @@ export function PosQrPaymentModal({ checkout, orderNo, onClose }: PosQrPaymentMo
       title={orderNo ? `${paymentTitle} · ${orderNo}` : paymentTitle}
       description={isSimulated
         ? 'This is a local QR simulation. It will be verified automatically.'
-        : 'Ask the customer to scan this code with a Cambodian banking app.'}
+        : isBakong
+          ? 'The customer pays straight into your Bakong account.'
+          : 'Ask the customer to scan this code with a Cambodian banking app.'}
       panelClassName="max-h-[calc(100dvh-2rem)] max-w-[500px]"
       bodyClassName="[@media(min-height:800px)]:!max-h-none [@media(min-height:800px)]:!overflow-y-visible"
       footer={
@@ -54,7 +63,13 @@ export function PosQrPaymentModal({ checkout, orderNo, onClose }: PosQrPaymentMo
               {copied ? 'Copied' : 'Copy KHQR data'}
             </Button>
           ) : null}
-          <Button variant="primary" onClick={onClose}>Done</Button>
+          {canConfirm ? (
+            <Button variant="primary" onClick={onConfirmPaid} disabled={confirming}>
+              <Icon name="check-line" />
+              {confirming ? 'Confirming…' : 'Customer paid'}
+            </Button>
+          ) : null}
+          <Button variant={canConfirm ? 'secondary' : 'primary'} onClick={onClose}>Done</Button>
         </>
       }
     >
@@ -127,14 +142,20 @@ export function PosQrPaymentModal({ checkout, orderNo, onClose }: PosQrPaymentMo
               {isPaid
                 ? isSimulated
                   ? 'The simulated callback confirmed the payment. The POS is completing the order.'
-                  : 'KHQRPay confirmed the payment. The POS is completing the order.'
+                  : isBakong
+                    ? 'Payment received. The POS is completing the order.'
+                    : 'KHQRPay confirmed the payment. The POS is completing the order.'
                 : isFailed
                   ? isSimulated
                     ? 'The simulated payment could not be verified.'
                     : 'The provider reported that this payment did not complete.'
                   : isSimulated
                     ? 'The payment will be marked successful automatically after a short delay.'
-                    : 'Keep this QR visible until the customer finishes in their bank app.'}
+                    : isBakong
+                      ? autoCheckError
+                        ? `Automatic check unavailable: ${autoCheckError} Check your bank app, then tap Customer paid.`
+                        : 'Checking Bakong for the payment… You can also tap Customer paid once it shows in your bank app.'
+                      : 'Keep this QR visible until the customer finishes in their bank app.'}
             </span>
             <code
               className="mt-4 block truncate rounded-[4px] bg-vpos-subtle px-3 py-2 font-mono text-[10px] text-vpos-muted"

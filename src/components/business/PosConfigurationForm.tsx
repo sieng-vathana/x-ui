@@ -10,7 +10,10 @@ type BusinessSettingsUpdate = (input: {
   pricesIncludeTax?: boolean
   taxRegistrationNumber?: string
   taxRegistrationLabel?: string
+  bakongAccountId?: string
 }) => Promise<void>
+
+const BAKONG_ACCOUNT_PATTERN = /^[A-Za-z0-9._-]+@[A-Za-z0-9._-]+$/
 
 export function PosConfigurationForm({
   business,
@@ -28,6 +31,12 @@ export function PosConfigurationForm({
   const [taxRegistrationNumber, setTaxRegistrationNumber] = useState(business.taxRegistrationNumber || '')
   const [taxRegistrationLabel, setTaxRegistrationLabel] = useState(business.taxRegistrationLabel || '')
   const [notice, setNotice] = useState('')
+  const [bakongAccountId, setBakongAccountId] = useState(business.bakongAccountId || '')
+  const [bakongNotice, setBakongNotice] = useState('')
+
+  useEffect(() => {
+    setBakongAccountId(business.bakongAccountId || '')
+  }, [business.bakongAccountId, business.id])
 
   useEffect(() => {
     setCurrency(business.defaultCurrencyCode || 'USD')
@@ -55,6 +64,22 @@ export function PosConfigurationForm({
       setNotice('Business currency defaults saved. POS conversion will use this rate.')
     } catch (error) {
       setNotice(error instanceof Error ? error.message : 'Business currency defaults could not be saved.')
+    }
+  }
+
+  const saveBakongAccount = async () => {
+    const account = bakongAccountId.trim()
+    if (account && !BAKONG_ACCOUNT_PATTERN.test(account)) {
+      setBakongNotice('Enter the Bakong account ID in the form name@bank.')
+      return
+    }
+    try {
+      await updateBusinessSettings({ name: business.name, bakongAccountId: account })
+      setBakongNotice(account
+        ? `KHQR payments now go to ${account}.`
+        : 'Bakong account removed. The POS shows the demo QR again.')
+    } catch (error) {
+      setBakongNotice(error instanceof Error ? error.message : 'The Bakong account could not be saved.')
     }
   }
 
@@ -140,6 +165,35 @@ export function PosConfigurationForm({
       </section>
 
       <section className="rounded-2xl border border-vpos-line bg-white p-5 sm:p-6">
+        <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+          <div>
+            <h3 className="m-0 text-[16px] font-extrabold text-vpos-text">KHQR payments (Bakong)</h3>
+            <p className="mt-1 mb-0 max-w-2xl text-[13px] leading-5 text-vpos-muted">
+              Customers scan the KHQR at checkout and pay straight into this Bakong account. With a Bakong API token on the server, the POS confirms the payment automatically; otherwise tap <strong>Customer paid</strong> once the money appears in your bank app.
+            </p>
+          </div>
+          <span className="inline-flex w-fit items-center gap-1.5 rounded-full bg-vpos-sand px-3 py-1.5 text-[12px] font-bold text-vpos-primary">
+            <Icon name="qr-code-line" /> {business.bakongAccountId ? 'Live KHQR' : 'Demo QR'}
+          </span>
+        </div>
+        <label className="mt-5 block max-w-md">
+          <span className="mb-2 block text-[12px] font-semibold tracking-[.02em] text-vpos-dark">Bakong account ID</span>
+          <input
+            value={bakongAccountId}
+            onChange={(event) => setBakongAccountId(event.target.value)}
+            maxLength={32}
+            placeholder="yourshop@bank"
+            autoComplete="off"
+            spellCheck={false}
+            className="h-[39px] w-full rounded-[4px] border border-vpos-line bg-white px-3.5 text-[14px] text-vpos-text outline-none focus:border-vpos-primary"
+          />
+          <small className="mt-1.5 block text-[11px] text-vpos-muted">Format: name@bank. Leave it empty to keep using the demo QR.</small>
+        </label>
+        {bakongNotice ? <p aria-live="polite" className="mt-4 rounded-lg border border-vpos-primary/15 bg-vpos-sand/60 px-3 py-2.5 text-[13px] font-medium text-vpos-primary-2">{bakongNotice}</p> : null}
+        <Button type="button" className="mt-4 rounded-lg" onClick={() => void saveBakongAccount()}><Icon name="save-3-line" /> Save KHQR account</Button>
+      </section>
+
+      <section className="rounded-2xl border border-vpos-line bg-white p-5 sm:p-6">
         <div>
           <h3 className="m-0 text-[16px] font-extrabold text-vpos-text">POS configuration</h3>
           <p className="mt-1 mb-0 text-[13px] leading-5 text-vpos-muted">These register preferences save on this device for this business and apply the next time POS opens.</p>
@@ -208,7 +262,7 @@ export function PosConfigurationForm({
 
         <div className="mt-6 grid gap-3 border-t border-vpos-line pt-5 sm:grid-cols-2 lg:grid-cols-3">
           <Toggle label="Cash payments" description="Allow cash tender and change." checked={settings.cashEnabled} onChange={(value) => togglePaymentMethod('cash', value)} />
-          <Toggle label="QR payments" description="Use the simulated KHQR checkout." checked={settings.qrEnabled} onChange={(value) => togglePaymentMethod('qr', value)} />
+          <Toggle label="QR payments" description={business.bakongAccountId ? 'KHQR paid into your Bakong account.' : 'Demo KHQR until a Bakong account is saved.'} checked={settings.qrEnabled} onChange={(value) => togglePaymentMethod('qr', value)} />
           <Toggle label="Card payments" description="Record a manually processed card payment." checked={settings.cardEnabled} onChange={(value) => togglePaymentMethod('card', value)} />
           <Toggle label="Apply product tax" description="Include the product tax rate in POS totals." checked={settings.taxEnabled} onChange={(value) => updateSettings({ taxEnabled: value })} />
           <Toggle label="Allow discounts" description="Show the per-line discount action." checked={settings.allowDiscounts} onChange={(value) => updateSettings({ allowDiscounts: value })} />
