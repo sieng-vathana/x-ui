@@ -6,6 +6,8 @@ import type {
   StockChangeInput,
   StockMovementFilters,
   StockMovementType,
+  ExpiryBatchFilter,
+  ExpiryWriteOffInput,
 } from './stockApi'
 import { stockApi } from './stockApi'
 
@@ -76,6 +78,47 @@ export function useLowStock(storeId?: string | number, threshold = 5, page = 0, 
   })
 }
 
+export function useExpiryBatches(storeId?: string | number, filter: ExpiryBatchFilter = 'ALL', page = 0, size = 25) {
+  const normalizedStoreId = Number(storeId)
+  const validStoreId = Number.isInteger(normalizedStoreId) && normalizedStoreId > 0 ? normalizedStoreId : undefined
+  return useQuery({
+    queryKey: ['stock-expiry-batches', { storeId: validStoreId, filter, page, size }],
+    queryFn: () => stockApi.expiryBatches(validStoreId!, filter, page, size),
+    enabled: Boolean(validStoreId),
+    staleTime: 15 * 1000,
+    retry: shouldRetryStockQuery,
+  })
+}
+
+export function useExpirySummary(storeId?: string | number) {
+  const normalizedStoreId = Number(storeId)
+  const validStoreId = Number.isInteger(normalizedStoreId) && normalizedStoreId > 0 ? normalizedStoreId : undefined
+  return useQuery({
+    queryKey: ['stock-expiry-summary', validStoreId],
+    queryFn: () => stockApi.expirySummary(validStoreId!),
+    enabled: Boolean(validStoreId),
+    staleTime: 15 * 1000,
+    retry: shouldRetryStockQuery,
+  })
+}
+
+export function useWriteOffExpiredBatch() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: ({ batchId, input }: { batchId: number; input: ExpiryWriteOffInput }) =>
+      stockApi.writeOffExpiredBatch(batchId, input),
+    onSuccess: async () => {
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: ['stock-expiry-batches'] }),
+        queryClient.invalidateQueries({ queryKey: ['stock-expiry-summary'] }),
+        queryClient.invalidateQueries({ queryKey: ['stock-balance'] }),
+        queryClient.invalidateQueries({ queryKey: ['stock-movements'] }),
+        queryClient.invalidateQueries({ queryKey: ['stock-low'] }),
+      ])
+    },
+  })
+}
+
 function useStockChange(mutationFn: (input: StockChangeInput) => Promise<StockBalance>) {
   const queryClient = useQueryClient()
 
@@ -86,6 +129,8 @@ function useStockChange(mutationFn: (input: StockChangeInput) => Promise<StockBa
         queryClient.invalidateQueries({ queryKey: ['stock-balance'] }),
         queryClient.invalidateQueries({ queryKey: ['stock-movements'] }),
         queryClient.invalidateQueries({ queryKey: ['stock-low'] }),
+        queryClient.invalidateQueries({ queryKey: ['stock-expiry-batches'] }),
+        queryClient.invalidateQueries({ queryKey: ['stock-expiry-summary'] }),
       ])
     },
   })

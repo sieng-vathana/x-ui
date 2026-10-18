@@ -40,6 +40,8 @@ const MOVEMENT_TYPES: Array<{ value: StockMovementType; label: string }> = [
   { value: 'RESERVATION_CONSUMED', label: 'Reservation consumed' },
   { value: 'RESERVATION_REOPENED', label: 'Reservation reopened' },
   { value: 'RESERVATION_EXPIRED', label: 'Reservation expired' },
+  { value: 'EXPIRY_WRITE_OFF', label: 'Expired stock written off' },
+  { value: 'BATCH_DETAILS_UPDATED', label: 'Batch details updated' },
 ]
 
 interface MovementRow {
@@ -110,6 +112,8 @@ export function StockMovementPage() {
   const [variantId, setVariantId] = useState('')
   const [quantity, setQuantity] = useState('1')
   const [note, setNote] = useState('')
+  const [batchCode, setBatchCode] = useState('')
+  const [expiryDate, setExpiryDate] = useState('')
 
   const movementQuery = useStockMovements({ storeId, movementType: type || undefined, page, size: PAGE_SIZE })
   const productsQuery = useProductsList(storeId)
@@ -187,6 +191,8 @@ export function StockMovementPage() {
     setVariantId(variantOptions[0]?.value ?? '')
     setQuantity('1')
     setNote('')
+    setBatchCode('')
+    setExpiryDate('')
     setAdjustmentOpen(true)
   }
 
@@ -214,6 +220,8 @@ export function StockMovementPage() {
       referenceType: 'ADJUSTMENT',
       performedBy: Number(user?.id) || undefined,
       note: note.trim(),
+      ...(activeDirection === 'in' && batchCode.trim() ? { batchCode: batchCode.trim() } : {}),
+      ...(activeDirection === 'in' && expiryDate ? { expiryDate } : {}),
     }
 
     try {
@@ -330,6 +338,18 @@ export function StockMovementPage() {
             <span className="mb-2 block text-[12px] font-semibold text-vpos-dark">Quantity <b className="text-vpos-red">*</b></span>
             <input type="number" min="1" step="1" value={quantity} onChange={(event) => setQuantity(event.target.value)} className="h-[39px] w-full rounded-[4px] border border-vpos-line bg-white px-3.5 text-[14px] text-vpos-text outline-none focus:border-vpos-primary" />
           </label>
+          {activeDirection === 'in' ? (
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+              <label className="block">
+                <span className="mb-2 block text-[12px] font-semibold text-vpos-dark">Supplier batch code</span>
+                <input value={batchCode} onChange={(event) => setBatchCode(event.target.value)} maxLength={100} className="h-[39px] w-full rounded-[4px] border border-vpos-line bg-white px-3.5 text-[14px] text-vpos-text outline-none focus:border-vpos-primary" placeholder="Optional" />
+              </label>
+              <label className="block">
+                <span className="mb-2 block text-[12px] font-semibold text-vpos-dark">Expiry date</span>
+                <input type="date" value={expiryDate} onChange={(event) => setExpiryDate(event.target.value)} className="h-[39px] w-full rounded-[4px] border border-vpos-line bg-white px-3.5 text-[14px] text-vpos-text outline-none focus:border-vpos-primary" />
+              </label>
+            </div>
+          ) : null}
           <label className="block">
             <span className="mb-2 block text-[12px] font-semibold text-vpos-dark">Reason / note <b className="text-vpos-red">*</b></span>
             <textarea value={note} onChange={(event) => setNote(event.target.value)} rows={3} maxLength={500} className="w-full rounded-[4px] border border-vpos-line bg-white p-3 text-[14px] text-vpos-text outline-none focus:border-vpos-primary" placeholder="For example: stock count correction or damaged goods" />

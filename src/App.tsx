@@ -9,6 +9,7 @@ import { ProductDetailPage } from './pages/ProductDetailPage'
 import { ProductFormPage } from './pages/ProductFormPage'
 import { ProductsPage } from './pages/ProductsPage'
 import { LowStockPage } from './pages/products/LowStockPage'
+import { ExpiryManagementPage } from './pages/products/ExpiryManagementPage'
 import { ProductOptionsPage } from './pages/products/ProductOptionsPage'
 import { ProductBrandsPage } from './pages/products/ProductBrandsPage'
 import { ProductCategoriesPage } from './pages/products/ProductCategoriesPage'
@@ -117,6 +118,9 @@ export default function App() {
                 <Route path="products/:id" element={<ProductDetailPage />} />
                 <Route path="products/:sku/edit" element={<ProductFormPage />} />
                 <Route path="inventory" element={<Navigate to="/products/low-stock" replace />} />
+                <Route element={<RequirePermission permission="x-inventory:read" />}>
+                  <Route path="products/expiry" element={<ExpiryManagementPage />} />
+                </Route>
                 <Route path="stores" element={<StoresPage />} />
                 <Route element={<RequirePermission permission="x-order:read" />}>
                   <Route path="orders" element={<OrderManagementPage />} />

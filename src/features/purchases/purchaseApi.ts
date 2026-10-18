@@ -73,7 +73,12 @@ export const purchaseApi = {
     )
   },
 
-  async receive(businessId: number, id: number, lines: Array<{ lineId: number; quantity: number }>, note?: string): Promise<PurchaseOrder> {
+  async receive(businessId: number, id: number, lines: Array<{
+    lineId: number
+    quantity: number
+    batchCode?: string
+    expiryDate?: string
+  }>, note?: string): Promise<PurchaseOrder> {
     return requireData(
       await api.request<ApiEnvelope<PurchaseOrder>>(`/purchases/orders/${id}/receive?businessId=${businessId}`, json('POST', { lines, note })),
       'The goods could not be received.',

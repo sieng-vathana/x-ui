@@ -62,6 +62,8 @@ function useRefresh() {
     void queryClient.invalidateQueries({ queryKey: ['stock-balance'] })
     void queryClient.invalidateQueries({ queryKey: ['stock-movements'] })
     void queryClient.invalidateQueries({ queryKey: ['stock-low'] })
+    void queryClient.invalidateQueries({ queryKey: ['stock-expiry-batches'] })
+    void queryClient.invalidateQueries({ queryKey: ['stock-expiry-summary'] })
   }
 }
 
@@ -100,7 +102,12 @@ export function useReceivePurchaseOrder() {
   const businessId = useBusinessId()
   const refresh = useRefresh()
   return useMutation({
-    mutationFn: ({ id, lines, note }: { id: number; lines: Array<{ lineId: number; quantity: number }>; note?: string }) =>
+    mutationFn: ({ id, lines, note }: { id: number; lines: Array<{
+      lineId: number
+      quantity: number
+      batchCode?: string
+      expiryDate?: string
+    }>; note?: string }) =>
       purchaseApi.receive(businessId, id, lines, note),
     onSuccess: refresh,
   })

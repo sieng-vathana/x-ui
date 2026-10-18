@@ -32,11 +32,14 @@ export type StockMovementType =
   | 'RESERVATION_CONSUMED'
   | 'RESERVATION_REOPENED'
   | 'RESERVATION_EXPIRED'
+  | 'EXPIRY_WRITE_OFF'
+  | 'BATCH_DETAILS_UPDATED'
 
 export interface StockMovement {
   id: number
   storeId: number
   variantId: number
+  batchId?: number | null
   movementType: StockMovementType
   quantityDelta: number
   referenceType?: string | null
@@ -73,6 +76,51 @@ export interface StockChangeInput {
   referenceId?: string
   performedBy?: number
   note?: string
+  batchCode?: string
+  expiryDate?: string
+}
+
+export type ExpiryBatchFilter = 'ALL' | 'EXPIRED' | 'WITHIN_7_DAYS' | 'WITHIN_30_DAYS' | 'NO_DATE'
+
+export interface ExpiryBatch {
+  id: number
+  storeId: number
+  variantId: number
+  batchCode?: string | null
+  expiryDate?: string | null
+  quantityReceived: number
+  quantityOnHand: number
+  availableQuantity: number
+  sourceType: string
+  sourceReference?: string | null
+  receivedAt: string
+}
+
+export interface ExpiryBatchPage {
+  content: ExpiryBatch[]
+  page: number
+  size: number
+  totalElements: number
+  totalPages: number
+  hasNext: boolean
+}
+
+export interface ExpirySummary {
+  expiredBatchCount: number
+  expiredUnits: number
+  within7DaysBatchCount: number
+  within7DaysUnits: number
+  within30DaysBatchCount: number
+  within30DaysUnits: number
+  undatedBatchCount: number
+  undatedUnits: number
+}
+
+export interface ExpiryWriteOffInput {
+  storeId: number
+  quantity: number
+  reason: string
+  performedBy?: number
 }
 
 type ApiEnvelope<T> = { data?: T; message?: string; error?: string }
@@ -126,6 +174,27 @@ export const stockApi = {
       '/stock/movements?' + params.toString(),
     )
     return requireData(response, 'Stock movements could not be loaded.')
+  },
+
+  async expiryBatches(storeId: number, filter: ExpiryBatchFilter = 'ALL', page = 0, size = 25): Promise<ExpiryBatchPage> {
+    const params = new URLSearchParams({ storeId: String(storeId), filter, page: String(page), size: String(size) })
+    const response = await api.request<ApiEnvelope<ExpiryBatchPage>>('/stock/expiry/batches?' + params.toString())
+    return requireData(response, 'Expiry batches could not be loaded.')
+  },
+
+  async expirySummary(storeId: number): Promise<ExpirySummary> {
+    const params = new URLSearchParams({ storeId: String(storeId) })
+    const response = await api.request<ApiEnvelope<ExpirySummary>>('/stock/expiry/summary?' + params.toString())
+    return requireData(response, 'Expiry summary could not be loaded.')
+  },
+
+  async writeOffExpiredBatch(batchId: number, input: ExpiryWriteOffInput): Promise<StockBalance> {
+    const params = new URLSearchParams({ storeId: String(input.storeId) })
+    const response = await api.request<ApiEnvelope<StockBalance>>(
+      `/stock/expiry/batches/${batchId}/write-off?${params.toString()}`,
+      { method: 'POST', body: JSON.stringify({ quantity: input.quantity, reason: input.reason }) },
+    )
+    return requireData(response, 'Expired stock could not be written off.')
   },
 
   async stockIn(input: StockChangeInput): Promise<StockBalance> {

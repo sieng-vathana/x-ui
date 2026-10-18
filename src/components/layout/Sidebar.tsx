@@ -44,6 +44,7 @@ const productSubItems: Array<{ to: string; label: string; end?: boolean; permiss
   { to: paths.productCategories, label: 'Category', permission: 'x-product:category' },
   { to: paths.productOptions, label: 'Options' },
   { to: paths.productStockMovement, label: 'Stock movement' }, { to: paths.productLowStock, label: 'Low stock' },
+  { to: paths.productExpiry, label: 'Expiry management', permission: 'x-inventory:read' },
 ]
 
 const purchaseSubItems = [
