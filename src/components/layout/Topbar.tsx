@@ -45,6 +45,7 @@ export function Topbar({
   const headerOffset = !sidebar.isMobile && sidebar.config.visibility === 'show' && sidebar.config.layout !== 'horizontal' ? sidebarWidth : 0
   const renderBrand = showBrand && sidebar.config.layout === 'horizontal'
   const darkTopbar = sidebar.config.topbar === 'dark' || isDarkThemeMode(sidebar.config.colorMode)
+  const hasPageControls = Boolean(onBack || afterBack || actions)
 
   return (
     <>
@@ -52,13 +53,14 @@ export function Topbar({
       <header
         data-app-topbar={darkTopbar ? 'dark' : sidebar.config.topbar}
         className={cn(
-          'fixed top-0 right-0 left-0 z-30 flex h-[70px] items-center justify-between gap-2 border-b border-vpos-line bg-vpos-surface px-[clamp(16px,2vw,32px)] max-sm:px-3',
+          'fixed top-0 right-0 left-0 z-30 flex h-[70px] items-center justify-between gap-2 border-b border-vpos-line bg-vpos-surface px-[clamp(16px,2vw,32px)] max-sm:h-auto max-sm:min-h-[102px] max-sm:flex-col max-sm:items-stretch max-sm:justify-center max-sm:gap-1.5 max-sm:px-3 max-sm:py-2',
+          hasPageControls && 'max-sm:min-h-[148px]',
           darkTopbar && 'border-vpos-topbar-border bg-vpos-topbar-dark text-white',
           className,
         )}
         style={{ left: headerOffset }}
       >
-        <div className="flex min-w-0 items-center gap-2 sm:gap-4">
+        <div className="flex min-w-0 items-center gap-2 sm:gap-4 max-sm:w-full max-sm:h-[38px]">
           {/* Collapse / expand — top left */}
           <button
             type="button"
@@ -108,24 +110,30 @@ export function Topbar({
           </div>
         </div>
 
-        <div className="flex shrink-0 items-center gap-1.5 sm:gap-3">
-          {onBack ? (
-            <button
-              type="button"
-              onClick={onBack}
-              className={cn(
-                'inline-flex h-[38px] shrink-0 items-center justify-center gap-1.5 rounded-[3px] px-2 text-[13px] font-semibold transition-colors sm:px-3.5',
-                darkTopbar
-                  ? 'border border-vpos-topbar-border bg-vpos-topbar-control text-vpos-topbar-text hover:bg-vpos-topbar-hover'
-                  : 'border border-vpos-line bg-vpos-surface text-vpos-text hover:bg-vpos-subtle',
-              )}
-            >
-              <Icon name="arrow-left-line" className="text-[17px]" />
-              <span className="hidden sm:inline">{backLabel}</span>
-            </button>
+        <div className="flex shrink-0 items-center gap-1.5 sm:gap-3 max-sm:w-full max-sm:flex-col max-sm:items-stretch max-sm:gap-1">
+          {hasPageControls ? (
+            <div className="flex min-w-0 items-center gap-1.5 sm:gap-3 max-sm:h-10 max-sm:justify-end">
+              {onBack ? (
+                <button
+                  type="button"
+                  onClick={onBack}
+                  className={cn(
+                    'inline-flex h-[38px] shrink-0 items-center justify-center gap-1.5 rounded-[3px] px-2 text-[13px] font-semibold transition-colors sm:px-3.5',
+                    darkTopbar
+                      ? 'border border-vpos-topbar-border bg-vpos-topbar-control text-vpos-topbar-text hover:bg-vpos-topbar-hover'
+                      : 'border border-vpos-line bg-vpos-surface text-vpos-text hover:bg-vpos-subtle',
+                  )}
+                >
+                  <Icon name="arrow-left-line" className="text-[17px]" />
+                  <span className="hidden sm:inline">{backLabel}</span>
+                </button>
+              ) : null}
+              {afterBack}
+              {actions}
+            </div>
           ) : null}
-          {afterBack}
-          {actions}
+
+          <div className="flex items-center gap-1.5 sm:gap-3 max-sm:h-[38px] max-sm:justify-end">
           {showNotifications ? (
             <button
               type="button"
@@ -162,10 +170,11 @@ export function Topbar({
           {/* Greeting + username UI after notifications (all pages) */}
           <UserMenu userName={user?.name} role={user?.role} />
           <LocaleSwitcher />
+          </div>
         </div>
       </header>
       {/* Spacer so page content is not under the fixed bar */}
-      <div className={cn('h-[70px] shrink-0', sidebar.config.position === 'scrollable' && 'hidden')} aria-hidden />
+      <div className={cn('h-[70px] shrink-0 max-sm:h-[102px]', hasPageControls && 'max-sm:h-[148px]', sidebar.config.position === 'scrollable' && 'hidden')} aria-hidden />
     </>
   )
 }
