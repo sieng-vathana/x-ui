@@ -39,6 +39,7 @@ export const paths = {
   settings: '/settings',
   settingsPos: '/settings/pos',
   settingsLayout: '/settings/layout',
+  settingsTelegram: '/settings/telegram',
   users: '/users',
   roles: '/roles',
 } as const
