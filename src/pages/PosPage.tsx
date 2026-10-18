@@ -792,7 +792,7 @@ export function PosPage() {
     }
   }, [completeOrderMutation, createCardPaymentMutation, createOrderMutation, createPosQrCheckoutMutation, getReceiptOptions, lines, payment, prepareCheckout, settings.autoPrintReceipt, simulatePaymentCallbackMutation, toast, usesBakongKhqr])
 
-  const completeCashPayment = useCallback(async (received: CashReceived) => {
+  const completeCashPayment = useCallback(async (received: CashReceived, shownTotal: number) => {
     const checkout = prepareCheckout()
     if (!checkout) return
     const { businessId, selectedStoreId, cashierId, input } = checkout
@@ -800,8 +800,11 @@ export function PosPage() {
 
     try {
       const order = await createOrderMutation.mutateAsync(input)
-      // The dialog checked the cash against the POS total; check it again against the saved order.
-      const tender = evaluateCashTender(order.grandTotal, order.currencyCode, received, usdToKhrRate)
+      // The dialog checked the cash against the total on screen. The saved order rounds tax per line, so it can
+      // differ by a cent; then the screen total stands. A bigger difference must still be covered.
+      const roundingTolerance = order.currencyCode === 'KHR' ? 200 : 0.05
+      const due = Math.abs(order.grandTotal - shownTotal) <= roundingTolerance ? Math.min(order.grandTotal, shownTotal) : order.grandTotal
+      const tender = evaluateCashTender(due, order.currencyCode, received, usdToKhrRate)
       if (!tender.enough) {
         throw new Error(`Order ${order.orderNo} totals ${formatCurrency(order.grandTotal, order.currencyCode)}. The cash received does not cover it.`)
       }
@@ -812,7 +815,7 @@ export function PosPage() {
         storeId: selectedStoreId,
         cashierId,
         amount: order.grandTotal,
-        tenderedAmount: tender.tendered,
+        tenderedAmount: Math.max(order.grandTotal, tender.tendered),
         currencyCode: order.currencyCode,
         method: 'CASH',
         provider: 'NONE',
@@ -1669,7 +1672,7 @@ export function PosPage() {
         onClose={() => {
           if (!checkoutPending) setCashPaymentOpen(false)
         }}
-        onConfirm={(received) => void completeCashPayment(received)}
+        onConfirm={(received) => void completeCashPayment(received, total)}
       />
     </div>
   )
