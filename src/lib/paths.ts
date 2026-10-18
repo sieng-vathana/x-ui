@@ -15,6 +15,7 @@ export const paths = {
   productStockMovement: '/products/stock-movement',
   productLowStock: '/products/low-stock',
   productExpiry: '/products/expiry',
+  productStockTransfers: '/products/stock-transfers',
   /** @deprecated use product stock pages under Products */
   inventory: '/products/low-stock',
   stores: '/stores',

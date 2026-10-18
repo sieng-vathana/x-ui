@@ -1,4 +1,4 @@
-import type { HTMLAttributes } from 'react'
+import { useEffect, useState, type HTMLAttributes } from 'react'
 import { cn } from '../../lib/cn'
 import { resolveImageUrl } from '../../lib/api'
 import type { ProductTone } from '../../data/mockup'
@@ -27,16 +27,25 @@ export function ProductThumb({
   ...rest
 }: ProductThumbProps) {
   const fullSrc = resolveImageUrl(src)
-  if (fullSrc) {
+  const [failedSrc, setFailedSrc] = useState<string>()
+
+  useEffect(() => {
+    if (failedSrc !== undefined && failedSrc !== src) setFailedSrc(undefined)
+  }, [failedSrc, src])
+
+  const imageClass = cn(
+    'shrink-0 object-cover border border-vpos-line',
+    large ? 'h-[122px] w-full rounded-[10px]' : 'h-[42px] w-[42px] rounded-[9px]',
+    className,
+  )
+
+  if (fullSrc && failedSrc !== src) {
     return (
       <img
         src={fullSrc}
         alt=""
-        className={cn(
-          'shrink-0 object-cover border border-vpos-line',
-          large ? 'h-[122px] w-full rounded-[10px]' : 'h-[42px] w-[42px] rounded-[9px]',
-          className,
-        )}
+        className={imageClass}
+        onError={() => setFailedSrc(src)}
       />
     )
   }
@@ -44,13 +53,15 @@ export function ProductThumb({
   return (
     <span
       className={cn(
-        'block shrink-0',
+        'grid shrink-0 place-items-center border border-vpos-line text-vpos-muted',
         large ? 'h-[122px] w-full rounded-[10px]' : 'h-[42px] w-[42px] rounded-[9px]',
         toneBg[tone] ?? toneBg.sand,
         className,
       )}
       aria-hidden
       {...rest}
-    />
+    >
+      <span className="sr-only">Image unavailable</span>
+    </span>
   )
 }

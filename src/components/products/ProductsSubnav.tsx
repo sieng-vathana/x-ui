@@ -12,6 +12,7 @@ const items: Array<{ to: string; label: string; end?: boolean; permission?: stri
   { to: paths.productStockMovement, label: 'Stock movement' },
   { to: paths.productLowStock, label: 'Low stock' },
   { to: paths.productExpiry, label: 'Expiry management', permission: 'x-inventory:read' },
+  { to: paths.productStockTransfers, label: 'Stock transfers', permission: 'x-inventory:read' },
 ]
 
 export function ProductsSubnav() {

@@ -10,6 +10,7 @@ import { ProductFormPage } from './pages/ProductFormPage'
 import { ProductsPage } from './pages/ProductsPage'
 import { LowStockPage } from './pages/products/LowStockPage'
 import { ExpiryManagementPage } from './pages/products/ExpiryManagementPage'
+import { StockTransfersPage } from './pages/products/StockTransfersPage'
 import { ProductOptionsPage } from './pages/products/ProductOptionsPage'
 import { ProductBrandsPage } from './pages/products/ProductBrandsPage'
 import { ProductCategoriesPage } from './pages/products/ProductCategoriesPage'
@@ -120,6 +121,7 @@ export default function App() {
                 <Route path="inventory" element={<Navigate to="/products/low-stock" replace />} />
                 <Route element={<RequirePermission permission="x-inventory:read" />}>
                   <Route path="products/expiry" element={<ExpiryManagementPage />} />
+                  <Route path="products/stock-transfers" element={<StockTransfersPage />} />
                 </Route>
                 <Route path="stores" element={<StoresPage />} />
                 <Route element={<RequirePermission permission="x-order:read" />}>

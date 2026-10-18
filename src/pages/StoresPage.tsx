@@ -33,7 +33,8 @@ import {
   pageContent,
   searchField,
 } from '../lib/ui'
-import { resolveImageUrl } from '../features/files/fileApi'
+import { resolveImageUrl as resolveStoredImageUrl } from '../features/files/fileApi'
+import { resolveImageUrl as resolvePortalImageUrl } from '../lib/api'
 
 const STATUS_MAP: Record<number, { label: string; className: string }> = {
   1: { label: 'Active', className: 'bg-vpos-green-bg text-vpos-green' },
@@ -74,21 +75,19 @@ function storeImage(store: BffStore): string | undefined {
 }
 
 function StoreTableImage({ source }: { source: string | undefined }) {
-  const [imageUrl, setImageUrl] = useState<string | undefined>(() =>
-    source?.startsWith('/api/v1/files/') ? undefined : source,
-  )
+  const [imageUrl, setImageUrl] = useState<string | undefined>(() => resolvePortalImageUrl(source))
 
   useEffect(() => {
     let active = true
-    setImageUrl(source?.startsWith('/api/v1/files/') ? undefined : source)
-    void resolveImageUrl(source).then((resolvedUrl) => {
+    setImageUrl(resolvePortalImageUrl(source))
+    void resolveStoredImageUrl(source).then((resolvedUrl) => {
       if (active) setImageUrl(resolvedUrl)
     })
     return () => { active = false }
   }, [source])
 
   return imageUrl ? (
-    <img src={imageUrl} alt="" className="h-10 w-10 rounded-full object-cover" />
+    <img src={imageUrl} alt="" className="h-10 w-10 rounded-full object-cover" onError={() => setImageUrl(undefined)} />
   ) : (
     <span className="grid h-10 w-10 place-items-center rounded-full bg-vpos-sand text-[15px] text-vpos-primary">
       <Icon name="store-2-line" />

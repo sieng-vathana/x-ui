@@ -1,4 +1,4 @@
-import { API_BASE_URL } from '../../lib/api'
+import { API_BASE_URL, resolveImageUrl as resolvePortalImageUrl } from '../../lib/api'
 import type { FileResponse } from './types'
 
 type ApiEnvelope<T> = { data?: T; message?: string }
@@ -22,16 +22,28 @@ export function fileUrl(file: FileResponse): string {
 /** Resolves legacy BFF file-content paths to storage's direct AWS/public URL. */
 export async function resolveImageUrl(imageUrl: string | undefined): Promise<string | undefined> {
   if (!imageUrl) return undefined
-  const match = LEGACY_FILE_CONTENT_PATH.exec(imageUrl)
+  let parsed: URL
+  try {
+    parsed = new URL(imageUrl, window.location.origin)
+  } catch {
+    return imageUrl
+  }
+  const match = LEGACY_FILE_CONTENT_PATH.exec(parsed.pathname)
   if (!match) return imageUrl
+
+  // Old records often persisted the API hostname. Keep protected media on the
+  // portal origin so its HttpOnly session cookie is available to the request.
+  if (parsed.origin !== window.location.origin && /^https?:\/\//i.test(imageUrl)) {
+    return resolvePortalImageUrl(imageUrl)
+  }
 
   const response = await fetch(`${API_BASE_URL}/files/${match[1]}`, {
     credentials: 'include',
     headers: { Accept: 'application/json' },
   })
-  if (!response.ok) return undefined
+  if (!response.ok) return resolvePortalImageUrl(imageUrl)
   const envelope = await response.json() as ApiEnvelope<FileResponse>
-  return envelope.data?.url?.trim() || undefined
+  return resolvePortalImageUrl(envelope.data?.url?.trim() || imageUrl)
 }
 
 export const fileApi = {

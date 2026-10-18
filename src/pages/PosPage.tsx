@@ -309,7 +309,7 @@ export function PosPage() {
              : canConvertCurrency((product.currencyCode || 'USD').toUpperCase(), currencyCode)
                ? convertCurrency(Number(variant.compareAtPrice), (product.currencyCode || 'USD').toUpperCase(), currencyCode, usdToKhrRate)
                : Number(variant.compareAtPrice),
-           image: resolveImageUrl(variant.image),
+           image: resolveImageUrl(variant.image || product.thumbnail || product.images?.[0]?.imageUrl),
            sku: variant.sku,
            barcode: variant.barcode,
           categoryId,

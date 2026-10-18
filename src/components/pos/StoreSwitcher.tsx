@@ -3,6 +3,7 @@ import { cn } from '../../lib/cn'
 import { stores as defaultStores } from '../../data/mockup'
 import { useStores } from '../../features/stores/useStores'
 import { useDelayedLoading } from '../../hooks/useDelayedLoading'
+import { resolveImageUrl } from '../../lib/api'
 import { Icon } from '../ui/Icon'
 import { Skeleton } from '../ui/Skeleton'
 
@@ -21,6 +22,15 @@ export interface StoreSwitcherProps {
   variant?: 'default' | 'pos'
   compactOnMobile?: boolean
   className?: string
+}
+
+function StoreImage({ src, className }: { src: string; className: string }) {
+  const [failed, setFailed] = useState(false)
+  useEffect(() => setFailed(false), [src])
+  if (failed) {
+    return <span className={cn('grid place-items-center bg-vpos-sand text-vpos-primary', className)}><Icon name="store-2-line" /></span>
+  }
+  return <img src={resolveImageUrl(src)} alt="" className={className} onError={() => setFailed(true)} />
 }
 
 export function StoreSwitcher({
@@ -83,11 +93,7 @@ export function StoreSwitcher({
         )}
       >
         {selected?.image ? (
-          <img
-            src={selected.image}
-            alt=""
-            className={cn('h-[26px] w-[26px] shrink-0 rounded-[7px] object-cover', compactOnMobile && 'max-xl:hidden')}
-          />
+          <StoreImage src={selected.image} className={cn('h-[26px] w-[26px] shrink-0 rounded-[7px] object-cover', compactOnMobile && 'max-xl:hidden')} />
         ) : (
           <span
             className={cn(
@@ -161,11 +167,7 @@ export function StoreSwitcher({
                 }}
               >
                 {store.image ? (
-                  <img
-                    src={store.image}
-                    alt=""
-                    className="h-8 w-8 shrink-0 rounded-lg object-cover"
-                  />
+                  <StoreImage src={store.image} className="h-8 w-8 shrink-0 rounded-lg object-cover" />
                 ) : (
                   <span
                     className={cn(

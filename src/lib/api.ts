@@ -45,13 +45,22 @@ export function isBackgroundRequest(init?: RequestInit) {
 
 export function resolveImageUrl(url?: string): string | undefined {
   if (!url) return undefined
-  if (url.startsWith('http://') || url.startsWith('https://') || url.startsWith('data:') || url.startsWith('blob:')) {
+  if (url.startsWith('data:') || url.startsWith('blob:')) {
     return url
   }
-  if (url.startsWith('/')) {
-    return `${API_GATEWAY_URL}${url}`
+  // File content is protected by the portal's session cookie. Old records can
+  // contain an API-host URL, whose host-only cookie is not sent by the portal.
+  // Route those file URLs through the current origin's API proxy instead.
+  try {
+    const parsed = new URL(url, window.location.origin)
+    const filePath = parsed.pathname.match(/^\/api\/v1\/files\/(\d+)\/content\/?$/)
+    if (filePath) return `${API_GATEWAY_URL}/api/v1/files/${filePath[1]}/content${parsed.search}${parsed.hash}`
+    if (parsed.origin !== window.location.origin) return url
+    if (url.startsWith('/')) return `${API_GATEWAY_URL}${url}`
+    return `${API_GATEWAY_URL}/${url}`
+  } catch {
+    return url
   }
-  return `${API_GATEWAY_URL}/${url}`
 }
 
 let refreshPromise: Promise<boolean> | null = null

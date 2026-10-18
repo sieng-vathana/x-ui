@@ -33,6 +33,8 @@ import type { ProductVariant } from '../features/products/types'
 import { cn } from '../lib/cn'
 import { paths } from '../lib/paths'
 import { readStoredValue } from '../lib/storage'
+import { resolveImageUrl } from '../lib/api'
+import { fileContentPath } from '../features/files/fileApi'
 import {
   card,
   formGrid,
@@ -326,17 +328,18 @@ export function ProductFormPage() {
       existingProduct.images.forEach((img: any, idx: number) => {
         const url = typeof img === 'string' ? img : (img.imageUrl || img.url)
         if (url && typeof url === 'string') {
+          const imageUrl = resolveImageUrl(url) ?? url
           loadedImages.push({
             id: String(img.id || `img-${idx}`),
-            previewUrl: url,
-            isPrimary: idx === 0 || url === existingProduct.thumbnail,
+            previewUrl: imageUrl,
+            isPrimary: idx === 0 || imageUrl === resolveImageUrl(existingProduct.thumbnail),
           })
         }
       })
     } else if (existingProduct.thumbnail) {
       loadedImages.push({
         id: 'thumb-0',
-        previewUrl: existingProduct.thumbnail,
+        previewUrl: resolveImageUrl(existingProduct.thumbnail) ?? existingProduct.thumbnail,
         isPrimary: true,
       })
     }
@@ -347,8 +350,8 @@ export function ProductFormPage() {
     if (existingProduct.variants && existingProduct.variants.length > 0) {
       const loadedVariants = existingProduct.variants.map((v, idx) => ({
         key: String(v.id || idx),
-        image: v.image || undefined,
-        imagePreviewUrl: v.image || undefined,
+        image: v.image ? (resolveImageUrl(v.image) ?? v.image) : undefined,
+        imagePreviewUrl: v.image ? (resolveImageUrl(v.image) ?? v.image) : undefined,
         sku: v.sku || '',
         barcode: v.barcode || '',
         variantName: getVariantDisplayName(v),
@@ -515,7 +518,7 @@ export function ProductFormPage() {
         for (const img of images) {
           if (img.file) {
             const res = await productApi.uploadFile(img.file)
-            finalImageUrls.push(res.url)
+            finalImageUrls.push(fileContentPath(res.id))
           } else if (img.previewUrl) {
             finalImageUrls.push(img.previewUrl)
           }
@@ -531,7 +534,7 @@ export function ProductFormPage() {
       for (const variant of variants) {
         if (variant.imageFile) {
           const res = await productApi.uploadFile(variant.imageFile)
-          variantImageUrls.set(variant.key, res.url)
+          variantImageUrls.set(variant.key, fileContentPath(res.id))
         } else {
           variantImageUrls.set(variant.key, variant.image)
         }
@@ -546,7 +549,7 @@ export function ProductFormPage() {
         shortName: shortName || productName,
         currencyCode: currencyCode || 'USD',
         salesChannel: numSalesChannel,
-        thumbnail: uploadedThumbnail || existingProduct?.thumbnail,
+        thumbnail: uploadedThumbnail || (existingProduct?.thumbnail ? (resolveImageUrl(existingProduct.thumbnail) ?? existingProduct.thumbnail) : undefined),
         images: uploadedImages || (existingProduct?.images as any),
         description,
         category: categoryId ? { id: Number(categoryId) } : undefined,
