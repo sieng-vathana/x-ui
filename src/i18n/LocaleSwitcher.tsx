@@ -15,7 +15,7 @@ export function LocaleSwitcher() {
       className="inline-flex h-[38px] shrink-0 items-center gap-1.5 rounded-[4px] border border-vpos-line bg-vpos-surface px-2.5 text-[12px] font-bold text-vpos-text hover:bg-vpos-subtle sm:px-3"
     >
       <Icon name="global-line" className="text-[16px]" />
-      <span>{language === 'en' ? 'ខ្មែរ' : 'EN'}</span>
+      <span>{language === 'en' ? '🇰🇭 ខ្មែរ' : '🇬🇧 English'}</span>
     </button>
   )
 }
