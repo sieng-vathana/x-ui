@@ -7,6 +7,7 @@ import { useAdminStore } from '../../hooks/useAdminStore'
 import { isDarkThemeMode } from '../../hooks/useSidebarLayout'
 import { UserMenu } from './UserMenu'
 import { useAuth } from '../../context/AuthContext'
+import { LocaleSwitcher } from '../../i18n/LocaleSwitcher'
 
 export interface TopbarProps {
   title: ReactNode
@@ -160,6 +161,7 @@ export function Topbar({
           </button>
           {/* Greeting + username UI after notifications (all pages) */}
           <UserMenu userName={user?.name} role={user?.role} />
+          <LocaleSwitcher />
         </div>
       </header>
       {/* Spacer so page content is not under the fixed bar */}

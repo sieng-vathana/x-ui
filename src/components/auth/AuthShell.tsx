@@ -1,6 +1,7 @@
 import { Link } from 'react-router-dom'
 import type { ReactNode } from 'react'
 import { Icon } from '../ui/Icon'
+import { LocaleSwitcher } from '../../i18n/LocaleSwitcher'
 
 export function AuthShell({
   children,
@@ -21,6 +22,7 @@ export function AuthShell({
 
   return (
     <main className={`auth-stage ${isReference ? 'auth-stage--reference' : ''}`}>
+      <div className="fixed top-4 right-4 z-50"><LocaleSwitcher /></div>
       <div className={`auth-frame ${singleColumn ? 'auth-frame--single' : ''} ${isReference ? 'auth-frame--reference' : ''}`}>
         {!singleColumn ? (
           isReference ? <ReferenceRail /> : <aside className="auth-rail" aria-label="V-POS workspace overview">

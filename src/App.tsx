@@ -40,6 +40,7 @@ import { RefundsPage } from './pages/RefundsPage'
 import { CashRegisterPage } from './pages/CashRegisterPage'
 import { ReportsPage } from './pages/ReportsPage'
 import { OrderManagementPage } from './pages/OrderManagementPage'
+import { LocaleProvider } from './i18n/LocaleContext'
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -63,9 +64,10 @@ export default function App() {
   return (
     <QueryClientProvider client={queryClient}>
       <ToastProvider>
-        <AppLoader isLoading={preloaderEnabled && isLoading} isStarting={isStarting} />
-        <BrowserRouter>
-          <AuthProvider>
+        <LocaleProvider>
+          <AppLoader isLoading={preloaderEnabled && isLoading} isStarting={isStarting} />
+          <BrowserRouter>
+            <AuthProvider>
           <Routes>
             <Route path="sign-in" element={<SignInPage />} />
             <Route path="register-business" element={<BusinessRegistrationPage />} />
@@ -159,9 +161,10 @@ export default function App() {
 
             <Route path="*" element={<Navigate to="/" replace />} />
           </Routes>
-        </AuthProvider>
-      </BrowserRouter>
-      <Toaster />
+            </AuthProvider>
+          </BrowserRouter>
+          <Toaster />
+        </LocaleProvider>
     </ToastProvider>
   </QueryClientProvider>
   )
