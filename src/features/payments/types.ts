@@ -96,6 +96,7 @@ export interface CreatePosQrCheckoutInput {
   idempotencyKey: string
   paymentIdempotencyKey: string
   paymentNote?: string
+  loyaltyPointsToRedeem?: number
   items: Array<{
     variantId: number
     quantity: number

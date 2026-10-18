@@ -1,4 +1,5 @@
 import { BusinessBrandForm } from '../components/business/BusinessBrandForm'
+import { LoyaltySettingsForm } from '../components/business/LoyaltySettingsForm'
 import { PosConfigurationForm } from '../components/business/PosConfigurationForm'
 import { TelegramAlertsForm } from '../components/business/TelegramAlertsForm'
 import { Breadcrumb, Icon, StoreSwitcher, Topbar } from '../components'
@@ -20,21 +21,27 @@ export function BusinessProfilePage() {
       ? 'layout'
       : location.pathname === paths.settingsTelegram
         ? 'telegram'
-        : 'profile'
+        : location.pathname === paths.settingsLoyalty
+          ? 'loyalty'
+          : 'profile'
   const sectionLabel = section === 'pos'
     ? 'POS configuration'
     : section === 'layout'
       ? 'Workspace layout'
       : section === 'telegram'
         ? 'Telegram alerts'
-        : 'Business profile'
+        : section === 'loyalty'
+          ? 'Loyalty'
+          : 'Business profile'
   const sectionSubtitle = section === 'pos'
     ? 'Control register currency, conversion, payment methods, and checkout behavior.'
     : section === 'layout'
       ? 'Choose how the workspace navigation behaves while you work.'
       : section === 'telegram'
         ? 'Get payments, online orders, low stock and a daily summary in Telegram.'
-        : 'Control the identity your staff sees throughout the workspace.'
+        : section === 'loyalty'
+          ? 'Reward customers by phone number with points and member prices.'
+          : 'Control the identity your staff sees throughout the workspace.'
 
   return (
     <>
@@ -56,6 +63,13 @@ export function BusinessProfilePage() {
             <p className="mt-1 mb-0 text-[13px] text-vpos-muted">Set the register currency, exchange rate, payment methods, and checkout behavior.</p>
           </div>
           <div className="p-5 sm:p-7"><PosConfigurationForm business={user.business} stores={stores} updateBusinessSettings={updateBusinessSettings} /></div>
+        </section> : null}
+        {section === 'loyalty' && user ? <section className={`${card} overflow-hidden p-0`}>
+          <div className="border-b border-vpos-line bg-vpos-subtle/45 px-6 py-5 sm:px-7">
+            <h2 className="m-0 text-[17px] font-extrabold text-vpos-text">Loyalty points and member prices</h2>
+            <p className="mt-1 mb-0 text-[13px] text-vpos-muted">Find customers by phone at the POS. They earn points on what they pay and can use them on a later sale.</p>
+          </div>
+          <div className="p-5 sm:p-7"><LoyaltySettingsForm businessId={Number(user.business.id)} /></div>
         </section> : null}
         {section === 'telegram' && user ? <section className={`${card} overflow-hidden p-0`}>
           <div className="border-b border-vpos-line bg-vpos-subtle/45 px-6 py-5 sm:px-7">

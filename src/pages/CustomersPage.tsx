@@ -106,6 +106,14 @@ function CustomerDetailsModal({
           </div>
 
           <div className="rounded-xl border border-vpos-line p-3.5">
+            <span className="text-[11px] font-extrabold uppercase tracking-wider text-vpos-muted">Loyalty points</span>
+            <div className="mt-1 flex items-center gap-2 text-[14px] font-bold text-vpos-dark">
+              <Icon name="vip-crown-line" className="text-vpos-primary" />
+              {customer.id === 0 ? '—' : (customer.loyaltyPoints ?? 0).toLocaleString('en-US')}
+            </div>
+          </div>
+
+          <div className="rounded-xl border border-vpos-line p-3.5">
             <span className="text-[11px] font-extrabold uppercase tracking-wider text-vpos-muted">Email Address</span>
             <div className="mt-1 flex items-center gap-2 text-[14px] font-bold text-vpos-dark">
               <Icon name="mail-line" className="text-vpos-primary" />
@@ -269,6 +277,12 @@ export function CustomersPage() {
           <div className="mt-0.5 text-[11px] text-vpos-muted">{row.email || 'No email'}</div>
         </div>
       ),
+    },
+    {
+      id: 'points',
+      header: 'Points',
+      searchable: false,
+      cell: (row) => <span className="font-semibold text-vpos-dark">{row.id === 0 ? '—' : (row.loyaltyPoints ?? 0).toLocaleString('en-US')}</span>,
     },
     {
       id: 'store',

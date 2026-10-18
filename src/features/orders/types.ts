@@ -19,6 +19,8 @@ export interface CreatePosOrderInput {
   items: PosOrderItemInput[]
   roundingIncrement?: number
   allowNegativeStock?: boolean
+  /** Points the selected customer spends as an order discount. */
+  loyaltyPointsToRedeem?: number
 }
 
 export interface CreateHeldSaleInput {
@@ -94,6 +96,8 @@ export interface PosOrder {
   items: OrderItem[]
   createdAt?: string
   completedAt?: string
+  loyaltyPointsRedeemed?: number | null
+  loyaltyPointsEarned?: number | null
 }
 
 export interface OrderFilters {

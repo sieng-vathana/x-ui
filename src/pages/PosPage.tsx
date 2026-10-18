@@ -22,7 +22,7 @@ import { QuickCustomerModal } from '../components/customers/QuickCustomerModal'
 import { useAuth } from '../context/AuthContext'
 import { useToast } from '../context/ToastContext'
 import { useCreateCustomer, useCustomers } from '../features/customers/useCustomers'
-import type { CustomerPayload } from '../features/customers/types'
+import type { Customer, CustomerPayload } from '../features/customers/types'
 import {
   useCompleteOrder,
   useCreateHeldSale,
@@ -47,11 +47,13 @@ import {
 import type { QrPaymentResponse } from '../features/payments/types'
 import { useProductsList } from '../features/products/useProducts'
 import { useStoresRaw } from '../features/stores/useStores'
+import { useCustomerLookup, useCustomerPoints, useLoyaltyProgram } from '../features/loyalty/useLoyalty'
 import { usePosSettings, type PosPaymentMethod } from '../features/pos/posSettings'
 import { useAdminStore } from '../hooks/useAdminStore'
 import { resolveImageUrl } from '../lib/api'
 import { evaluateCashTender, formatCashMix, type CashReceived } from '../lib/cashTender'
 import { cn } from '../lib/cn'
+import { maxRedeemablePoints, pointsValue } from '../lib/loyalty'
 import { canConvertCurrency, convertCurrency, formatCurrency, formatKhr } from '../lib/currency'
 import { paths } from '../lib/paths'
 import { openReceiptWindow, printReceipt as openReceiptPrint, type ReceiptCash } from '../lib/receipt'
@@ -88,6 +90,8 @@ type CartLine = {
   product: PosProduct
   qty: number
   discount?: LineDiscount | null
+  /** The discount is the loyalty member price, not one the cashier entered. */
+  memberPrice?: boolean
 }
 type PaymentMethod = PosPaymentMethod
 type ViewMode = 'grid' | 'list'
@@ -144,6 +148,18 @@ export function PosPage() {
   const [payment, setPayment] = useState<PaymentMethod>(() => settings.defaultPaymentMethod)
   const [customerId, setCustomerId] = useState('0')
   const [quickCustomerOpen, setQuickCustomerOpen] = useState(false)
+  const [quickCustomerPhone, setQuickCustomerPhone] = useState('')
+  const [phoneQuery, setPhoneQuery] = useState('')
+  /** Customers found by phone that are not in the loaded customer list. */
+  const [foundCustomers, setFoundCustomers] = useState<Customer[]>([])
+  const [redeemPoints, setRedeemPoints] = useState(0)
+  const [phoneSearchOpen, setPhoneSearchOpen] = useState(false)
+  const [pointsEditorOpen, setPointsEditorOpen] = useState(false)
+  const loyaltyProgramQuery = useLoyaltyProgram(businessId)
+  const loyaltyProgram = loyaltyProgramQuery.data?.enabled ? loyaltyProgramQuery.data : null
+  const selectedCustomerNumber = Number(customerId)
+  const customerPointsQuery = useCustomerPoints(businessId, selectedCustomerNumber, Boolean(loyaltyProgram))
+  const customerLookupMutation = useCustomerLookup(businessId)
   const [cart, setCart] = useState<Record<string, CartEntry>>({})
   const [discountTargetId, setDiscountTargetId] = useState<string | null>(null)
   const [shortcutsOpen, setShortcutsOpen] = useState(false)
@@ -205,6 +221,9 @@ export function PosPage() {
       paymentMethod,
       usdToKhrRate,
       cash,
+      loyalty: order.loyaltyPointsRedeemed || order.loyaltyPointsEarned
+        ? { redeemed: order.loyaltyPointsRedeemed ?? 0, earned: order.loyaltyPointsEarned ?? 0 }
+        : undefined,
       showLogo: settings.receiptShowLogo,
       showSku: settings.receiptShowSku,
       showCustomer: settings.receiptShowCustomer,
@@ -366,15 +385,39 @@ export function PosPage() {
     ]
   }, [products, stockByVariant])
 
+  const canCreateCustomer = user?.permissions?.includes('x-customer:create') ?? false
+
   const customerOptions = useMemo(() => {
-    const liveCustomers = (customersQuery.data?.content ?? [])
+    const loaded = customersQuery.data?.content ?? []
+    const liveCustomers = [...loaded, ...foundCustomers.filter((found) => !loaded.some((customer) => customer.id === found.id))]
       .filter((customer) => customer.status !== 0)
       .map((customer) => ({
         value: String(customer.id),
         label: customer.phone ? `${customer.fullName} · ${customer.phone}` : customer.fullName,
       }))
     return [{ value: '0', label: 'Walk-in customer' }, ...liveCustomers.filter((customer) => customer.value !== '0')]
-  }, [customersQuery.data])
+  }, [customersQuery.data, foundCustomers])
+
+  const findCustomerByPhone = useCallback(async () => {
+    const phone = phoneQuery.trim()
+    if (!phone) return
+    try {
+      const customer = await customerLookupMutation.mutateAsync(phone)
+      setFoundCustomers((current) => [customer, ...current.filter((found) => found.id !== customer.id)])
+      setCustomerId(String(customer.id))
+      setPhoneQuery('')
+      setPhoneSearchOpen(false)
+      toast(`${customer.fullName} selected.`, 'success')
+    } catch (error) {
+      if (canCreateCustomer) {
+        setQuickCustomerPhone(phone)
+        setQuickCustomerOpen(true)
+        toast('No customer has this phone yet. Add them now.', 'info')
+      } else {
+        toast(error instanceof Error ? error.message : 'No customer has this phone number.', 'warning')
+      }
+    }
+  }, [canCreateCustomer, customerLookupMutation, phoneQuery, toast])
 
   const customerNames = useMemo(
     () => new Map((customersQuery.data?.content ?? []).map((customer) => [customer.id, customer.fullName])),
@@ -402,8 +445,6 @@ export function PosPage() {
     }
   }), [customerNames, heldOrdersQuery.data?.content])
 
-  const canCreateCustomer = user?.permissions?.includes('x-customer:create') ?? false
-
   const handleQuickCustomerSave = useCallback(async (payload: CustomerPayload) => {
     try {
       const customer = await createCustomerMutation.mutateAsync(payload)
@@ -419,6 +460,11 @@ export function PosPage() {
     setCart({})
     setCategoryId('all')
   }, [storeId])
+
+  useEffect(() => {
+    setRedeemPoints(0)
+    setPointsEditorOpen(false)
+  }, [customerId])
 
   useEffect(() => {
     setView(settings.menuView)
@@ -582,16 +628,17 @@ export function PosPage() {
     return list
   }, [categoryId, products, query, settings.searchIdentifiers, settings.showOutOfStock, sort, stockByVariant])
 
+  const memberDiscountPercent = loyaltyProgram && selectedCustomerNumber > 0 ? loyaltyProgram.memberDiscountPercent : 0
   const lines: CartLine[] = useMemo(() => {
     return Object.entries(cart)
       .map(([id, entry]) => {
         const product = products.find((p) => p.id === id)
-        return product
-          ? { product, qty: entry.qty, discount: entry.discount }
-          : null
+        if (!product) return null
+        if (entry.discount || memberDiscountPercent <= 0) return { product, qty: entry.qty, discount: entry.discount }
+        return { product, qty: entry.qty, discount: { type: 'percent' as const, value: memberDiscountPercent }, memberPrice: true }
       })
       .filter(Boolean) as CartLine[]
-  }, [cart, products])
+  }, [cart, memberDiscountPercent, products])
 
   const discountTarget = useMemo(() => {
     if (!discountTargetId) return null
@@ -612,8 +659,18 @@ export function PosPage() {
   const taxRate = lines.length > 0 && lines.every((line) => line.product.taxRate === lines[0].product.taxRate)
     ? settings.taxEnabled ? lines[0].product.taxRate : 0
     : 0
-  const taxVat = Math.round((subTotal * taxRate / 100) * 100) / 100
-  const rawTotal = Math.round((subTotal + taxVat) * 100) / 100
+  const customerPoints = customerPointsQuery.data?.points ?? 0
+  const redeemablePoints = loyaltyProgram && selectedCustomerNumber > 0
+    ? maxRedeemablePoints(customerPoints, subTotal, loyaltyProgram, currencyCode, usdToKhrRate)
+    : 0
+  const cappedPoints = Math.min(redeemPoints, redeemablePoints)
+  const appliedPoints = loyaltyProgram && cappedPoints >= loyaltyProgram.minRedeemPoints ? cappedPoints : 0
+  const pointsDiscount = loyaltyProgram && appliedPoints > 0
+    ? pointsValue(appliedPoints, loyaltyProgram, currencyCode, usdToKhrRate)
+    : 0
+  const taxableTotal = Math.round((subTotal - pointsDiscount) * 100) / 100
+  const taxVat = Math.round((taxableTotal * taxRate / 100) * 100) / 100
+  const rawTotal = Math.round((taxableTotal + taxVat) * 100) / 100
   const total = roundPosTotal(rawTotal, settings.roundingIncrement)
   const roundingAdjustment = Math.round((total - rawTotal) * 100) / 100
 
@@ -648,7 +705,7 @@ export function PosPage() {
           ? {
               discountType: line.discount.type === 'percent' ? 'PERCENTAGE' as const : 'FIXED' as const,
               discountValue: line.discount.value,
-              discountReason: 'POS manual item discount',
+              discountReason: line.memberPrice ? 'Member price' : 'POS manual item discount',
             }
           : {}),
       })),
@@ -708,6 +765,7 @@ export function PosPage() {
       roundingIncrement: settings.roundingIncrement,
       allowNegativeStock: settings.allowNegativeStock,
       idempotencyKey: `POS-${Date.now()}-${crypto.randomUUID?.() ?? Math.random().toString(36).slice(2)}`,
+      ...(appliedPoints > 0 ? { loyaltyPointsToRedeem: appliedPoints } : {}),
       items: lines.map((line) => ({
         variantId: line.product.variantId,
         quantity: line.qty,
@@ -715,13 +773,13 @@ export function PosPage() {
           ? {
               discountType: line.discount.type === 'percent' ? 'PERCENTAGE' as const : 'FIXED' as const,
               discountValue: line.discount.value,
-              discountReason: 'POS manual item discount',
+              discountReason: line.memberPrice ? 'Member price' : 'POS manual item discount',
             }
           : {}),
       })),
     }
     return { businessId, selectedStoreId, cashierId, input }
-  }, [currencyCode, currentCashSessionQuery.data, currentCashSessionQuery.isLoading, customerId, lines, payment, settings.allowNegativeStock, settings.requireCustomer, settings.roundingIncrement, storeId, taxRate, toast, user])
+  }, [appliedPoints, currencyCode, currentCashSessionQuery.data, currentCashSessionQuery.isLoading, customerId, lines, payment, settings.allowNegativeStock, settings.requireCustomer, settings.roundingIncrement, storeId, taxRate, toast, user])
 
   const handlePayNow = useCallback(async () => {
     const checkout = prepareCheckout()
@@ -785,12 +843,14 @@ export function PosPage() {
       setMobileOrderOpen(false)
       setCart({})
       setDiscountTargetId(null)
+      setRedeemPoints(0)
+      if (payment === 'card') void customerPointsQuery.refetch()
     } catch (error) {
       receiptWindow?.close()
       if (pendingQrReceiptWindowRef.current === receiptWindow) pendingQrReceiptWindowRef.current = null
       toast(error instanceof Error ? error.message : 'Checkout could not be completed.', 'error')
     }
-  }, [completeOrderMutation, createCardPaymentMutation, createOrderMutation, createPosQrCheckoutMutation, getReceiptOptions, lines, payment, prepareCheckout, settings.autoPrintReceipt, simulatePaymentCallbackMutation, toast, usesBakongKhqr])
+  }, [completeOrderMutation, createCardPaymentMutation, createOrderMutation, createPosQrCheckoutMutation, customerPointsQuery, getReceiptOptions, lines, payment, prepareCheckout, settings.autoPrintReceipt, simulatePaymentCallbackMutation, toast, usesBakongKhqr])
 
   const completeCashPayment = useCallback(async (received: CashReceived, shownTotal: number) => {
     const checkout = prepareCheckout()
@@ -827,6 +887,8 @@ export function PosPage() {
       setMobileOrderOpen(false)
       setCart({})
       setDiscountTargetId(null)
+      setRedeemPoints(0)
+      void customerPointsQuery.refetch()
       toast(tender.changeAllKhr > 0 ? `Order ${order.orderNo} completed. Give change: ${change}.` : `Order ${order.orderNo} completed.`, 'success')
       const cash: ReceiptCash = { receivedUsd: received.usd, receivedKhr: received.khr, changeUsd: tender.changeUsd, changeKhr: tender.changeKhr }
       if (settings.autoPrintReceipt && !openReceiptPrint(completed, getReceiptOptions(completed, 'cash', cash), receiptWindow)) {
@@ -836,7 +898,7 @@ export function PosPage() {
       receiptWindow?.close()
       toast(error instanceof Error ? error.message : 'Checkout could not be completed.', 'error')
     }
-  }, [completeOrderMutation, createCashPaymentMutation, createOrderMutation, getReceiptOptions, prepareCheckout, settings.autoPrintReceipt, toast, usdToKhrRate])
+  }, [completeOrderMutation, createCashPaymentMutation, createOrderMutation, customerPointsQuery, getReceiptOptions, prepareCheckout, settings.autoPrintReceipt, toast, usdToKhrRate])
 
   const checkoutPending = createOrderMutation.isPending
     || createCashPaymentMutation.isPending
@@ -872,6 +934,7 @@ export function PosPage() {
     void completeOrderMutation.mutateAsync(qrCheckout.response.payment.orderId)
       .then((order) => {
         toast(`Payment received. Order ${qrCheckout.orderNo} completed.`, 'success')
+        void customerPointsQuery.refetch()
         const receiptWindow = pendingQrReceiptWindowRef.current
         pendingQrReceiptWindowRef.current = null
         if (settings.autoPrintReceipt && !openReceiptPrint(order, getReceiptOptions(order, 'qr'), receiptWindow)) {
@@ -882,7 +945,7 @@ export function PosPage() {
         completedQrPaymentIdRef.current = null
         toast(error instanceof Error ? error.message : 'Payment received, but the order could not be completed.', 'error')
       })
-  }, [completeOrderMutation, getReceiptOptions, qrCheckout, qrPaymentQuery.data?.status, settings.autoPrintReceipt, toast])
+  }, [completeOrderMutation, customerPointsQuery, getReceiptOptions, qrCheckout, qrPaymentQuery.data?.status, settings.autoPrintReceipt, toast])
 
   useEffect(() => {
     const onKey = (event: KeyboardEvent) => {
@@ -1345,28 +1408,104 @@ export function PosPage() {
             )}
           >
             <div className="border-b border-vpos-line p-3 sm:p-4">
-              <h2 className="m-0 mb-2 text-[14px] font-extrabold text-vpos-text">
-                Customer
-              </h2>
-              <Select
-                value={customerId}
-                onChange={setCustomerId}
-                options={customerOptions}
-                searchable
-                searchAction={canCreateCustomer ? (
-                  <Button
-                    type="button"
-                    variant="soft"
-                    className="h-9 w-9 p-0"
-                    onClick={() => setQuickCustomerOpen(true)}
-                    aria-label="Add customer"
-                    title="Add customer"
-                  >
-                    <Icon name="user-add-line" />
+              <div className="mb-2 flex items-center justify-between gap-2">
+                <h2 className="m-0 text-[14px] font-extrabold text-vpos-text">
+                  Customer
+                </h2>
+                <button
+                  type="button"
+                  onClick={() => setPhoneSearchOpen((open) => !open)}
+                  className="flex items-center gap-1 border-0 bg-transparent p-0 text-[12px] font-bold text-vpos-primary hover:underline"
+                >
+                  <Icon name={phoneSearchOpen ? 'close-line' : 'phone-line'} />
+                  {phoneSearchOpen ? 'Close' : 'Find by phone'}
+                </button>
+              </div>
+              {phoneSearchOpen ? (
+                <form
+                  className="flex gap-2"
+                  onSubmit={(event) => {
+                    event.preventDefault()
+                    void findCustomerByPhone()
+                  }}
+                >
+                  <label className="flex h-[39px] min-w-0 flex-1 items-center gap-2 rounded-[4px] border border-vpos-primary bg-white px-2.5">
+                    <Icon name="phone-line" className="text-[15px] text-vpos-muted" />
+                    <input
+                      autoFocus
+                      value={phoneQuery}
+                      onChange={(event) => setPhoneQuery(event.target.value)}
+                      onKeyDown={(event) => {
+                        if (event.key === 'Escape') setPhoneSearchOpen(false)
+                      }}
+                      inputMode="tel"
+                      placeholder="Phone number, e.g. 012 345 678"
+                      aria-label="Find customer by phone"
+                      className="min-w-0 flex-1 border-0 bg-transparent text-[13px] text-vpos-text outline-none placeholder:text-vpos-muted"
+                    />
+                  </label>
+                  <Button type="submit" variant="secondary" className="h-[39px] px-3 text-[13px]" disabled={!phoneQuery.trim() || customerLookupMutation.isPending}>
+                    {customerLookupMutation.isPending ? 'Finding…' : 'Find'}
                   </Button>
-                ) : null}
-                placeholder={customersQuery.isLoading ? 'Loading customers…' : 'Select customer'}
-              />
+                </form>
+              ) : (
+                <Select
+                  value={customerId}
+                  onChange={setCustomerId}
+                  options={customerOptions}
+                  searchable
+                  searchAction={canCreateCustomer ? (
+                    <Button
+                      type="button"
+                      variant="soft"
+                      className="h-9 w-9 p-0"
+                      onClick={() => setQuickCustomerOpen(true)}
+                      aria-label="Add customer"
+                      title="Add customer"
+                    >
+                      <Icon name="user-add-line" />
+                    </Button>
+                  ) : null}
+                  placeholder={customersQuery.isLoading ? 'Loading customers…' : 'Select customer'}
+                />
+              )}
+              {loyaltyProgram && selectedCustomerNumber > 0 ? (
+                <div className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1.5 text-[12px] text-vpos-text">
+                  <span className="flex items-center gap-1 font-bold">
+                    <Icon name="vip-crown-line" className="text-vpos-primary" />
+                    {customerPointsQuery.isLoading ? '…' : customerPoints.toLocaleString('en-US')} points
+                  </span>
+                  {memberDiscountPercent > 0 ? (
+                    <span className="rounded-full bg-vpos-sand px-2 py-0.5 text-[11px] font-bold text-vpos-primary">Member −{memberDiscountPercent}%</span>
+                  ) : null}
+                  {customerPoints < loyaltyProgram.minRedeemPoints ? (
+                    <span className="text-vpos-muted">Usable from {loyaltyProgram.minRedeemPoints.toLocaleString('en-US')}</span>
+                  ) : pointsEditorOpen || redeemPoints > 0 ? (
+                    <span className="flex items-center gap-1.5">
+                      <input
+                        autoFocus
+                        type="number"
+                        min={0}
+                        max={redeemablePoints}
+                        step={1}
+                        value={redeemPoints || ''}
+                        onChange={(event) => setRedeemPoints(Math.max(0, Math.floor(Number(event.target.value) || 0)))}
+                        placeholder="0"
+                        aria-label="Points to use"
+                        className="h-7 w-16 rounded-[4px] border border-vpos-line bg-white px-1.5 text-[12px] outline-none focus:border-vpos-primary"
+                      />
+                      <button type="button" onClick={() => setRedeemPoints(redeemablePoints)} className="border-0 bg-transparent p-0 text-[12px] font-bold text-vpos-primary hover:underline">Max</button>
+                      {pointsDiscount > 0 ? (
+                        <strong className="text-vpos-red">−{formatCurrency(pointsDiscount, currencyCode)}</strong>
+                      ) : redeemPoints > 0 ? (
+                        <span className="text-vpos-muted">min {loyaltyProgram.minRedeemPoints}</span>
+                      ) : null}
+                    </span>
+                  ) : (
+                    <button type="button" onClick={() => setPointsEditorOpen(true)} className="border-0 bg-transparent p-0 text-[12px] font-bold text-vpos-primary hover:underline">Use points</button>
+                  )}
+                </div>
+              ) : null}
             </div>
 
             <div className="flex min-h-0 flex-1 flex-col p-3 sm:p-4">
@@ -1494,11 +1633,12 @@ export function PosPage() {
             </div>
 
             <div className="mt-auto border-t border-vpos-line p-3 sm:p-4">
-              <h3 className="m-0 mb-2 text-[12px] font-extrabold tracking-wide text-vpos-muted">
+              {/* On short screens the heading and item count (already next to Order Details) give room to the order lines. */}
+              <h3 className="m-0 mb-2 text-[12px] font-extrabold tracking-wide text-vpos-muted [@media(max-height:820px)]:hidden">
                 ORDER SUMMARY
               </h3>
               <div className="mb-3 space-y-1.5 text-[13px]">
-                <Row label="Items" value={String(itemCount)} />
+                <div className="[@media(max-height:820px)]:hidden"><Row label="Items" value={String(itemCount)} /></div>
                 <Row label="Sub Total" value={formatCurrency(grossSubTotal, currencyCode)} />
                 {totalDiscount > 0 ? (
                   <div className="flex justify-between text-vpos-red">
@@ -1506,6 +1646,12 @@ export function PosPage() {
                     <span className="font-semibold">
                       −{formatCurrency(totalDiscount, currencyCode)}
                     </span>
+                  </div>
+                ) : null}
+                {pointsDiscount > 0 ? (
+                  <div className="flex justify-between text-vpos-red">
+                    <span>Points ({appliedPoints.toLocaleString('en-US')})</span>
+                    <span className="font-semibold">−{formatCurrency(pointsDiscount, currencyCode)}</span>
                   </div>
                 ) : null}
                 <Row label={`Tax / VAT${taxRate ? ` (${taxRate}%)` : ''}`} value={formatCurrency(taxVat, currencyCode)} />
@@ -1612,10 +1758,14 @@ export function PosPage() {
 
       <QuickCustomerModal
         open={quickCustomerOpen}
-        onClose={() => setQuickCustomerOpen(false)}
+        onClose={() => {
+          setQuickCustomerOpen(false)
+          setQuickCustomerPhone('')
+        }}
         businessId={businessId}
         storeId={Number(storeId)}
         isLoading={createCustomerMutation.isPending}
+        initialPhone={quickCustomerPhone}
         onSave={handleQuickCustomerSave}
       />
 
@@ -1779,7 +1929,7 @@ function PayMethod({
       type="button"
       onClick={onClick}
       className={cn(
-        'flex flex-col items-start gap-1 rounded-[12px] border p-3 text-left transition',
+        'flex flex-col items-start gap-1 rounded-[12px] border p-3 text-left transition [@media(max-height:820px)]:flex-row [@media(max-height:820px)]:items-center [@media(max-height:820px)]:gap-2 [@media(max-height:820px)]:py-2',
         selected
           ? 'border-vpos-primary bg-vpos-sand'
           : 'border-vpos-line bg-white hover:border-vpos-primary/40',
@@ -1793,7 +1943,7 @@ function PayMethod({
         )}
       />
       <span className="text-[13px] font-extrabold text-vpos-text">{name}</span>
-      <span className="text-[11px] text-vpos-muted">{shortcut}</span>
+      <span className="text-[11px] text-vpos-muted [@media(max-height:820px)]:hidden">{shortcut}</span>
     </button>
   )
 }

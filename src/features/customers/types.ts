@@ -31,6 +31,7 @@ export interface Customer {
   addresses?: CustomerAddress[]
   createdAt?: string
   updatedAt?: string
+  loyaltyPoints?: number
 }
 
 export interface CustomerPayload {

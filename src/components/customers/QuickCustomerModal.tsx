@@ -10,6 +10,8 @@ interface QuickCustomerModalProps {
   businessId: number
   storeId: number
   isLoading?: boolean
+  /** Prefills the phone, e.g. after a phone lookup found no customer. */
+  initialPhone?: string
   onSave: (payload: CustomerPayload) => Promise<void>
 }
 
@@ -19,6 +21,7 @@ export function QuickCustomerModal({
   businessId,
   storeId,
   isLoading = false,
+  initialPhone = '',
   onSave,
 }: QuickCustomerModalProps) {
   const [fullName, setFullName] = useState('')
@@ -28,9 +31,9 @@ export function QuickCustomerModal({
   useEffect(() => {
     if (!open) return
     setFullName('')
-    setPhone('')
+    setPhone(initialPhone)
     setEmail('')
-  }, [open])
+  }, [initialPhone, open])
 
   const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault()

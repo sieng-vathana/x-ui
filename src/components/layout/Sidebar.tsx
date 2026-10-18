@@ -69,6 +69,7 @@ const reportSubItems: Array<{ to: string; label: string; end?: boolean }> = [
 const settingsSubItems = [
   { to: paths.settings, label: 'Business profile', end: true },
   { to: paths.settingsPos, label: 'POS configuration' },
+  { to: paths.settingsLoyalty, label: 'Loyalty' },
   { to: paths.settingsTelegram, label: 'Telegram alerts' },
   { to: paths.settingsLayout, label: 'Workspace layout' },
 ]
