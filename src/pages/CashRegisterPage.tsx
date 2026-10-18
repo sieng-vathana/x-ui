@@ -24,7 +24,8 @@ import {
   useOpenCashSession,
 } from '../features/payments/usePayments'
 import { useAdminStore } from '../hooks/useAdminStore'
-import { formatCurrency } from '../lib/currency'
+import { formatCashMix } from '../lib/cashTender'
+import { DEFAULT_USD_TO_KHR_RATE, formatCurrency } from '../lib/currency'
 import { formatReportDate } from '../lib/reporting'
 import { paths } from '../lib/paths'
 import { card, pageContent } from '../lib/ui'
@@ -38,6 +39,7 @@ export function CashRegisterPage() {
   const currency = settings.defaultCurrencyCode === 'BUSINESS'
     ? businessCurrency
     : settings.defaultCurrencyCode
+  const usdToKhrRate = Number(user?.business.usdToKhrExchangeRate) || DEFAULT_USD_TO_KHR_RATE
   const cashierId = Number(user?.id)
   const storeNumber = Number(storeId)
   const businessId = Number(user?.business.id)
@@ -49,12 +51,12 @@ export function CashRegisterPage() {
   const movementMutation = useAddCashMovement()
   const closeMutation = useCloseCashSession()
 
-  const [openingFloat, setOpeningFloat] = useState('')
+  const [openingFloat, setOpeningFloat] = useState<CashCount>(EMPTY_COUNT)
   const [openingNote, setOpeningNote] = useState('')
   const [movementType, setMovementType] = useState<CashMovementType>('PAY_IN')
   const [movementAmount, setMovementAmount] = useState('')
   const [movementReason, setMovementReason] = useState('')
-  const [countedCash, setCountedCash] = useState('')
+  const [countedCash, setCountedCash] = useState<CashCount>(EMPTY_COUNT)
   const [closeNote, setCloseNote] = useState('')
   const [closeConfirmOpen, setCloseConfirmOpen] = useState(false)
 
@@ -63,7 +65,7 @@ export function CashRegisterPage() {
 
   const openRegister = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault()
-    const amount = parseAmount(openingFloat)
+    const amount = countTotal(openingFloat, currency, usdToKhrRate)
     if (!businessId || !storeNumber || !cashierId) {
       toast('Select a store before opening the cash register.', 'warning')
       return
@@ -80,9 +82,9 @@ export function CashRegisterPage() {
         cashierId,
         currencyCode: currency,
         openingFloat: amount,
-        note: openingNote.trim() || undefined,
+        note: withCountBreakdown(openingNote, openingFloat, currency, usdToKhrRate),
       })
-      setOpeningFloat('')
+      setOpeningFloat(EMPTY_COUNT)
       setOpeningNote('')
       toast(`Cash register opened in ${currency}.`, 'success')
     } catch (error) {
@@ -123,7 +125,7 @@ export function CashRegisterPage() {
 
   const requestClose = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault()
-    const amount = parseAmount(countedCash)
+    const amount = countTotal(countedCash, currency, usdToKhrRate)
     if (!current) return
     if (amount == null || amount < 0) {
       toast('Enter the cash counted in the drawer.', 'warning')
@@ -134,7 +136,7 @@ export function CashRegisterPage() {
 
   const closeRegister = async () => {
     if (!current) return
-    const amount = parseAmount(countedCash)
+    const amount = countTotal(countedCash, currency, usdToKhrRate)
     if (amount == null || amount < 0) return
     try {
       await closeMutation.mutateAsync({
@@ -142,11 +144,11 @@ export function CashRegisterPage() {
         input: {
           countedCash: amount,
           closedBy: cashierId,
-          closeNote: closeNote.trim() || undefined,
+          closeNote: withCountBreakdown(closeNote, countedCash, currency, usdToKhrRate),
         },
       })
       setCloseConfirmOpen(false)
-      setCountedCash('')
+      setCountedCash(EMPTY_COUNT)
       setCloseNote('')
       toast('Cash register closed and reconciled.', 'success')
     } catch (error) {
@@ -187,6 +189,7 @@ export function CashRegisterPage() {
         {!current ? (
           <OpenRegisterCard
             currency={currency}
+            usdToKhrRate={usdToKhrRate}
             openingFloat={openingFloat}
             openingNote={openingNote}
             onOpeningFloatChange={setOpeningFloat}
@@ -198,6 +201,7 @@ export function CashRegisterPage() {
           <OpenSessionView
             current={current}
             currency={currency}
+            usdToKhrRate={usdToKhrRate}
             movementType={movementType}
             movementAmount={movementAmount}
             movementReason={movementReason}
@@ -223,7 +227,7 @@ export function CashRegisterPage() {
         onClose={() => setCloseConfirmOpen(false)}
         onConfirm={closeRegister}
         title="Close cash register?"
-        description={closeDescription(current, countedCash, currency)}
+        description={closeDescription(current, countedCash, currency, usdToKhrRate)}
         confirmText="Close and reconcile"
         variant="warning"
         icon="lock-line"
@@ -235,6 +239,7 @@ export function CashRegisterPage() {
 
 function OpenRegisterCard({
   currency,
+  usdToKhrRate,
   openingFloat,
   openingNote,
   onOpeningFloatChange,
@@ -243,9 +248,10 @@ function OpenRegisterCard({
   isLoading,
 }: {
   currency: string
-  openingFloat: string
+  usdToKhrRate: number
+  openingFloat: CashCount
   openingNote: string
-  onOpeningFloatChange: (value: string) => void
+  onOpeningFloatChange: (value: CashCount) => void
   onOpeningNoteChange: (value: string) => void
   onSubmit: (event: FormEvent<HTMLFormElement>) => void
   isLoading: boolean
@@ -262,16 +268,12 @@ function OpenRegisterCard({
         </div>
       </div>
       <form onSubmit={onSubmit} className="grid gap-4 p-5 sm:grid-cols-2 sm:p-6">
-        <FormField
-          label={`Opening float (${currency})`}
-          requiredMark
-          type="number"
-          min="0"
-          step="0.01"
-          inputMode="decimal"
+        <CashCountFields
+          label="Opening float"
+          currency={currency}
+          usdToKhrRate={usdToKhrRate}
           value={openingFloat}
-          onChange={(event) => onOpeningFloatChange(event.target.value)}
-          placeholder="0.00"
+          onChange={onOpeningFloatChange}
         />
         <TextAreaField
           label="Opening note"
@@ -296,6 +298,7 @@ function OpenRegisterCard({
 function OpenSessionView({
   current,
   currency,
+  usdToKhrRate,
   movementType,
   movementAmount,
   movementReason,
@@ -313,15 +316,16 @@ function OpenSessionView({
 }: {
   current: CashSession
   currency: string
+  usdToKhrRate: number
   movementType: CashMovementType
   movementAmount: string
   movementReason: string
-  countedCash: string
+  countedCash: CashCount
   closeNote: string
   onMovementTypeChange: (value: CashMovementType) => void
   onMovementAmountChange: (value: string) => void
   onMovementReasonChange: (value: string) => void
-  onCountedCashChange: (value: string) => void
+  onCountedCashChange: (value: CashCount) => void
   onCloseNoteChange: (value: string) => void
   onMovementSubmit: (event: FormEvent<HTMLFormElement>) => void
   onCloseSubmit: (event: FormEvent<HTMLFormElement>) => void
@@ -384,16 +388,12 @@ function OpenSessionView({
           <SectionHeading icon="lock-line" title="Close and reconcile" description="Count the drawer, compare it with the expected balance, and close this shift." />
           <div className="mt-5 space-y-4">
             <div className="rounded-[4px] border border-vpos-line bg-vpos-subtle p-3.5"><span className="block text-[11px] font-bold uppercase tracking-[0.06em] text-vpos-muted">Expected cash</span><strong className="mt-1 block text-[22px] text-vpos-text">{formatCurrency(current.expectedCash, currency)}</strong></div>
-            <FormField
-              label={`Counted cash (${currency})`}
-              requiredMark
-              type="number"
-              min="0"
-              step="0.01"
-              inputMode="decimal"
+            <CashCountFields
+              label="Counted cash"
+              currency={currency}
+              usdToKhrRate={usdToKhrRate}
               value={countedCash}
-              onChange={(event) => onCountedCashChange(event.target.value)}
-              placeholder="0.00"
+              onChange={onCountedCashChange}
             />
             <TextAreaField
               label="Closing note"
@@ -474,15 +474,85 @@ function SectionHeading({ icon, title, description }: { icon: string; title: str
   return <div className="flex items-start gap-3"><span className="grid h-10 w-10 shrink-0 place-items-center rounded-md bg-vpos-sand text-[20px] text-vpos-primary"><Icon name={icon} /></span><span><h2 className="m-0 text-[15px] font-extrabold text-vpos-text">{title}</h2><p className="mt-1 mb-0 text-[12px] leading-5 text-vpos-muted">{description}</p></span></div>
 }
 
+/** A Cambodian drawer holds dollars and riel, so they are counted separately. */
+type CashCount = { usd: string; khr: string }
+
+const EMPTY_COUNT: CashCount = { usd: '', khr: '' }
+
+function CashCountFields({
+  label,
+  currency,
+  usdToKhrRate,
+  value,
+  onChange,
+}: {
+  label: string
+  currency: string
+  usdToKhrRate: number
+  value: CashCount
+  onChange: (value: CashCount) => void
+}) {
+  const total = countTotal(value, currency, usdToKhrRate)
+  return (
+    <fieldset className="m-0 min-w-0 border-0 p-0">
+      <legend className="mb-2 block text-[12px] font-semibold tracking-[0.02em] text-vpos-dark">{label} <b className="text-vpos-red">*</b></legend>
+      <div className="grid grid-cols-2 gap-3">
+        <FormField
+          label="Dollars ($)"
+          type="number"
+          min="0"
+          step="0.01"
+          inputMode="decimal"
+          value={value.usd}
+          onChange={(event) => onChange({ ...value, usd: event.target.value })}
+          placeholder="0.00"
+        />
+        <FormField
+          label="Riel (៛)"
+          type="number"
+          min="0"
+          step="1"
+          inputMode="numeric"
+          value={value.khr}
+          onChange={(event) => onChange({ ...value, khr: event.target.value })}
+          placeholder="0"
+        />
+      </div>
+      <span className="mt-2 block text-[12px] text-vpos-muted">
+        Total {total == null ? '—' : formatCurrency(total, currency)} at 1 USD = {usdToKhrRate.toLocaleString('en-US')} KHR
+      </span>
+    </fieldset>
+  )
+}
+
+/** The count in the register currency, or null when nothing valid was entered. */
+function countTotal(count: CashCount, currency: string, usdToKhrRate: number): number | null {
+  const usd = parseAmount(count.usd)
+  const khr = parseAmount(count.khr)
+  if ((usd == null && khr == null) || (usd ?? 0) < 0 || (khr ?? 0) < 0) return null
+  return currency === 'KHR'
+    ? Math.round((usd ?? 0) * usdToKhrRate + (khr ?? 0))
+    : Math.round(((usd ?? 0) + (khr ?? 0) / usdToKhrRate) * 100) / 100
+}
+
+/** Keeps the dollar and riel split in the session note whenever the other currency was counted. */
+function withCountBreakdown(note: string, count: CashCount, currency: string, usdToKhrRate: number): string | undefined {
+  const usd = parseAmount(count.usd) ?? 0
+  const khr = parseAmount(count.khr) ?? 0
+  const converted = currency === 'KHR' ? usd > 0 : khr > 0
+  const breakdown = converted ? `Counted ${formatCashMix(usd, khr)} at 1 USD = ${usdToKhrRate} KHR` : ''
+  return [note.trim(), breakdown].filter(Boolean).join(' · ') || undefined
+}
+
 function parseAmount(value: string): number | null {
   if (!value.trim()) return null
   const amount = Number(value)
   return Number.isFinite(amount) ? amount : null
 }
 
-function closeDescription(current: CashSession | null, countedCash: string, currency: string): string {
+function closeDescription(current: CashSession | null, countedCash: CashCount, currency: string, usdToKhrRate: number): string {
   if (!current) return 'The register will be closed and no more cash payments will be assigned to this session.'
-  const counted = parseAmount(countedCash)
+  const counted = countTotal(countedCash, currency, usdToKhrRate)
   const countedLabel = counted == null ? 'the entered amount' : formatCurrency(counted, currency)
   return `Expected cash is ${formatCurrency(current.expectedCash, currency)}. You counted ${countedLabel}. The session will be closed and the variance will be saved for reconciliation.`
 }

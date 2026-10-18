@@ -15,6 +15,7 @@ import {
   type LineDiscount,
 } from '../components/pos/DiscountModal'
 import { PosActivityModal, type HeldOrder } from '../components/pos/PosActivityModal'
+import { PosCashPaymentModal } from '../components/pos/PosCashPaymentModal'
 import { PosQrPaymentModal } from '../components/pos/PosQrPaymentModal'
 import { ShortcutsModal } from '../components/pos/ShortcutsModal'
 import { QuickCustomerModal } from '../components/customers/QuickCustomerModal'
@@ -49,10 +50,11 @@ import { useStoresRaw } from '../features/stores/useStores'
 import { usePosSettings, type PosPaymentMethod } from '../features/pos/posSettings'
 import { useAdminStore } from '../hooks/useAdminStore'
 import { resolveImageUrl } from '../lib/api'
+import { evaluateCashTender, formatCashMix, type CashReceived } from '../lib/cashTender'
 import { cn } from '../lib/cn'
 import { canConvertCurrency, convertCurrency, formatCurrency, formatKhr } from '../lib/currency'
 import { paths } from '../lib/paths'
-import { openReceiptWindow, printReceipt as openReceiptPrint } from '../lib/receipt'
+import { openReceiptWindow, printReceipt as openReceiptPrint, type ReceiptCash } from '../lib/receipt'
 import { card, pageContent, searchField } from '../lib/ui'
 
 type CartEntry = { qty: number; discount?: LineDiscount | null }
@@ -147,6 +149,7 @@ export function PosPage() {
   const [shortcutsOpen, setShortcutsOpen] = useState(false)
   const [activityMode, setActivityMode] = useState<'hold' | 'recent' | null>(null)
   const [qrCheckout, setQrCheckout] = useState<{ orderNo: string; response: QrPaymentResponse } | null>(null)
+  const [cashPaymentOpen, setCashPaymentOpen] = useState(false)
   const [isFullscreen, setIsFullscreen] = useState(false)
   const [mobileOrderOpen, setMobileOrderOpen] = useState(false)
   const createHeldSaleMutation = useCreateHeldSale()
@@ -185,7 +188,7 @@ export function PosPage() {
     [storeId, storesQuery.data],
   )
 
-  const getReceiptOptions = useCallback((order: PosOrder, paymentMethod?: string | null) => {
+  const getReceiptOptions = useCallback((order: PosOrder, paymentMethod?: string | null, cash?: ReceiptCash) => {
     const customerNumber = Number(order.customerId)
     const customerName = customerNumber > 0
       ? (customersQuery.data?.content ?? []).find((customer) => customer.id === customerNumber)?.fullName ?? `Customer #${customerNumber}`
@@ -201,6 +204,7 @@ export function PosPage() {
       customerName,
       paymentMethod,
       usdToKhrRate,
+      cash,
       showLogo: settings.receiptShowLogo,
       showSku: settings.receiptShowSku,
       showCustomer: settings.receiptShowCustomer,
@@ -663,25 +667,26 @@ export function PosPage() {
     }
   }, [createHeldSaleMutation, currencyCode, customerId, lines, settings.allowNegativeStock, settings.roundingIncrement, storeId, taxRate, toast, user])
 
-  const handlePayNow = useCallback(async () => {
+  /** Checks the sale can be paid and builds its order; warns and returns null when it cannot. */
+  const prepareCheckout = useCallback(() => {
     const businessId = Number(user?.business.id)
     const selectedStoreId = Number(storeId)
     const cashierId = Number(user?.id)
     if (!businessId || !selectedStoreId || !cashierId) {
       toast('Select a store and sign in before taking payment.', 'warning')
-      return
+      return null
     }
     if (lines.length === 0) {
       toast('Add at least one product before taking payment.', 'warning')
-      return
+      return null
     }
     if (settings.requireCustomer && Number(customerId) <= 0) {
       toast('Select a customer before taking payment.', 'warning')
-      return
+      return null
     }
     if (!isPaymentEnabled(payment)) {
       toast('That payment method is disabled in POS settings.', 'warning')
-      return
+      return null
     }
     if (payment === 'cash' && !currentCashSessionQuery.data) {
       toast(
@@ -690,7 +695,7 @@ export function PosPage() {
           : 'Open the cash register before accepting cash payments.',
         'warning',
       )
-      return
+      return null
     }
 
     const input: CreatePosOrderInput = {
@@ -715,31 +720,23 @@ export function PosPage() {
           : {}),
       })),
     }
+    return { businessId, selectedStoreId, cashierId, input }
+  }, [currencyCode, currentCashSessionQuery.data, currentCashSessionQuery.isLoading, customerId, lines, payment, settings.allowNegativeStock, settings.requireCustomer, settings.roundingIncrement, storeId, taxRate, toast, user])
+
+  const handlePayNow = useCallback(async () => {
+    const checkout = prepareCheckout()
+    if (!checkout) return
+    // Cash first asks what the customer hands over; the sale is created when the cashier confirms it.
+    if (payment === 'cash') {
+      setCashPaymentOpen(true)
+      return
+    }
+    const { businessId, selectedStoreId, cashierId, input } = checkout
 
     const receiptWindow = settings.autoPrintReceipt ? openReceiptWindow() : null
 
     try {
-      if (payment === 'cash') {
-        const order = await createOrderMutation.mutateAsync(input)
-        await createCashPaymentMutation.mutateAsync({
-          orderId: order.id,
-          businessId,
-          storeId: selectedStoreId,
-          cashierId,
-          amount: order.grandTotal,
-          tenderedAmount: order.grandTotal,
-          currencyCode: order.currencyCode,
-          method: 'CASH',
-          provider: 'NONE',
-          idempotencyKey: `PAY-${order.id}-${Date.now()}`,
-          note: 'POS cash payment',
-        })
-        const completed = await completeOrderMutation.mutateAsync(order.id)
-        toast(`Order ${order.orderNo} completed.`, 'success')
-        if (settings.autoPrintReceipt && !openReceiptPrint(completed, getReceiptOptions(completed, payment), receiptWindow)) {
-          toast('The receipt window was blocked. Allow pop-ups for this POS site and reprint it from Recent orders.', 'warning')
-        }
-      } else if (payment === 'card') {
+      if (payment === 'card') {
         const order = await createOrderMutation.mutateAsync(input)
         await createCardPaymentMutation.mutateAsync({
           orderId: order.id,
@@ -764,21 +761,21 @@ export function PosPage() {
           .map((line) => `${line.product.name} x${line.qty}`)
           .join(', ')
           .slice(0, 500)
-        const checkout = await createPosQrCheckoutMutation.mutateAsync({
+        const qr = await createPosQrCheckoutMutation.mutateAsync({
           ...input,
           paymentIdempotencyKey: `PAY-${Date.now()}-${crypto.randomUUID?.() ?? Math.random().toString(36).slice(2)}`,
           paymentNote: items,
         })
-        if (!checkout.payment.qrImageDataUrl?.startsWith('data:image/')) {
+        if (!qr.payment.qrImageDataUrl?.startsWith('data:image/')) {
           throw new Error('The payment service did not return a valid QR image.')
         }
-        setQrCheckout({ orderNo: checkout.order.orderNo, response: checkout.payment })
+        setQrCheckout({ orderNo: qr.order.orderNo, response: qr.payment })
         if (usesBakongKhqr) {
-          toast(`KHQR is ready for ${checkout.order.orderNo}. Tap Customer paid when the money arrives in your bank app.`, 'info')
+          toast(`KHQR is ready for ${qr.order.orderNo}. The payment is confirmed automatically when it arrives.`, 'info')
         } else {
-          toast(`Simulated QR payment is ready for ${checkout.order.orderNo}.`, 'info')
+          toast(`Simulated QR payment is ready for ${qr.order.orderNo}.`, 'info')
           window.setTimeout(() => {
-            void simulatePaymentCallbackMutation.mutateAsync(checkout.payment.payment.id)
+            void simulatePaymentCallbackMutation.mutateAsync(qr.payment.payment.id)
               .catch((error) => {
                 toast(error instanceof Error ? error.message : 'The simulated QR payment could not be verified.', 'error')
               })
@@ -793,7 +790,50 @@ export function PosPage() {
       if (pendingQrReceiptWindowRef.current === receiptWindow) pendingQrReceiptWindowRef.current = null
       toast(error instanceof Error ? error.message : 'Checkout could not be completed.', 'error')
     }
-  }, [completeOrderMutation, createCardPaymentMutation, createCashPaymentMutation, createOrderMutation, createPosQrCheckoutMutation, currencyCode, currentCashSessionQuery.data, currentCashSessionQuery.isLoading, customerId, getReceiptOptions, lines, payment, settings.allowNegativeStock, settings.autoPrintReceipt, settings.requireCustomer, settings.roundingIncrement, simulatePaymentCallbackMutation, storeId, taxRate, toast, user, usesBakongKhqr])
+  }, [completeOrderMutation, createCardPaymentMutation, createOrderMutation, createPosQrCheckoutMutation, getReceiptOptions, lines, payment, prepareCheckout, settings.autoPrintReceipt, simulatePaymentCallbackMutation, toast, usesBakongKhqr])
+
+  const completeCashPayment = useCallback(async (received: CashReceived) => {
+    const checkout = prepareCheckout()
+    if (!checkout) return
+    const { businessId, selectedStoreId, cashierId, input } = checkout
+    const receiptWindow = settings.autoPrintReceipt ? openReceiptWindow() : null
+
+    try {
+      const order = await createOrderMutation.mutateAsync(input)
+      // The dialog checked the cash against the POS total; check it again against the saved order.
+      const tender = evaluateCashTender(order.grandTotal, order.currencyCode, received, usdToKhrRate)
+      if (!tender.enough) {
+        throw new Error(`Order ${order.orderNo} totals ${formatCurrency(order.grandTotal, order.currencyCode)}. The cash received does not cover it.`)
+      }
+      const change = formatCashMix(tender.changeUsd, tender.changeKhr)
+      await createCashPaymentMutation.mutateAsync({
+        orderId: order.id,
+        businessId,
+        storeId: selectedStoreId,
+        cashierId,
+        amount: order.grandTotal,
+        tenderedAmount: tender.tendered,
+        currencyCode: order.currencyCode,
+        method: 'CASH',
+        provider: 'NONE',
+        idempotencyKey: `PAY-${order.id}-${Date.now()}`,
+        note: `POS cash payment. Received ${formatCashMix(received.usd, received.khr)}, change ${change}, 1 USD = ${usdToKhrRate} KHR`,
+      })
+      const completed = await completeOrderMutation.mutateAsync(order.id)
+      setCashPaymentOpen(false)
+      setMobileOrderOpen(false)
+      setCart({})
+      setDiscountTargetId(null)
+      toast(tender.changeAllKhr > 0 ? `Order ${order.orderNo} completed. Give change: ${change}.` : `Order ${order.orderNo} completed.`, 'success')
+      const cash: ReceiptCash = { receivedUsd: received.usd, receivedKhr: received.khr, changeUsd: tender.changeUsd, changeKhr: tender.changeKhr }
+      if (settings.autoPrintReceipt && !openReceiptPrint(completed, getReceiptOptions(completed, 'cash', cash), receiptWindow)) {
+        toast('The receipt window was blocked. Allow pop-ups for this POS site and reprint it from Recent orders.', 'warning')
+      }
+    } catch (error) {
+      receiptWindow?.close()
+      toast(error instanceof Error ? error.message : 'Checkout could not be completed.', 'error')
+    }
+  }, [completeOrderMutation, createCashPaymentMutation, createOrderMutation, getReceiptOptions, prepareCheckout, settings.autoPrintReceipt, toast, usdToKhrRate])
 
   const checkoutPending = createOrderMutation.isPending
     || createCashPaymentMutation.isPending
@@ -1618,6 +1658,18 @@ export function PosPage() {
         onConfirmPaid={() => void confirmQrPayment()}
         confirming={confirmPaymentMutation.isPending}
         autoCheckError={bakongCheckQuery.error instanceof Error ? bakongCheckQuery.error.message : undefined}
+      />
+
+      <PosCashPaymentModal
+        open={cashPaymentOpen}
+        total={total}
+        currencyCode={currencyCode}
+        usdToKhrRate={usdToKhrRate}
+        submitting={checkoutPending}
+        onClose={() => {
+          if (!checkoutPending) setCashPaymentOpen(false)
+        }}
+        onConfirm={(received) => void completeCashPayment(received)}
       />
     </div>
   )
