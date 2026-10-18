@@ -1,17 +1,19 @@
 import { useEffect, useRef, useState } from 'react'
-import type { PurchaseOrder } from '../../data/purchases-mockup'
-import { money, poTotal } from '../../data/purchases-mockup'
+import { orderStatusLabel, type PurchaseOrder } from '../../features/purchases/types'
+import { formatCurrency } from '../../lib/currency'
 import { cn } from '../../lib/cn'
 import { Icon } from '../ui/Icon'
 import { Status } from '../ui/Status'
 
 export interface PurchaseOrderPickerProps {
   orders: PurchaseOrder[]
-  value: string
-  onChange: (id: string) => void
+  value: number
+  onChange: (id: number) => void
+  /** Store names by id, for the order summary line. */
+  storeNames: Map<number, string>
 }
 
-export function PurchaseOrderPicker({ orders, value, onChange }: PurchaseOrderPickerProps) {
+export function PurchaseOrderPicker({ orders, value, onChange, storeNames }: PurchaseOrderPickerProps) {
   const [open, setOpen] = useState(false)
   const rootRef = useRef<HTMLDivElement>(null)
   const selected = orders.find((order) => order.id === value)
@@ -47,13 +49,13 @@ export function PurchaseOrderPicker({ orders, value, onChange }: PurchaseOrderPi
         </span>
         <span className="min-w-0 flex-1">
           <span className="flex items-center gap-2">
-            <strong className="truncate text-[15px] text-vpos-text">{selected.ref}</strong>
-            <Status value={selected.status} />
+            <strong className="truncate text-[15px] text-vpos-text">{selected.poNumber}</strong>
+            <Status value={orderStatusLabel(selected.status)} />
           </span>
-          <span className="mt-1 block truncate text-[13px] text-vpos-muted">{selected.supplierName} · {selected.store}</span>
+          <span className="mt-1 block truncate text-[13px] text-vpos-muted">{selected.supplierName} · {storeNames.get(selected.storeId) ?? `Store #${selected.storeId}`}</span>
         </span>
         <span className="shrink-0 text-right">
-          <span className="block text-[13px] font-bold text-vpos-text">{money(poTotal(selected))}</span>
+          <span className="block text-[13px] font-bold text-vpos-text">{formatCurrency(selected.totalCost, selected.currencyCode)}</span>
           <Icon name={open ? 'arrow-up-s-line' : 'arrow-down-s-line'} className="mt-1 text-[19px] text-vpos-muted" />
         </span>
       </button>
@@ -78,10 +80,10 @@ export function PurchaseOrderPicker({ orders, value, onChange }: PurchaseOrderPi
                   <Icon name="inbox-unarchive-line" />
                 </span>
                 <span className="min-w-0 flex-1">
-                  <span className="flex items-center gap-2"><strong className="text-[14px]">{order.ref}</strong><Status value={order.status} /></span>
-                  <span className="mt-1 block truncate text-[12px] text-vpos-muted">{order.supplierName} · {order.store} · Due {order.expectedDate}</span>
+                  <span className="flex items-center gap-2"><strong className="text-[14px]">{order.poNumber}</strong><Status value={orderStatusLabel(order.status)} /></span>
+                  <span className="mt-1 block truncate text-[12px] text-vpos-muted">{order.supplierName} · {storeNames.get(order.storeId) ?? `Store #${order.storeId}`}{order.expectedDate ? ` · Due ${order.expectedDate}` : ''}</span>
                 </span>
-                <span className="text-[13px] font-bold">{money(poTotal(order))}</span>
+                <span className="text-[13px] font-bold">{formatCurrency(order.totalCost, order.currencyCode)}</span>
               </button>
             )
           })}

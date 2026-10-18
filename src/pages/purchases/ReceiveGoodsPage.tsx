@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import {
   Breadcrumb,
@@ -8,64 +8,69 @@ import {
   StoreSwitcher,
   Topbar,
 } from '../../components'
-import { PurchasesSubnav } from '../../components/purchases/PurchasesSubnav'
 import { PurchaseOrderPicker } from '../../components/purchases/PurchaseOrderPicker'
-import {
-  money,
-  poTotal,
-  receivableOrders,
-  type PurchaseOrder,
-} from '../../data/purchases-mockup'
+import { PurchasesSubnav } from '../../components/purchases/PurchasesSubnav'
+import { useToast } from '../../context/ToastContext'
+import { usePurchaseOrders, useReceivePurchaseOrder } from '../../features/purchases/usePurchases'
+import { isReceivable, orderStatusLabel } from '../../features/purchases/types'
+import { useStoresRaw } from '../../features/stores/useStores'
 import { useAdminStore } from '../../hooks/useAdminStore'
 import { cn } from '../../lib/cn'
+import { formatCurrency } from '../../lib/currency'
 import { paths } from '../../lib/paths'
-import {
-  card,
-  pageContent,
-  tdClass,
-  thClass,
-} from '../../lib/ui'
+import { card, pageContent, tdClass, thClass } from '../../lib/ui'
 
+/** Adds goods that arrived to the store's stock, against an ordered purchase order. */
 export function ReceiveGoodsPage() {
   const navigate = useNavigate()
+  const { toast } = useToast()
   const [params] = useSearchParams()
   const { storeId, setStoreId } = useAdminStore()
-  const receivable = useMemo(() => receivableOrders(), [])
+  const ordersQuery = usePurchaseOrders()
+  const storesQuery = useStoresRaw()
+  const receiveMutation = useReceivePurchaseOrder()
+  const storeNames = useMemo(() => new Map((storesQuery.data ?? []).map((store) => [store.id, store.name])), [storesQuery.data])
+  const receivable = useMemo(() => (ordersQuery.data ?? []).filter(isReceivable), [ordersQuery.data])
 
-  const initialId =
-    params.get('po') && receivable.some((p) => p.id === params.get('po'))
-      ? (params.get('po') as string)
-      : (receivable[0]?.id ?? '')
+  const [orderId, setOrderId] = useState(0)
+  const [quantities, setQuantities] = useState<Record<number, number>>({})
+  const [note, setNote] = useState('')
+  const order = receivable.find((candidate) => candidate.id === orderId)
 
-  const [poId, setPoId] = useState(initialId)
-  const po: PurchaseOrder | undefined = receivable.find((p) => p.id === poId)
+  // Pick the order from the link, else the first one waiting, once the list has loaded.
+  useEffect(() => {
+    if (receivable.length === 0 || receivable.some((candidate) => candidate.id === orderId)) return
+    const fromLink = Number(params.get('po'))
+    setOrderId(receivable.some((candidate) => candidate.id === fromLink) ? fromLink : receivable[0].id)
+  }, [orderId, params, receivable])
 
-  const [qtyMap, setQtyMap] = useState<Record<string, number>>(() => {
-    const map: Record<string, number> = {}
-    for (const p of receivable) {
-      for (const line of p.lines) {
-        const remaining = Math.max(0, line.qtyOrdered - line.qtyReceived)
-        map[`${p.id}:${line.sku}`] = remaining
-      }
+  // Every line starts with what is still to come.
+  useEffect(() => {
+    if (!order) return
+    setQuantities(Object.fromEntries(order.lines.map((line) => [line.id, Math.max(0, line.qtyOrdered - line.qtyReceived)])))
+    setNote('')
+  }, [order])
+
+  const totalToReceive = Object.values(quantities).reduce((sum, quantity) => sum + quantity, 0)
+
+  const confirm = async () => {
+    if (!order) return
+    if (totalToReceive === 0) {
+      toast('Enter the quantities that arrived.', 'warning')
+      return
     }
-    return map
-  })
-
-  const [done, setDone] = useState(false)
-
-  const setQty = (sku: string, value: number) => {
-    if (!po) return
-    const line = po.lines.find((l) => l.sku === sku)
-    const max = line ? Math.max(0, line.qtyOrdered - line.qtyReceived) : 0
-    setQtyMap((prev) => ({
-      ...prev,
-      [`${po.id}:${sku}`]: Math.min(max, Math.max(0, value)),
-    }))
-    setDone(false)
-  }
-
-  const confirmReceive = () => {
-    setDone(true)
+    try {
+      const updated = await receiveMutation.mutateAsync({
+        id: order.id,
+        lines: Object.entries(quantities).filter(([, quantity]) => quantity > 0).map(([lineId, quantity]) => ({ lineId: Number(lineId), quantity })),
+        note: note.trim() || undefined,
+      })
+      toast(updated.status === 'RECEIVED'
+        ? `${updated.poNumber} is fully received. ${totalToReceive} units added to stock.`
+        : `${totalToReceive} units added to stock. ${updated.poNumber} is waiting for the rest.`, 'success')
+    } catch (error) {
+      toast(error instanceof Error ? error.message : 'The goods could not be received.', 'error')
+    }
   }
 
   return (
@@ -78,112 +83,56 @@ export function ReceiveGoodsPage() {
       <main className={pageContent}>
         <section className="mb-5 flex min-h-12 flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           <div className="min-w-0 flex-1">
-            <Breadcrumb
-              items={[
-                { label: 'Purchases', to: paths.purchases },
-                { label: 'Receive goods' },
-              ]}
-            />
+            <Breadcrumb items={[{ label: 'Purchases', to: paths.purchases }, { label: 'Receive goods' }]} />
           </div>
           <div className="flex shrink-0 flex-wrap gap-2.5">
-            <Button variant="secondary" onClick={() => navigate(paths.purchases)}>
-              Back to orders
-            </Button>
-            <Button
-              variant="primary"
-              disabled={!po}
-              onClick={confirmReceive}
-            >
-              <Icon name="checkbox-circle-line" /> Confirm receive
+            <Button variant="secondary" onClick={() => navigate(paths.purchases)}>Back to orders</Button>
+            <Button variant="primary" disabled={!order || totalToReceive === 0 || receiveMutation.isPending} onClick={() => void confirm()}>
+              <Icon name={receiveMutation.isPending ? 'loader-4-line' : 'checkbox-circle-line'} className={receiveMutation.isPending ? 'animate-spin' : ''} /> Confirm receive
             </Button>
           </div>
         </section>
 
         <PurchasesSubnav />
 
-        {done ? (
-          <div className="mb-4 rounded-[12px] border border-vpos-green/30 bg-vpos-green-bg px-4 py-3 text-[14px] font-semibold text-vpos-green">
-            Receipt recorded (demo). Inventory quantities would update for{' '}
-            {po?.store}.
-          </div>
-        ) : null}
-
         <article className={cn(card, 'mb-4 p-5')}>
           <div className="max-w-md">
-            <span className="mb-1.5 block text-[12px] font-extrabold tracking-wide text-vpos-muted uppercase">
-              Purchase order to receive
-            </span>
-            {receivable.length === 0 ? (
+            <span className="mb-1.5 block text-[12px] font-extrabold tracking-wide text-vpos-muted uppercase">Purchase order to receive</span>
+            {ordersQuery.isLoading ? (
+              <p className="m-0 text-[14px] text-vpos-muted">Loading orders…</p>
+            ) : receivable.length === 0 ? (
               <p className="m-0 text-[14px] text-vpos-muted">
-                No open orders ready to receive. Create or submit a PO first.
+                No orders are waiting for goods. Place a purchase order first.{' '}
+                <button type="button" onClick={() => navigate(paths.purchaseOrderNew)} className="border-0 bg-transparent p-0 font-bold text-vpos-primary underline underline-offset-2">New purchase order</button>
               </p>
             ) : (
-              <PurchaseOrderPicker
-                orders={receivable}
-                value={poId}
-                onChange={(id) => {
-                  setPoId(id)
-                  setDone(false)
-                }}
-              />
+              <PurchaseOrderPicker orders={receivable} value={orderId} onChange={setOrderId} storeNames={storeNames} />
             )}
           </div>
 
-          {po ? (
-            <div className="mt-4 flex flex-wrap gap-4 text-[13px] text-vpos-muted">
-              <span>
-                Store:{' '}
-                <strong className="text-vpos-text">{po.store}</strong>
-              </span>
-              <span>
-                Expected:{' '}
-                <strong className="text-vpos-text">{po.expectedDate}</strong>
-              </span>
-              <span>
-                Status: <Status value={po.status} />
-              </span>
-              <span>
-                Order total:{' '}
-                <strong className="text-vpos-text">{money(poTotal(po))}</strong>
-              </span>
+          {order ? (
+            <div className="mt-4 flex flex-wrap items-center gap-4 text-[13px] text-vpos-muted">
+              <span>Store: <strong className="text-vpos-text">{storeNames.get(order.storeId) ?? `Store #${order.storeId}`}</strong></span>
+              <span>Expected: <strong className="text-vpos-text">{order.expectedDate || '—'}</strong></span>
+              <span className="inline-flex items-center gap-1.5">Status: <Status value={orderStatusLabel(order.status)} /></span>
+              <span>Order total: <strong className="text-vpos-text">{formatCurrency(order.totalCost, order.currencyCode)}</strong></span>
             </div>
           ) : null}
         </article>
 
-        {po ? (
+        {order ? (
           <article className={cn(card, 'p-4')}>
-            <strong className="mb-3 block text-[15px]">Receive quantities</strong>
+            <strong className="mb-3 block text-[15px]">Quantities that arrived</strong>
             <div className="overflow-x-auto">
               <table className="w-full border-collapse">
-                <thead>
-                  <tr>
-                    {[
-                      'Product',
-                      'SKU',
-                      'Ordered',
-                      'Already received',
-                      'Remaining',
-                      'Receive now',
-                    ].map((h, i) => (
-                      <th key={i} className={thClass}>
-                        {h}
-                      </th>
-                    ))}
-                  </tr>
-                </thead>
+                <thead><tr>{['Product', 'SKU', 'Ordered', 'Already received', 'Still to come', 'Receive now'].map((heading) => <th key={heading} className={thClass}>{heading}</th>)}</tr></thead>
                 <tbody>
-                  {po.lines.map((line) => {
-                    const remaining = Math.max(
-                      0,
-                      line.qtyOrdered - line.qtyReceived,
-                    )
-                    const key = `${po.id}:${line.sku}`
+                  {order.lines.map((line) => {
+                    const remaining = Math.max(0, line.qtyOrdered - line.qtyReceived)
                     return (
-                      <tr key={line.sku}>
-                        <td className={tdClass}>
-                          <strong>{line.name}</strong>
-                        </td>
-                        <td className={tdClass}>{line.sku}</td>
+                      <tr key={line.id}>
+                        <td className={tdClass}><strong>{line.productName}</strong>{line.variantName ? <small className="block text-[11px] text-vpos-muted">{line.variantName}</small> : null}</td>
+                        <td className={tdClass}>{line.sku || '—'}</td>
                         <td className={tdClass}>{line.qtyOrdered}</td>
                         <td className={tdClass}>{line.qtyReceived}</td>
                         <td className={tdClass}>{remaining}</td>
@@ -192,12 +141,14 @@ export function ReceiveGoodsPage() {
                             type="number"
                             min={0}
                             max={remaining}
-                            value={qtyMap[key] ?? 0}
+                            aria-label={`Receive ${line.productName}`}
+                            value={quantities[line.id] ?? 0}
                             disabled={remaining === 0}
-                            onChange={(e) =>
-                              setQty(line.sku, Number(e.target.value) || 0)
-                            }
-                            className="h-9 w-24 rounded-lg border border-vpos-line px-2 text-[13px] font-semibold outline-none focus:border-vpos-primary"
+                            onChange={(event) => setQuantities((current) => ({
+                              ...current,
+                              [line.id]: Math.min(remaining, Math.max(0, Math.floor(Number(event.target.value) || 0))),
+                            }))}
+                            className="h-9 w-24 rounded-lg border border-vpos-line px-2 text-[13px] font-semibold outline-none focus:border-vpos-primary disabled:bg-vpos-subtle"
                           />
                         </td>
                       </tr>
@@ -206,6 +157,10 @@ export function ReceiveGoodsPage() {
                 </tbody>
               </table>
             </div>
+            <label className="mt-4 block max-w-xl">
+              <span className="mb-1.5 block text-[12px] font-extrabold tracking-wide text-vpos-muted uppercase">Delivery note</span>
+              <input value={note} onChange={(event) => setNote(event.target.value)} maxLength={500} placeholder="Optional, e.g. invoice number or who delivered" className="h-[39px] w-full rounded-[4px] border border-vpos-line px-3 text-[14px] outline-none focus:border-vpos-primary" />
+            </label>
           </article>
         ) : null}
       </main>
