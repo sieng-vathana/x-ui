@@ -119,6 +119,11 @@ export function TelegramAlertsForm({ businessId }: { businessId: number }) {
                   ? 'Alerts you switch on below arrive in this chat.'
                   : 'Connect your own Telegram, or a group with your staff. Telegram opens the bot; press Start to finish.'}
               </p>
+              {status.connected && status.botUsername ? (
+                <p className="mt-1 mb-0 max-w-2xl text-[13px] leading-5 text-vpos-muted">
+                  {`Group with topics? Open the topic that should get alerts and send /here@${status.botUsername} there.`}
+                </p>
+              ) : null}
             </span>
           </div>
           {status.connected ? (

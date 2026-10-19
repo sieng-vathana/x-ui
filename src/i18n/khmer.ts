@@ -2369,4 +2369,6 @@ export const khmerTranslations: Record<string, string> = {
   "Transfer could not be rejected.": "មិនអាចបដិសេធការផ្ទេរបានទេ។",
   "Transfer could not be cancelled.": "មិនអាចបោះបង់ការផ្ទេរបានទេ។",
   "Transfer could not be dispatched.": "មិនអាចបញ្ជូនការផ្ទេរចេញបានទេ។",
+  // Telegram topics
+  "The Telegram topic for alerts is closed. In the group, open the topic that should get alerts and send /here.": "ប្រធានបទ Telegram សម្រាប់ការជូនដំណឹងត្រូវបានបិទ។ នៅក្នុងក្រុម សូមបើកប្រធានបទដែលត្រូវទទួលការជូនដំណឹង ហើយផ្ញើ /here។",
 }
