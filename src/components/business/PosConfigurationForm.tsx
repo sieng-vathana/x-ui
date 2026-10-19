@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import { Button, Icon, Select, type StoreOption } from '../../components'
+import { authApi, type ExchangeRateReference } from '../../features/auth/authApi'
 import type { BusinessProfile } from '../../features/auth/types'
 import { usePosSettings, type PosPaymentMethod } from '../../features/pos/posSettings'
 
@@ -31,6 +32,9 @@ export function PosConfigurationForm({
   const [taxRegistrationNumber, setTaxRegistrationNumber] = useState(business.taxRegistrationNumber || '')
   const [taxRegistrationLabel, setTaxRegistrationLabel] = useState(business.taxRegistrationLabel || '')
   const [notice, setNotice] = useState('')
+  const [reference, setReference] = useState<ExchangeRateReference | null>(null)
+  const [referenceLoading, setReferenceLoading] = useState(false)
+  const [referenceError, setReferenceError] = useState('')
   const [bakongAccountId, setBakongAccountId] = useState(business.bakongAccountId || '')
   const [bakongNotice, setBakongNotice] = useState('')
 
@@ -45,6 +49,28 @@ export function PosConfigurationForm({
     setTaxRegistrationNumber(business.taxRegistrationNumber || '')
     setTaxRegistrationLabel(business.taxRegistrationLabel || '')
   }, [business.defaultCurrencyCode, business.id, business.pricesIncludeTax, business.taxRegistrationLabel, business.taxRegistrationNumber, business.usdToKhrExchangeRate])
+
+  useEffect(() => {
+    let active = true
+    authApi.getExchangeRateReference(business.id)
+      .then((value) => { if (active) setReference(value) })
+      .catch((error: unknown) => {
+        if (active) setReferenceError(error instanceof Error ? error.message : 'Reference rate is not available yet.')
+      })
+    return () => { active = false }
+  }, [business.id])
+
+  const refreshReference = async () => {
+    setReferenceLoading(true)
+    setReferenceError('')
+    try {
+      setReference(await authApi.refreshExchangeRateReference(business.id))
+    } catch (error) {
+      setReferenceError(error instanceof Error ? error.message : 'The reference rate could not be refreshed.')
+    } finally {
+      setReferenceLoading(false)
+    }
+  }
 
   const saveBusinessDefaults = async () => {
     const numericRate = Number(rate.replace(/,/g, ''))
@@ -154,6 +180,41 @@ export function PosConfigurationForm({
             <span className="mb-2 block text-[12px] font-semibold tracking-[.02em] text-vpos-dark">Tax registration number</span>
             <input value={taxRegistrationNumber} onChange={(event) => setTaxRegistrationNumber(event.target.value)} maxLength={100} className="h-[39px] w-full rounded-[4px] border border-vpos-line bg-white px-3.5 text-[14px] text-vpos-text outline-none focus:border-vpos-primary" />
           </label>
+        </div>
+        <div className="mt-4 flex flex-col gap-3 rounded-xl border border-vpos-line bg-vpos-subtle/40 p-4 sm:flex-row sm:items-center sm:justify-between">
+          <div>
+            <strong className="block text-[13px] text-vpos-text">Frankfurter reference rate</strong>
+            {reference ? (
+              <>
+                <span className="mt-1 block text-[15px] font-bold text-vpos-text">
+                  1 USD = {Number(reference.rate).toLocaleString('en-US', { maximumFractionDigits: 4 })} KHR
+                </span>
+                <small className="mt-1 block text-[11px] text-vpos-muted">
+                  <span>Reference date:</span> {reference.rateDate} · {reference.provider}
+                  {reference.stale ? <> · <span>Showing the last saved rate</span></> : null}
+                </small>
+              </>
+            ) : (
+              <small className="mt-1 block text-[11px] text-vpos-muted">No reference rate has been saved yet.</small>
+            )}
+            <small className="mt-1 block max-w-2xl text-[11px] leading-4 text-vpos-muted">
+              Comparison only: local bank and cash exchange rates may differ. POS keeps using your saved business rate below.
+            </small>
+            {referenceError ? <small aria-live="polite" className="mt-1 block text-[11px] font-semibold text-vpos-red">{referenceError}</small> : null}
+          </div>
+          <div className="flex shrink-0 flex-wrap gap-2">
+            <Button type="button" variant="secondary" className="rounded-lg" disabled={referenceLoading} onClick={() => void refreshReference()}>
+              <Icon name={referenceLoading ? 'loader-4-line' : 'refresh-line'} className={referenceLoading ? 'animate-spin' : undefined} /> {referenceLoading ? 'Refreshing…' : 'Refresh reference'}
+            </Button>
+            {reference ? (
+              <Button type="button" variant="secondary" className="rounded-lg" onClick={() => {
+                setRate(String(reference.rate))
+                setNotice('Reference copied into the POS rate field. Save currency defaults to apply it.')
+              }}>
+                Use this rate
+              </Button>
+            ) : null}
+          </div>
         </div>
         {!business.usdToKhrExchangeRateConfigured ? (
           <p className="mt-4 rounded-lg border border-vpos-orange/25 bg-vpos-orange-bg px-3 py-2.5 text-[12px] font-semibold text-vpos-orange">

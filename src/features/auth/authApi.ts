@@ -26,6 +26,15 @@ type BackendBusiness = {
   bakongAccountId?: string | null
   timeZone: string
 }
+export type ExchangeRateReference = {
+  baseCurrency: string
+  targetCurrency: string
+  rate: number
+  rateDate: string
+  fetchedAt: string
+  provider: string
+  stale: boolean
+}
 type BackendAuthResponse = { user?: BackendUser; business?: BackendBusiness; stores?: BffStore[] }
 type BrandCache = { businessId: string; name: string; logoUrl?: string }
 
@@ -86,6 +95,23 @@ function asSession(response: BackendAuthResponse): AuthenticatedSession {
 
 /** Browser client for the BFF's HttpOnly cookie authentication endpoints. */
 export const authApi = {
+  async getExchangeRateReference(businessId: string): Promise<ExchangeRateReference> {
+    const response = await api.request<ApiEnvelope<ExchangeRateReference>>(
+      `/businesses/${businessId}/exchange-rate-reference`,
+    )
+    if (!response.data) throw new Error(response.message || 'No exchange-rate reference is available.')
+    return response.data
+  },
+
+  async refreshExchangeRateReference(businessId: string): Promise<ExchangeRateReference> {
+    const response = await api.request<ApiEnvelope<ExchangeRateReference>>(
+      `/businesses/${businessId}/exchange-rate-reference/refresh`,
+      { method: 'POST' },
+    )
+    if (!response.data) throw new Error(response.message || 'The exchange-rate reference could not be refreshed.')
+    return response.data
+  },
+
   async restore(): Promise<AuthenticatedSession | null> {
     try {
       const response = await api.request<ApiEnvelope<BackendAuthResponse>>('/auth/refresh', {
