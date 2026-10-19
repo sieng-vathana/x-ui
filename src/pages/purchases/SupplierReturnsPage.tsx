@@ -61,7 +61,7 @@ export function SupplierReturnsPage() {
       const updated = await actionMutation.mutateAsync({ id: supplierReturn.id, action })
       setViewing(null)
       toast(action === 'complete'
-        ? `${updated.returnNumber} completed. ${updated.units} units removed from stock.`
+        ? `${updated.returnNumber} completed. ${updated.units} unit${updated.units === 1 ? '' : 's'} removed from stock.`
         : `${updated.returnNumber} cancelled.`, 'success')
     } catch (error) {
       toast(error instanceof Error ? error.message : 'The return could not be updated.', 'error')

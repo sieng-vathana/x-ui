@@ -83,8 +83,8 @@ export function ReceiveGoodsPage() {
         note: note.trim() || undefined,
       })
       toast(updated.status === 'RECEIVED'
-        ? `${updated.poNumber} is fully received. ${totalToReceive} units added to stock.`
-        : `${totalToReceive} units added to stock. ${updated.poNumber} is waiting for the rest.`, 'success')
+        ? `${updated.poNumber} is fully received. ${totalToReceive} unit${totalToReceive === 1 ? '' : 's'} added to stock.`
+        : `${totalToReceive} unit${totalToReceive === 1 ? '' : 's'} added to stock. ${updated.poNumber} is waiting for the rest.`, 'success')
     } catch (error) {
       toast(error instanceof Error ? error.message : 'The goods could not be received.', 'error')
     }
