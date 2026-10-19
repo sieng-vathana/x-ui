@@ -74,6 +74,17 @@ function storeImage(store: BffStore): string | undefined {
   return image?.imageUrl
 }
 
+/** The store card logo; a photo that fails to load falls back to the store icon instead of a broken image. */
+function StoreCardLogo({ src, name }: { src: string | undefined; name: string }) {
+  const [failed, setFailed] = useState(false)
+  useEffect(() => setFailed(false), [src])
+  return src && !failed ? (
+    <img src={src} alt={`${name} logo`} className="h-12 w-12 shrink-0 rounded-full border border-vpos-line object-cover" loading="lazy" onError={() => setFailed(true)} />
+  ) : (
+    <span className="grid h-12 w-12 shrink-0 place-items-center rounded-full bg-vpos-sand text-[20px] text-vpos-primary"><Icon name="store-2-line" /></span>
+  )
+}
+
 function StoreTableImage({ source }: { source: string | undefined }) {
   const [imageUrl, setImageUrl] = useState<string | undefined>(() => resolvePortalImageUrl(source))
 
@@ -731,7 +742,7 @@ function StoreCard({
       <div className="p-4">
         <div className="mb-3 flex items-start justify-between gap-2">
           <div className="flex min-w-0 items-center gap-3">
-            {img ? <img src={img} alt={`${store.name} logo`} className="h-12 w-12 shrink-0 rounded-full border border-vpos-line object-cover" loading="lazy" /> : <span className="grid h-12 w-12 shrink-0 place-items-center rounded-full bg-vpos-sand text-[20px] text-vpos-primary"><Icon name="store-2-line" /></span>}
+            <StoreCardLogo src={img} name={store.name} />
             <div className="min-w-0">
               <h3 className="m-0 truncate text-[17px] font-extrabold text-vpos-text">{store.name}</h3>
               <p className="mt-1 mb-0 flex items-start gap-1 text-[13px] text-vpos-muted"><Icon name="map-pin-line" className="mt-0.5 shrink-0" /><span>{storeAddress(store)}</span></p>
