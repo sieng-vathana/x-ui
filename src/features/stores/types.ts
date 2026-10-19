@@ -39,6 +39,10 @@ export interface BffStore {
   marketplaceAppliedAt?: string | null
   marketplaceApprovedAt?: string | null
   rejectionReason?: string | null
+  /** Suspended by the TinhLuk platform: no sales or marketplace listing until reinstated. */
+  suspended?: boolean
+  suspendedAt?: string | null
+  suspensionReason?: string | null
   createdAt: string
   updatedAt: string
 }

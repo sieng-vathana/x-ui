@@ -7,7 +7,7 @@ import { useSidebarLayout, type SidebarLayoutState } from '../hooks/useSidebarLa
 import { useSessionTimeout } from '../hooks/useSessionTimeout'
 import { SessionTimeoutModal } from '../components/auth/SessionTimeoutModal'
 import { authApi } from '../features/auth/authApi'
-import { useStores } from '../features/stores/useStores'
+import { useStores, useStoresRaw } from '../features/stores/useStores'
 import { cn } from '../lib/cn'
 import { Icon } from '../components/ui/Icon'
 import { readStoredValue, writeStoredValue } from '../lib/storage'
@@ -27,6 +27,8 @@ export function AdminLayout() {
   })
   const { data: stores = [] } = useStores()
   const [storeId, setStoreIdState] = useState(() => readStoredValue(ACTIVE_STORE_STORAGE_KEY, ''))
+  const { data: rawStores = [] } = useStoresRaw()
+  const suspendedStore = rawStores.find((store) => String(store.id) === String(storeId) && store.suspended)
   const sidebar = useSidebarLayout()
   const isHorizontal = !sidebar.isMobile && sidebar.config.layout === 'horizontal'
   const isDetached = !sidebar.isMobile && (sidebar.config.view === 'detached' || sidebar.config.layout === 'semi-box')
@@ -96,6 +98,12 @@ export function AdminLayout() {
             {businessReview.status === -1 ? 'Merchant application needs changes.' : 'Merchant application is awaiting backoffice approval.'}
             {' '}Your workspace is available for setup; orders and public listings are unavailable until approval.
             <Link to={paths.settings} className="ml-2 underline">View status</Link>
+          </div>
+        ) : null}
+        {suspendedStore ? (
+          <div role="alert" className="border-b border-rose-200 bg-rose-50 px-5 py-3 text-[14px] font-semibold text-rose-900">
+            {suspendedStore.name} is suspended by TinhLuk{suspendedStore.suspensionReason ? `: ${suspendedStore.suspensionReason}.` : '.'}
+            {' '}Sales and its marketplace listing are paused. Your other stores are not affected. Contact TinhLuk support for help.
           </div>
         ) : null}
         <Outlet
