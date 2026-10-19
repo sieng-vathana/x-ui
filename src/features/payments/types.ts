@@ -51,6 +51,14 @@ export interface PaymentBreakdown {
   refundedAmount: number
 }
 
+/** Payments taken in one period of the viewer's time zone, and how much of them was refunded. */
+export interface PaymentPeriod {
+  period: string
+  paymentCount: number
+  totalAmount: number
+  refundedAmount: number
+}
+
 export interface CreateCardPaymentInput {
   orderId: number
   businessId: number

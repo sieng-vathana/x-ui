@@ -231,7 +231,7 @@ function ChatCard({ businessId, businessName, chat, stores, lowStockThreshold }:
         <Toggle label="KHQR payments" description="When a customer's KHQR payment arrives in your Bakong account." checked={chat.khqrAlerts} onChange={(khqrAlerts) => void update({ khqrAlerts })} className="py-2.5" />
         <Toggle label="Online orders" description="When a customer places an order in your online store." checked={chat.orderAlerts} onChange={(orderAlerts) => void update({ orderAlerts })} className="py-2.5" />
         <Toggle label="Low stock" description="When a sale leaves a product at or below the low stock level." checked={chat.lowStockAlerts} onChange={(lowStockAlerts) => void update({ lowStockAlerts })} className="py-2.5" />
-        <Toggle label="Daily summary" description="Sales by store and payment method, once a day." checked={chat.dailySummary} onChange={(dailySummary) => void update({ dailySummary })} className="py-2.5" />
+        <Toggle label="Sales summaries" description="Sales by store and payment method every day, last week's on Mondays and last month's on the 1st." checked={chat.dailySummary} onChange={(dailySummary) => void update({ dailySummary })} className="py-2.5" />
       </div>
 
       <TelegramMessagePreview
@@ -261,7 +261,7 @@ const PREVIEW_LABELS: Record<PreviewKind, string> = {
   khqr: 'KHQR payments',
   order: 'Online orders',
   stock: 'Low stock',
-  summary: 'Daily summary',
+  summary: 'Sales summaries',
 }
 
 function TelegramMessagePreview({ businessName, chat, storeName, lowStockThreshold }: {
@@ -398,7 +398,7 @@ function SharedSettings({ status, onSave }: { status: TelegramStatus; onSave: (p
       <div className="flex flex-wrap gap-5">
         <LowStockLevel status={status} onSave={(lowStockThreshold) => onSave({ lowStockThreshold })} />
         <div className="w-[220px]">
-          <Select label="Send daily summary at" value={String(status.dailySummaryHour)} options={HOURS} onChange={(value) => onSave({ dailySummaryHour: Number(value) })} />
+          <Select label="Send summaries at" value={String(status.dailySummaryHour)} options={HOURS} onChange={(value) => onSave({ dailySummaryHour: Number(value) })} />
         </div>
       </div>
     </section>

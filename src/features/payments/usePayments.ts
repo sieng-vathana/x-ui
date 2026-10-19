@@ -1,6 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { ApiError } from '../../lib/api'
 import { paymentApi } from './paymentApi'
+import type { ReportBucket } from '../orders/types'
 import type { CashMovementInput, CloseCashSessionInput, RefundPaymentInput } from './types'
 
 export function useCreateCashPayment() {
@@ -172,5 +173,14 @@ export function usePaymentStatus(id?: number) {
     queryFn: () => paymentApi.get(id!),
     enabled: Boolean(id),
     refetchInterval: (query) => query.state.data?.status === 'PENDING' ? 3000 : false,
+  })
+}
+
+export function usePaymentPeriods(storeId: string | number | undefined, from: string, to: string, currencyCode: string, bucket: ReportBucket, enabled = true) {
+  return useQuery({
+    queryKey: ['reports', 'payment-periods', { storeId, from, to, currencyCode, bucket }],
+    queryFn: () => paymentApi.periods(storeId!, from, to, currencyCode, bucket),
+    enabled: enabled && Boolean(storeId) && Boolean(from) && Boolean(to),
+    staleTime: 30 * 1000,
   })
 }

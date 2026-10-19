@@ -10,10 +10,13 @@ import type {
   OpenCashSessionInput,
   Payment,
   PaymentBreakdown,
+  PaymentPeriod,
   PosQrCheckoutResponse,
   QrPaymentResponse,
   RefundPaymentInput,
 } from './types'
+import type { ReportBucket } from '../orders/types'
+import { browserTimeZone } from '../../lib/reporting'
 
 const api = new ApiClient({ baseUrl: API_BASE_URL })
 type ApiEnvelope<T> = { data?: T; message?: string; error?: string }
@@ -154,6 +157,15 @@ export const paymentApi = {
         `/payments/reports/breakdown?storeId=${encodeURIComponent(storeId)}&currencyCode=${encodeURIComponent(currencyCode)}&from=${encodeURIComponent(from)}&to=${encodeURIComponent(to)}`,
       ),
       'The payment breakdown could not be loaded.',
+    )
+  },
+
+  async periods(storeId: string | number, from: string, to: string, currencyCode: string, bucket: ReportBucket, timeZone = browserTimeZone()): Promise<PaymentPeriod[]> {
+    return requireData(
+      await api.request<ApiEnvelope<PaymentPeriod[]>>(
+        `/payments/reports/periods?storeId=${encodeURIComponent(storeId)}&currencyCode=${encodeURIComponent(currencyCode)}&from=${encodeURIComponent(from)}&to=${encodeURIComponent(to)}&bucket=${bucket}&timeZone=${encodeURIComponent(timeZone)}`,
+      ),
+      'The refunds by period could not be loaded.',
     )
   },
 

@@ -1,6 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { ApiError } from '../../lib/api'
 import { orderApi } from './orderApi'
+import type { ReportBucket } from './types'
 
 function normalizeStoreId(storeId?: string | number): number | undefined {
   const numericId = Number(storeId)
@@ -210,5 +211,19 @@ export function useCompleteOrder() {
       queryClient.invalidateQueries({ queryKey: ['orders'] })
       queryClient.invalidateQueries({ queryKey: ['deliveries'] })
     },
+  })
+}
+
+export function useSalesBreakdown(storeId: string | number | undefined, from: string, to: string, currencyCode: string, bucket: ReportBucket, enabled = true) {
+  const normalizedStoreId = normalizeStoreId(storeId)
+
+  return useQuery({
+    queryKey: ['reports', 'sales-breakdown', { storeId: normalizedStoreId, from, to, currencyCode, bucket }],
+    queryFn: () => {
+      if (normalizedStoreId === undefined) throw new Error('A valid store must be selected before loading reports.')
+      return orderApi.salesBreakdown(normalizedStoreId, from, to, currencyCode, bucket)
+    },
+    enabled: enabled && normalizedStoreId !== undefined && Boolean(from) && Boolean(to),
+    staleTime: 30 * 1000,
   })
 }

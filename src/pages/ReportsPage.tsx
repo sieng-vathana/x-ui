@@ -1,4 +1,5 @@
 import { useMemo, useState } from 'react'
+import { useQueryClient } from '@tanstack/react-query'
 import {
   Breadcrumb,
   Button,
@@ -11,15 +12,27 @@ import {
   type DataTableColumn,
 } from '../components'
 import { PaymentBreakdownTable } from '../components/reports/PaymentBreakdownTable'
-import { ReportDateFilter } from '../components/reports/ReportDateFilter'
+import { ReportPeriodFilter } from '../components/reports/ReportPeriodFilter'
+import { SalesBreakdownPanel, type BreakdownRow } from '../components/reports/SalesBreakdownPanel'
 import { ReportsSubnav } from '../components/reports/ReportsSubnav'
 import { useAuth } from '../context/AuthContext'
-import { usePaymentBreakdown } from '../features/payments/usePayments'
-import { useSalesSummary, useTopProducts } from '../features/orders/useOrders'
+import { usePaymentBreakdown, usePaymentPeriods } from '../features/payments/usePayments'
+import { useSalesBreakdown, useSalesSummary, useTopProducts } from '../features/orders/useOrders'
 import type { TopProduct } from '../features/orders/types'
 import { useAdminStore } from '../hooks/useAdminStore'
 import { formatCurrency } from '../lib/currency'
-import { defaultReportFrom, reportDateTimeRange, localDateValue } from '../lib/reporting'
+import {
+  bucketFor,
+  bucketLabel,
+  downloadCsv,
+  percentChange,
+  periodBuckets,
+  periodContaining,
+  periodLabel,
+  reportDateTimeRange,
+  shiftPeriod,
+  type ReportPeriod,
+} from '../lib/reporting'
 import { paths } from '../lib/paths'
 import { card, pageContent } from '../lib/ui'
 
@@ -30,16 +43,48 @@ export function ReportsPage({ section = 'overview' }: { section?: ReportsSection
   const { storeId, setStoreId } = useAdminStore()
   const businessCurrency = (user?.business.defaultCurrencyCode || 'USD').toUpperCase()
   const [currency, setCurrency] = useState(businessCurrency)
-  const [from, setFrom] = useState(defaultReportFrom)
-  const [to, setTo] = useState(() => localDateValue())
-  const range = useMemo(() => reportDateTimeRange(from, to), [from, to])
+  const [period, setPeriodState] = useState<ReportPeriod>(loadPeriod)
+  const setPeriod = (next: ReportPeriod) => {
+    setPeriodState(next)
+    savePeriod(next)
+  }
+  const range = useMemo(() => reportDateTimeRange(period.from, period.to), [period])
+  const previous = useMemo(() => shiftPeriod(period, -1), [period])
+  const previousRange = useMemo(() => reportDateTimeRange(previous.from, previous.to), [previous])
+  const bucket = bucketFor(period)
   const showSummary = section !== 'products' && section !== 'payments'
   const showProducts = section === 'overview' || section === 'products'
   const showPayments = section === 'overview' || section === 'payments'
+  const showBreakdown = section === 'overview' || section === 'tax'
   const summaryQuery = useSalesSummary(storeId, range.from, range.to, currency, showSummary)
-  const productsQuery = useTopProducts(storeId, range.from, range.to, currency, 10, showProducts)
+  const previousSummaryQuery = useSalesSummary(storeId, previousRange.from, previousRange.to, currency, showSummary)
+  const productsQuery = useTopProducts(storeId, range.from, range.to, currency, section === 'products' ? 100 : 10, showProducts)
   const paymentsQuery = usePaymentBreakdown(storeId, range.from, range.to, currency, showPayments)
+  const breakdownQuery = useSalesBreakdown(storeId, range.from, range.to, currency, bucket, showBreakdown)
+  const refundPeriodsQuery = usePaymentPeriods(storeId, range.from, range.to, currency, bucket, showBreakdown)
+  const breakdownRows = useMemo<BreakdownRow[]>(() => {
+    const sales = new Map((breakdownQuery.data ?? []).map((row) => [row.period, row]))
+    const refunds = new Map((refundPeriodsQuery.data ?? []).map((row) => [row.period, Number(row.refundedAmount || 0)]))
+    const multiDay = period.from !== period.to
+    return periodBuckets(period, bucket).map((key) => {
+      const row = sales.get(key)
+      return {
+        key,
+        label: bucketLabel(key, bucket, multiDay),
+        orderCount: Number(row?.orderCount || 0),
+        subtotal: Number(row?.subtotal || 0),
+        discount: Number(row?.discount || 0),
+        tax: Number(row?.tax || 0),
+        grandTotal: Number(row?.grandTotal || 0),
+        refunded: refunds.get(key) ?? 0,
+      }
+    })
+  }, [breakdownQuery.data, refundPeriodsQuery.data, period, bucket])
+  const queryClient = useQueryClient()
+  // Only the reports shown on this tab are fetched again.
+  const refreshAll = () => { void queryClient.invalidateQueries({ queryKey: ['reports'] }) }
   const summary = summaryQuery.data
+  const previousSummary = previousSummaryQuery.data
   const products = productsQuery.data ?? []
   const payments = paymentsQuery.data ?? []
   const title = sectionTitle(section)
@@ -59,6 +104,41 @@ export function ReportsPage({ section = 'overview' }: { section?: ReportsSection
   const refundedTotal = payments.reduce((total, row) => total + Number(row.refundedAmount || 0), 0)
   const orderCount = Number(summary?.orderCount || 0)
   const averageOrder = orderCount > 0 ? Number(summary?.grandTotal || 0) / orderCount : 0
+  const previousOrderCount = Number(previousSummary?.orderCount || 0)
+  const previousAverage = previousOrderCount > 0 ? Number(previousSummary?.grandTotal || 0) / previousOrderCount : 0
+  const versus = `vs ${PREVIOUS_LABEL[period.kind]}`
+  /** "▲ 12% vs previous week", green when sales went up (red for discounts going up), or null with nothing to compare. */
+  const compare = (current: number, before: number, upIsGood = true) => {
+    if (!previousSummary) return null
+    const change = percentChange(current, before)
+    if (change === null) return current > 0 ? { text: `New ${versus}`, tone: 'positive' as const } : null
+    if (Math.abs(change) < 0.05) return { text: `No change ${versus}`, tone: 'primary' as const }
+    const up = change > 0
+    return { text: `${up ? '▲' : '▼'} ${Math.abs(change).toFixed(1)}% ${versus}`, tone: up === upIsGood ? 'positive' as const : 'danger' as const }
+  }
+  const salesChange = compare(Number(summary?.grandTotal || 0), Number(previousSummary?.grandTotal || 0))
+  const ordersChange = compare(orderCount, previousOrderCount)
+  const discountChange = compare(Number(summary?.discount || 0), Number(previousSummary?.discount || 0), false)
+  const averageChange = compare(averageOrder, previousAverage)
+
+  const fileStem = `tinhluk-${section}-${period.from}${period.to !== period.from ? `_${period.to}` : ''}-${currency}`
+  const reportHeader = (name: string) => [[`TinhLuk ${name}`], ['Period', periodLabel(period)], ['Currency', currency], []]
+  const exportReport = () => {
+    if (section === 'products') {
+      downloadCsv(`${fileStem}.csv`, [...reportHeader('product performance'), ['Product', 'SKU', 'Units sold', 'Sales'],
+        ...products.map((row) => [row.productName, row.sku ?? '', row.quantity, Number(row.salesAmount || 0)])])
+    } else if (section === 'payments') {
+      downloadCsv(`${fileStem}.csv`, [...reportHeader('payment & cash report'), ['Method', 'Provider', 'Payments', 'Collected', 'Refunded'],
+        ...payments.map((row) => [row.method, row.provider, row.paymentCount, Number(row.totalAmount || 0), Number(row.refundedAmount || 0)])])
+    } else {
+      const total = (pick: (row: BreakdownRow) => number) => breakdownRows.reduce((sum, row) => sum + pick(row), 0)
+      downloadCsv(`${fileStem}.csv`, [...reportHeader(section === 'tax' ? 'tax, discounts & refunds' : 'sales report'),
+        [bucket === 'HOUR' ? 'Hour' : bucket === 'DAY' ? 'Day' : 'Month', 'Orders', 'Subtotal', 'Discounts', 'Tax', 'Net sales', 'Refunds'],
+        ...breakdownRows.map((row) => [row.key, row.orderCount, row.subtotal, row.discount, row.tax, row.grandTotal, row.refunded]),
+        ['Total', total((row) => row.orderCount), total((row) => row.subtotal), total((row) => row.discount), total((row) => row.tax), total((row) => row.grandTotal), total((row) => row.refunded)]])
+    }
+  }
+  const canExport = section !== 'stores'
 
   return (
     <>
@@ -74,13 +154,15 @@ export function ReportsPage({ section = 'overview' }: { section?: ReportsSection
       <main className={pageContent}>
         <section className="mb-5 flex min-h-12 flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           <Breadcrumb items={[{ label: 'Reports', to: paths.reports }, { label: title }]} />
-          <Button variant="secondary" onClick={() => { void Promise.all([summaryQuery.refetch(), productsQuery.refetch(), paymentsQuery.refetch()]) }}>
-            <Icon name="refresh-line" /> Refresh report
-          </Button>
+          {canExport ? (
+            <Button variant="secondary" onClick={exportReport}>
+              <Icon name="file-excel-2-line" /> Export to Excel
+            </Button>
+          ) : null}
         </section>
 
         <ReportsSubnav />
-        <ReportDateFilter from={from} to={to} onFromChange={setFrom} onToChange={setTo} onRefresh={() => { void Promise.all([summaryQuery.refetch(), productsQuery.refetch(), paymentsQuery.refetch()]) }} />
+        <ReportPeriodFilter period={period} onChange={setPeriod} onRefresh={refreshAll} />
 
         {summaryQuery.isError || productsQuery.isError || paymentsQuery.isError ? (
           <div className="mt-4 rounded-[4px] border border-vpos-red/25 bg-vpos-red-bg p-4 text-[13px] text-vpos-red">
@@ -92,11 +174,16 @@ export function ReportsPage({ section = 'overview' }: { section?: ReportsSection
 
         {showSummary ? (
           <section className="mt-[18px] grid grid-cols-1 gap-[18px] sm:grid-cols-2 xl:grid-cols-4">
-            <MetricCard label="Net sales" value={formatCurrency(summary?.grandTotal ?? 0, currency)} trend={`${orderCount} completed orders`} trendAs="small" icon={<Icon name="funds-line" />} iconTone="positive" />
-            <MetricCard label="Subtotal" value={formatCurrency(summary?.subtotal ?? 0, currency)} trend="Before discounts and tax" trendAs="small" icon={<Icon name="shopping-bag-3-line" />} />
-            <MetricCard label="Discounts" value={formatCurrency(summary?.discount ?? 0, currency)} trend="Applied to completed sales" trendAs="small" icon={<Icon name="price-tag-3-line" />} iconTone="warning" />
-            <MetricCard label="Average order" value={formatCurrency(averageOrder, currency)} trend={formatCurrency(summary?.tax ?? 0, currency) + ' tax'} trendAs="small" icon={<Icon name="bar-chart-box-line" />} />
+            <MetricCard label="Net sales" value={formatCurrency(summary?.grandTotal ?? 0, currency)} trend={salesChange?.text ?? `${formatCurrency(previousSummary?.grandTotal ?? 0, currency)} ${versus}`} trendTone={salesChange?.tone ?? 'primary'} trendAs="small" icon={<Icon name="funds-line" />} iconTone="positive" />
+            <MetricCard label="Completed orders" value={orderCount} trend={ordersChange?.text ?? `${previousOrderCount} ${versus}`} trendTone={ordersChange?.tone ?? 'primary'} trendAs="small" icon={<Icon name="shopping-bag-3-line" />} />
+            <MetricCard label="Discounts" value={formatCurrency(summary?.discount ?? 0, currency)} trend={discountChange?.text ?? `${formatCurrency(summary?.tax ?? 0, currency)} tax collected`} trendTone={discountChange?.tone ?? 'primary'} trendAs="small" icon={<Icon name="price-tag-3-line" />} iconTone="warning" />
+            <MetricCard label="Average order" value={formatCurrency(averageOrder, currency)} trend={averageChange?.text ?? `${formatCurrency(previousAverage, currency)} ${versus}`} trendTone={averageChange?.tone ?? 'primary'} trendAs="small" icon={<Icon name="bar-chart-box-line" />} />
           </section>
+        ) : null}
+
+
+        {section === 'overview' ? (
+          <SalesBreakdownPanel rows={breakdownRows} bucket={bucket} currency={currency} isLoading={breakdownQuery.isLoading || refundPeriodsQuery.isLoading} />
         ) : null}
 
         {section === 'overview' ? (
@@ -135,13 +222,47 @@ export function ReportsPage({ section = 'overview' }: { section?: ReportsSection
 
         {section === 'tax' ? (
           <section className={`${card} mt-[18px] p-5`}>
-            <div className="flex items-start gap-3"><span className="grid h-10 w-10 shrink-0 place-items-center rounded-md bg-vpos-orange-bg text-[20px] text-vpos-orange"><Icon name="file-list-3-line" /></span><div><h2 className="m-0 text-[15px] font-extrabold text-vpos-text">Tax, discounts & refunds</h2><p className="mt-1 mb-0 text-[13px] leading-6 text-vpos-muted">The current order report provides tax and discounts for completed sales. Refund detail will appear here as refund workflows are used.</p></div></div>
-            <div className="mt-5 grid gap-3 sm:grid-cols-3"><SummaryLine label="Tax collected" value={formatCurrency(summary?.tax ?? 0, currency)} /><SummaryLine label="Discounts" value={formatCurrency(summary?.discount ?? 0, currency)} /><SummaryLine label="Refunds" value={formatCurrency(refundedTotal, currency)} /></div>
+            <div className="flex items-start gap-3"><span className="grid h-10 w-10 shrink-0 place-items-center rounded-md bg-vpos-orange-bg text-[20px] text-vpos-orange"><Icon name="file-list-3-line" /></span><div><h2 className="m-0 text-[15px] font-extrabold text-vpos-text">Tax, discounts & refunds</h2><p className="mt-1 mb-0 text-[13px] leading-6 text-vpos-muted">Tax and discounts on completed sales, and refunds of payments taken in {periodLabel(period)}. The table below splits them by {bucket === 'HOUR' ? 'hour' : bucket === 'DAY' ? 'day' : 'month'}.</p></div></div>
+            <div className="mt-5 grid gap-3 sm:grid-cols-3"><SummaryLine label="Tax collected" value={formatCurrency(summary?.tax ?? 0, currency)} /><SummaryLine label="Discounts" value={formatCurrency(summary?.discount ?? 0, currency)} /><SummaryLine label="Refunds" value={formatCurrency(breakdownRows.reduce((total, row) => total + row.refunded, 0), currency)} /></div>
           </section>
+        ) : null}
+
+        {section === 'tax' ? (
+          <SalesBreakdownPanel rows={breakdownRows} bucket={bucket} currency={currency} isLoading={breakdownQuery.isLoading || refundPeriodsQuery.isLoading} />
         ) : null}
       </main>
     </>
   )
+}
+
+const PREVIOUS_LABEL: Record<ReportPeriod['kind'], string> = {
+  day: 'previous day',
+  week: 'previous week',
+  month: 'previous month',
+  year: 'previous year',
+  custom: 'previous period',
+}
+
+const PERIOD_STORAGE_KEY = 'vpos.report-period'
+
+/** The period last looked at in this tab, so it stays the same when moving between report pages; this week otherwise. */
+function loadPeriod(): ReportPeriod {
+  try {
+    const saved = JSON.parse(sessionStorage.getItem(PERIOD_STORAGE_KEY) ?? 'null') as ReportPeriod | null
+    const isDate = (value: unknown) => typeof value === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(value)
+    if (saved && saved.kind in PREVIOUS_LABEL && isDate(saved.from) && isDate(saved.to) && saved.from <= saved.to) return saved
+  } catch {
+    // Storage can be unavailable or hold something else; the default is fine.
+  }
+  return periodContaining('week')
+}
+
+function savePeriod(period: ReportPeriod) {
+  try {
+    sessionStorage.setItem(PERIOD_STORAGE_KEY, JSON.stringify(period))
+  } catch {
+    // Remembering the period is only a convenience.
+  }
 }
 
 function SummaryLine({ label, value }: { label: string; value: string }) {

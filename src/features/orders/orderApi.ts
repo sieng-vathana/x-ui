@@ -4,10 +4,13 @@ import type {
   CreatePosOrderInput,
   OrderPage,
   PosOrder,
+  ReportBucket,
+  SalesBreakdownRow,
   SalesSummary,
   SalesTrend,
   TopProduct,
 } from './types'
+import { browserTimeZone } from '../../lib/reporting'
 
 const api = new ApiClient({ baseUrl: API_BASE_URL })
 type ApiEnvelope<T> = { data?: T; message?: string; error?: string }
@@ -63,12 +66,21 @@ export const orderApi = {
     )
   },
 
-  async salesTrend(storeId: string | number, from: string, to: string, currencyCode: string): Promise<SalesTrend[]> {
+  async salesTrend(storeId: string | number, from: string, to: string, currencyCode: string, timeZone = browserTimeZone()): Promise<SalesTrend[]> {
     return requireData(
       await api.request<ApiEnvelope<SalesTrend[]>>(
-        `/orders/reports/sales-trend?storeId=${encodeURIComponent(storeId)}&currencyCode=${encodeURIComponent(currencyCode)}&from=${encodeURIComponent(from)}&to=${encodeURIComponent(to)}`,
+        `/orders/reports/sales-trend?storeId=${encodeURIComponent(storeId)}&currencyCode=${encodeURIComponent(currencyCode)}&from=${encodeURIComponent(from)}&to=${encodeURIComponent(to)}&timeZone=${encodeURIComponent(timeZone)}`,
       ),
       'The sales trend could not be loaded.',
+    )
+  },
+
+  async salesBreakdown(storeId: string | number, from: string, to: string, currencyCode: string, bucket: ReportBucket, timeZone = browserTimeZone()): Promise<SalesBreakdownRow[]> {
+    return requireData(
+      await api.request<ApiEnvelope<SalesBreakdownRow[]>>(
+        `/orders/reports/sales-breakdown?storeId=${encodeURIComponent(storeId)}&currencyCode=${encodeURIComponent(currencyCode)}&from=${encodeURIComponent(from)}&to=${encodeURIComponent(to)}&bucket=${bucket}&timeZone=${encodeURIComponent(timeZone)}`,
+      ),
+      'The sales breakdown could not be loaded.',
     )
   },
 

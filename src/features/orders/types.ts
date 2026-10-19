@@ -133,6 +133,18 @@ export interface SalesTrend {
   grandTotal: number
 }
 
+/** Completed sales in one period: "2026-10-20 14:00" (hour), "2026-10-20" (day) or "2026-10" (month), in the viewer's time zone. */
+export interface SalesBreakdownRow {
+  period: string
+  orderCount: number
+  subtotal: number
+  discount: number
+  tax: number
+  grandTotal: number
+}
+
+export type ReportBucket = 'HOUR' | 'DAY' | 'MONTH'
+
 export interface TopProduct {
   variantId: number
   productName: string
