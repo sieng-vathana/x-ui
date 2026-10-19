@@ -1,6 +1,6 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from 'react'
 import { khmerTranslations } from './khmer'
-import { khmerCoreTranslations } from './khmer-core'
+import { khmerTemplates } from './khmer-templates'
 
 export type PortalLanguage = 'en' | 'km'
 
@@ -10,8 +10,49 @@ type LocaleContextValue = {
 }
 
 const STORAGE_KEY = 'vpos.portal-language'
-const translationCatalog = { ...khmerTranslations, ...khmerCoreTranslations }
+const translationCatalog: Record<string, string> = khmerTranslations
 const LocaleContext = createContext<LocaleContextValue | null>(null)
+
+type TemplatePattern = { anchor: string; pattern: RegExp; slots: number[]; translation: string; numericOnly: boolean }
+
+/** "{0} is fully received. {1} unit{2} added to stock." becomes a pattern that captures the three values. */
+const templatePatterns: TemplatePattern[] = Object.entries(khmerTemplates).map(([english, translation]) => {
+  const parts = english.split(/\{(\d+)\}/)
+  const slots: number[] = []
+  let source = '^'
+  parts.forEach((part, index) => {
+    if (index % 2 === 0) source += part.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+    else {
+      slots.push(Number(part))
+      source += '([\\s\\S]*?)'
+    }
+  })
+  const literals = parts.filter((_, index) => index % 2 === 0)
+  const anchor = [...literals].sort((a, b) => b.length - a.length)[0] ?? ''
+  // With little fixed text, like "Edit {0}", only numbers and codes count as values, so a product named
+  // "Edit Mode Coffee" is not half translated.
+  const numericOnly = literals.join('').trim().length < 10
+  return { anchor, pattern: new RegExp(`${source}$`), slots, translation, numericOnly }
+})
+
+/** Khmer for a whole text: an exact catalog entry first, then a template with its values put back in. */
+function lookup(text: string): string | undefined {
+  const exact = translationCatalog[text]
+  if (exact !== undefined) return exact
+  for (const template of templatePatterns) {
+    if (template.anchor && !text.includes(template.anchor)) continue
+    const match = template.pattern.exec(text)
+    if (!match) continue
+    if (template.numericOnly && !match.slice(1).some((value) => /\d/.test(value))) continue
+    const values = new Map(template.slots.map((slot, index) => [slot, match[index + 1]]))
+    // A value that is itself known text, like a status, is translated too.
+    return template.translation.replace(/\{(\d+)\}/g, (_, slot: string) => {
+      const value = values.get(Number(slot)) ?? ''
+      return translationCatalog[value.trim()] ?? value
+    })
+  }
+  return undefined
+}
 const textState = new WeakMap<Text, { original: string; translated: string }>()
 const attributeState = new WeakMap<Element, Map<string, { original: string; translated: string }>>()
 
@@ -46,7 +87,7 @@ function translateText(node: Text, language: PortalLanguage) {
   if (!key) return
 
   if (language === 'km') {
-    const translation = translationCatalog[key]
+    const translation = lookup(key)
     if (!translation) return
     const next = preserveWhitespace(source, translation)
     if (next !== current) {
@@ -69,7 +110,7 @@ function translateAttributes(element: Element, language: PortalLanguage) {
     let states = attributeState.get(element)
     const known = states?.get(attribute)
     const source = known && current === known.translated ? known.original : current
-    const translation = language === 'km' ? translationCatalog[source.trim()] : undefined
+    const translation = language === 'km' ? lookup(source.trim()) : undefined
     if (translation) {
       if (translation !== current) {
         states ??= new Map()
