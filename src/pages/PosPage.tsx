@@ -167,7 +167,7 @@ export function PosPage() {
   const [discountTargetId, setDiscountTargetId] = useState<string | null>(null)
   const [shortcutsOpen, setShortcutsOpen] = useState(false)
   const [activityMode, setActivityMode] = useState<'hold' | 'recent' | null>(null)
-  const [qrCheckout, setQrCheckout] = useState<{ orderNo: string; response: QrPaymentResponse } | null>(null)
+  const [qrCheckout, setQrCheckout] = useState<{ orderNo: string; response: QrPaymentResponse; order?: PosOrder } | null>(null)
   const [cashPaymentOpen, setCashPaymentOpen] = useState(false)
   const [continueOrder, setContinueOrder] = useState<PosOrder | null>(null)
   const [continueBusy, setContinueBusy] = useState<ContinueOrderChoice | null>(null)
@@ -283,6 +283,29 @@ export function PosPage() {
     }
   }, [finishPaidOrder, toast])
 
+  /** Shows a new KHQR for an order that already exists (continued from Recent orders, or after a QR expired). */
+  const openQrForOrder = useCallback(async (order: PosOrder) => {
+    const qr = await paymentApi.resumePosQr({
+      orderId: order.id,
+      bakong: usesBakongKhqr,
+      businessId: Number(user?.business.id),
+      storeId: Number(order.storeId ?? storeId),
+      cashierId: Number(user?.id),
+      paymentIdempotencyKey: `PAY-${order.id}-${Date.now()}`,
+      paymentNote: (order.items ?? []).map((item) => `${item.productName} x${Number(item.quantity ?? item.qty ?? 0)}`).join(', ').slice(0, 500),
+    })
+    if (!qr.payment.qrImageDataUrl?.startsWith('data:image/')) {
+      throw new Error('The payment service did not return a valid QR image.')
+    }
+    pendingQrReceiptWindowRef.current = settings.autoPrintReceipt ? openReceiptWindow() : null
+    setQrCheckout({ orderNo: qr.order.orderNo, response: qr.payment, order: qr.order })
+    if (!usesBakongKhqr) {
+      window.setTimeout(() => {
+        void simulatePaymentCallbackMutation.mutateAsync(qr.payment.payment.id).catch(() => undefined)
+      }, SIMULATED_QR_CALLBACK_DELAY_MS)
+    }
+  }, [settings.autoPrintReceipt, simulatePaymentCallbackMutation, storeId, user, usesBakongKhqr])
+
   const chooseContinueOption = useCallback(async (choice: ContinueOrderChoice) => {
     const order = continueOrder
     if (!order) return
@@ -303,32 +326,59 @@ export function PosPage() {
         setContinueOrder(null)
         return
       }
-      const qr = await paymentApi.resumePosQr({
-        orderId: order.id,
-        bakong: usesBakongKhqr,
-        businessId: Number(user?.business.id),
-        storeId: Number(order.storeId ?? storeId),
-        cashierId: Number(user?.id),
-        paymentIdempotencyKey: `PAY-${order.id}-${Date.now()}`,
-        paymentNote: (order.items ?? []).map((item) => `${item.productName} x${Number(item.quantity ?? item.qty ?? 0)}`).join(', ').slice(0, 500),
-      })
-      if (!qr.payment.qrImageDataUrl?.startsWith('data:image/')) {
-        throw new Error('The payment service did not return a valid QR image.')
-      }
-      pendingQrReceiptWindowRef.current = settings.autoPrintReceipt ? openReceiptWindow() : null
+      await openQrForOrder(order)
       setContinueOrder(null)
-      setQrCheckout({ orderNo: qr.order.orderNo, response: qr.payment })
-      if (!usesBakongKhqr) {
-        window.setTimeout(() => {
-          void simulatePaymentCallbackMutation.mutateAsync(qr.payment.payment.id).catch(() => undefined)
-        }, SIMULATED_QR_CALLBACK_DELAY_MS)
-      }
     } catch (error) {
       toast(error instanceof Error ? error.message : 'The sale could not be continued.', 'error')
     } finally {
       setContinueBusy(null)
     }
-  }, [cancelOrderMutation, continueOrder, currentCashSessionQuery.data, settings.autoPrintReceipt, simulatePaymentCallbackMutation, storeId, toast, user, usesBakongKhqr])
+  }, [cancelOrderMutation, continueOrder, currentCashSessionQuery.data, openQrForOrder, toast])
+
+  /** Closes the KHQR without completing the order; it stays in Recent orders to continue later. */
+  const dismissQr = useCallback((message: string, tone: 'info' | 'warning') => {
+    if (!qrCheckout) return false
+    const paymentStatus = qrPaymentQuery.data?.status ?? qrCheckout.response.payment.status
+    if (paymentStatus === 'PENDING' && qrCheckout.response.payment.provider !== 'BAKONG' && qrCheckout.response.payment.provider !== 'SIMULATED') {
+      toast('This KHQR payment is still pending. Keep the checkout open until the provider confirms or rejects it.', 'warning')
+      return false
+    }
+    pendingQrReceiptWindowRef.current?.close()
+    pendingQrReceiptWindowRef.current = null
+    setQrCheckout(null)
+    toast(message, tone)
+    return true
+  }, [qrCheckout, qrPaymentQuery.data?.status, toast])
+
+  const holdQrCheckout = useCallback(() => {
+    if (!qrCheckout) return
+    dismissQr(`${qrCheckout.orderNo} is on hold. Continue it from Recent orders when the customer is ready.`, 'info')
+  }, [dismissQr, qrCheckout])
+
+  const switchQrToCash = useCallback(() => {
+    const order = qrCheckout?.order
+    if (!order) return
+    if (!currentCashSessionQuery.data) {
+      toast('Open the cash register before accepting cash payments.', 'warning')
+      return
+    }
+    if (dismissQr(`Switched ${order.orderNo} to cash.`, 'info')) setCashForOrder(order)
+  }, [currentCashSessionQuery.data, dismissQr, qrCheckout?.order, toast])
+
+  const [renewingQr, setRenewingQr] = useState(false)
+  const renewQr = useCallback(async () => {
+    const order = qrCheckout?.order
+    if (!order) return
+    setRenewingQr(true)
+    try {
+      pendingQrReceiptWindowRef.current?.close()
+      await openQrForOrder(order)
+    } catch (error) {
+      toast(error instanceof Error ? error.message : 'A new QR could not be created.', 'error')
+    } finally {
+      setRenewingQr(false)
+    }
+  }, [openQrForOrder, qrCheckout?.order, toast])
 
   const payOrderWithCash = useCallback(async (order: PosOrder, received: CashReceived) => {
     try {
@@ -977,7 +1027,7 @@ export function PosPage() {
         if (!qr.payment.qrImageDataUrl?.startsWith('data:image/')) {
           throw new Error('The payment service did not return a valid QR image.')
         }
-        setQrCheckout({ orderNo: qr.order.orderNo, response: qr.payment })
+        setQrCheckout({ orderNo: qr.order.orderNo, response: qr.payment, order: qr.order })
         if (usesBakongKhqr) {
           toast(`KHQR is ready for ${qr.order.orderNo}. The payment is confirmed automatically when it arrives.`, 'info')
         } else {
@@ -1957,6 +2007,13 @@ export function PosPage() {
         key={liveQrCheckout?.response.transactionId ?? 'no-qr-checkout'}
         checkout={liveQrCheckout?.response ?? null}
         orderNo={liveQrCheckout?.orderNo}
+        order={liveQrCheckout?.order}
+        merchantName={user?.business.name}
+        storeName={selectedStore?.name}
+        onHold={holdQrCheckout}
+        onSwitchToCash={liveQrCheckout?.order && isPaymentEnabled('cash') ? switchQrToCash : undefined}
+        onRenewQr={liveQrCheckout?.order ? () => void renewQr() : undefined}
+        renewing={renewingQr}
         onClose={closeQrCheckout}
         onConfirmPaid={() => void confirmQrPayment()}
         confirming={confirmPaymentMutation.isPending}

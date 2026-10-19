@@ -164,4 +164,7 @@ export const khmerTemplates: Record<string, string> = {
   "{0} is no longer waiting for payment.": "{0} លែងរង់ចាំការបង់ប្រាក់ទៀតហើយ។",
   "Items from {0} added to a new sale.": "ទំនិញពី {0} ត្រូវបានបន្ថែមទៅការលក់ថ្មី។",
   "{0} has no items that can be sold again.": "{0} គ្មានទំនិញដែលអាចលក់ម្តងទៀតបានទេ។",
+  "Expires in {0}": "ផុតកំណត់ក្នុង {0}",
+  "{0} is on hold. Continue it from Recent orders when the customer is ready.": "{0} កំពុងរង់ចាំ។ សូមបន្តវាពីការបញ្ជាទិញថ្មីៗ នៅពេលអតិថិជនរួចរាល់។",
+  "Switched {0} to cash.": "បានប្តូរ {0} ទៅសាច់ប្រាក់។",
 }
