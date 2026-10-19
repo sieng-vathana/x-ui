@@ -140,4 +140,6 @@ export const khmerTemplates: Record<string, string> = {
   "{0} logo": "ឡូហ្គោ {0}",
   "{0} tax": "ពន្ធ {0}",
   "Group with topics? Open the topic that should get alerts and send {0} there.": "ក្រុមមានប្រធានបទ (topics)? សូមបើកប្រធានបទដែលត្រូវទទួលការជូនដំណឹង ហើយផ្ញើ {0} នៅទីនោះ។",
+  "Group · topic “{0}”": "ក្រុម · ប្រធានបទ “{0}”",
+  "{0} disconnected.": "បានផ្តាច់ {0}។",
 }

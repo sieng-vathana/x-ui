@@ -3,18 +3,33 @@ import { API_BASE_URL, ApiClient, backgroundRequest } from '../../lib/api'
 const api = new ApiClient({ baseUrl: API_BASE_URL })
 type ApiEnvelope<T> = { data?: T; message?: string; error?: string }
 
+/** One connected chat, or one topic of a group with topics. */
+export interface TelegramChat {
+  id: number
+  chatTitle?: string | null
+  /** private, group or supergroup */
+  chatType?: string | null
+  topicTitle?: string | null
+  inTopic: boolean
+  allStores: boolean
+  storeIds: number[]
+  khqrAlerts: boolean
+  orderAlerts: boolean
+  lowStockAlerts: boolean
+  dailySummary: boolean
+  connectedAt?: string | null
+}
+
 export interface TelegramStatus {
   /** False until the platform's bot token is set on the server. */
   botConfigured: boolean
   botUsername?: string | null
   connected: boolean
-  chatTitle?: string | null
-  khqrAlerts: boolean
-  orderAlerts: boolean
-  lowStockAlerts: boolean
-  dailySummary: boolean
   lowStockThreshold: number
   dailySummaryHour: number
+  /** A connect link is open and nobody has pressed Start with it yet. */
+  linkPending: boolean
+  chats: TelegramChat[]
 }
 
 export interface TelegramLink {
@@ -23,10 +38,15 @@ export interface TelegramLink {
   expiresAt: string
 }
 
-export type TelegramPreferences = Partial<Pick<
-  TelegramStatus,
-  'khqrAlerts' | 'orderAlerts' | 'lowStockAlerts' | 'dailySummary' | 'lowStockThreshold' | 'dailySummaryHour'
+export type TelegramPreferences = Partial<Pick<TelegramStatus, 'lowStockThreshold' | 'dailySummaryHour'>>
+
+export type TelegramChatChanges = Partial<Pick<
+  TelegramChat,
+  'allStores' | 'storeIds' | 'khqrAlerts' | 'orderAlerts' | 'lowStockAlerts' | 'dailySummary'
 >>
+
+const chatPath = (businessId: number, chatId: number) =>
+  `/businesses/${encodeURIComponent(businessId)}/telegram/chats/${encodeURIComponent(chatId)}`
 
 function requireData<T>(response: ApiEnvelope<T>, fallback: string): T {
   if (response.data === undefined) {
@@ -75,9 +95,21 @@ export const telegramApi = {
     )
   },
 
-  async sendTest(businessId: number): Promise<void> {
-    await api.request<ApiEnvelope<unknown>>(`/businesses/${encodeURIComponent(businessId)}/telegram/test`, {
-      method: 'POST',
-    })
+  async updateChat(businessId: number, chatId: number, changes: TelegramChatChanges): Promise<TelegramStatus> {
+    return requireData(
+      await api.request<ApiEnvelope<TelegramStatus>>(chatPath(businessId, chatId), { method: 'PUT', body: JSON.stringify(changes) }),
+      'The Telegram chat could not be saved.',
+    )
+  },
+
+  async disconnectChat(businessId: number, chatId: number): Promise<TelegramStatus> {
+    return requireData(
+      await api.request<ApiEnvelope<TelegramStatus>>(chatPath(businessId, chatId), { method: 'DELETE' }),
+      'The Telegram chat could not be disconnected.',
+    )
+  },
+
+  async sendTest(businessId: number, chatId: number): Promise<void> {
+    await api.request<ApiEnvelope<unknown>>(`${chatPath(businessId, chatId)}/test`, { method: 'POST' })
   },
 }

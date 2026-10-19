@@ -1,14 +1,17 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { useToast } from '../../context/ToastContext'
-import type { TelegramPreferences, TelegramStatus } from '../../features/telegram/telegramApi'
+import type { TelegramChat, TelegramChatChanges, TelegramPreferences, TelegramStatus } from '../../features/telegram/telegramApi'
 import {
   useCreateTelegramLink,
-  useDisconnectTelegram,
+  useDisconnectTelegramChat,
   useSendTelegramTest,
   useTelegramStatus,
+  useUpdateTelegramChat,
   useUpdateTelegramPreferences,
 } from '../../features/telegram/useTelegram'
+import { useStores } from '../../features/stores/useStores'
 import { Button } from '../ui/Button'
+import { ConfirmModal } from '../ui/ConfirmModal'
 import { Icon } from '../ui/Icon'
 import { Select } from '../ui/Select'
 import { Toggle } from '../ui/Toggle'
@@ -18,22 +21,24 @@ const HOURS = Array.from({ length: 24 }, (_, hour) => ({
   label: new Date(2000, 0, 1, hour).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' }),
 }))
 
-/** Connects the business to a Telegram chat and chooses which alerts it receives. */
+type StoreName = { id: number; name: string }
+
+/** Connects Telegram chats to the business and chooses, per chat, which stores and alerts it gets. */
 export function TelegramAlertsForm({ businessId }: { businessId: number }) {
   const { toast } = useToast()
   const [pendingLink, setPendingLink] = useState<{ url: string; expiresAt: string } | null>(null)
   const statusQuery = useTelegramStatus(businessId, Boolean(pendingLink))
   const createLinkMutation = useCreateTelegramLink(businessId)
-  const disconnectMutation = useDisconnectTelegram(businessId)
-  const testMutation = useSendTelegramTest(businessId)
   const preferencesMutation = useUpdateTelegramPreferences(businessId)
+  const { data: storeOptions = [] } = useStores()
+  const stores = useMemo<StoreName[]>(() => storeOptions.map((store) => ({ id: Number(store.id), name: store.name })), [storeOptions])
   const status = statusQuery.data
 
   useEffect(() => {
-    if (!pendingLink || !status?.connected) return
+    if (!pendingLink || status?.linkPending !== false) return
     setPendingLink(null)
-    toast(`Telegram connected to ${status.chatTitle || 'your chat'}.`, 'success')
-  }, [pendingLink, status?.connected, status?.chatTitle, toast])
+    toast('Telegram chat connected.', 'success')
+  }, [pendingLink, status?.linkPending, toast])
 
   useEffect(() => {
     if (!pendingLink) return
@@ -57,25 +62,7 @@ export function TelegramAlertsForm({ businessId }: { businessId: number }) {
     }
   }
 
-  const disconnect = async () => {
-    try {
-      await disconnectMutation.mutateAsync()
-      toast('Telegram disconnected. No more alerts will be sent.', 'success')
-    } catch (error) {
-      toast(error instanceof Error ? error.message : 'Telegram could not be disconnected.', 'error')
-    }
-  }
-
-  const sendTest = async () => {
-    try {
-      await testMutation.mutateAsync()
-      toast('Test alert sent. Check your Telegram.', 'success')
-    } catch (error) {
-      toast(error instanceof Error ? error.message : 'The test alert could not be sent.', 'error')
-    }
-  }
-
-  const save = async (preferences: TelegramPreferences) => {
+  const savePreferences = async (preferences: TelegramPreferences) => {
     try {
       await preferencesMutation.mutateAsync(preferences)
     } catch (error) {
@@ -102,6 +89,8 @@ export function TelegramAlertsForm({ businessId }: { businessId: number }) {
     )
   }
 
+  const hasGroup = status.chats.some((chat) => chat.chatType !== 'private')
+
   return (
     <div className="space-y-5">
       <section className="rounded-2xl border border-vpos-line bg-white p-5 sm:p-6">
@@ -111,75 +100,225 @@ export function TelegramAlertsForm({ businessId }: { businessId: number }) {
               <Icon name="telegram-line" />
             </span>
             <span>
-              <h3 className="m-0 text-[16px] font-extrabold text-vpos-text">
-                {status.connected ? `Connected to ${status.chatTitle || 'your Telegram chat'}` : 'Telegram is not connected'}
-              </h3>
+              <h3 className="m-0 text-[16px] font-extrabold text-vpos-text">Telegram chats</h3>
               <p className="mt-1 mb-0 max-w-2xl text-[13px] leading-5 text-vpos-muted">
-                {status.connected
-                  ? 'Alerts you switch on below arrive in this chat.'
-                  : 'Connect your own Telegram, or a group with your staff. Telegram opens the bot; press Start to finish.'}
+                Each chat gets the alerts of the stores you choose. Connect your own Telegram, or a group with your staff; press Start in Telegram to finish.
               </p>
-              {status.connected && status.botUsername ? (
-                <p className="mt-1 mb-0 max-w-2xl text-[13px] leading-5 text-vpos-muted">
-                  {`Group with topics? Open the topic that should get alerts and send /here@${status.botUsername} there.`}
-                </p>
-              ) : null}
             </span>
           </div>
-          {status.connected ? (
-            <div className="flex shrink-0 flex-wrap gap-2">
-              <Button variant="secondary" onClick={() => void sendTest()} disabled={testMutation.isPending}>
-                <Icon name={testMutation.isPending ? 'loader-4-line' : 'send-plane-line'} className={testMutation.isPending ? 'animate-spin' : ''} /> Send test alert
-              </Button>
-              <Button variant="secondary" onClick={() => void disconnect()} disabled={disconnectMutation.isPending}>
-                <Icon name="link-unlink" /> Disconnect
-              </Button>
-            </div>
-          ) : (
-            <div className="flex shrink-0 flex-wrap gap-2">
-              <Button onClick={() => void connect('private')} disabled={createLinkMutation.isPending}>
-                <Icon name="telegram-line" /> Connect Telegram
-              </Button>
-              <Button variant="secondary" onClick={() => void connect('group')} disabled={createLinkMutation.isPending}>
-                <Icon name="group-line" /> Use a group
-              </Button>
-            </div>
-          )}
+          <div className="flex shrink-0 flex-wrap gap-2">
+            <Button onClick={() => void connect('private')} disabled={createLinkMutation.isPending}>
+              <Icon name="telegram-line" /> Connect Telegram
+            </Button>
+            <Button variant="secondary" onClick={() => void connect('group')} disabled={createLinkMutation.isPending}>
+              <Icon name="group-line" /> Use a group
+            </Button>
+          </div>
         </div>
-        {pendingLink && !status.connected ? (
+        {pendingLink ? (
           <p aria-live="polite" className="mt-4 mb-0 flex flex-wrap items-center gap-x-2 gap-y-1 rounded-lg border border-vpos-primary/15 bg-vpos-sand/60 px-3 py-2.5 text-[13px] text-vpos-primary-2">
             <Icon name="loader-4-line" className="animate-spin" /> Waiting for Start in Telegram. This page updates when the chat connects.
             <a href={pendingLink.url} target="_blank" rel="noreferrer" className="font-bold underline">Open Telegram again</a>
           </p>
         ) : null}
+
+        {status.chats.length ? (
+          <ul className="mt-5 mb-0 list-none space-y-3 p-0">
+            {status.chats.map((chat) => <ChatCard key={chat.id} businessId={businessId} chat={chat} stores={stores} />)}
+          </ul>
+        ) : (
+          <p className="mt-5 mb-0 rounded-xl border border-dashed border-vpos-line px-4 py-6 text-center text-[13px] text-vpos-muted">
+            No chat is connected yet.
+          </p>
+        )}
+        {hasGroup && status.botUsername ? (
+          <p className="mt-3 mb-0 text-[12px] leading-5 text-vpos-muted">
+            {`Group with topics? Open the topic that should get alerts and send /here@${status.botUsername} there.`}
+          </p>
+        ) : null}
       </section>
 
-      <section className="rounded-2xl border border-vpos-line bg-white p-5 sm:p-6">
-        <h3 className="m-0 text-[16px] font-extrabold text-vpos-text">Alerts</h3>
-        <p className="mt-1 mb-2 text-[13px] leading-5 text-vpos-muted">Changes save straight away.</p>
-        <div className="divide-y divide-vpos-line/70">
-          <AlertToggle label="KHQR payments" description="When a customer's KHQR payment arrives in your Bakong account." checked={status.khqrAlerts} onChange={(khqrAlerts) => void save({ khqrAlerts })} />
-          <AlertToggle label="Online orders" description="When a customer places an order in your online store." checked={status.orderAlerts} onChange={(orderAlerts) => void save({ orderAlerts })} />
-          <div>
-            <AlertToggle label="Low stock" description="When a sale leaves a product at or below the low stock level." checked={status.lowStockAlerts} onChange={(lowStockAlerts) => void save({ lowStockAlerts })} />
-            {status.lowStockAlerts ? <LowStockLevel status={status} onSave={(lowStockThreshold) => void save({ lowStockThreshold })} /> : null}
-          </div>
-          <div>
-            <AlertToggle label="Daily summary" description="Sales by store and payment method, once a day." checked={status.dailySummary} onChange={(dailySummary) => void save({ dailySummary })} />
-            {status.dailySummary ? (
-              <div className="max-w-[220px] pb-3">
-                <Select label="Send at" value={String(status.dailySummaryHour)} options={HOURS} onChange={(value) => void save({ dailySummaryHour: Number(value) })} />
-              </div>
-            ) : null}
-          </div>
-        </div>
-      </section>
+      {status.chats.length ? <SharedSettings status={status} onSave={(preferences) => void savePreferences(preferences)} /> : null}
     </div>
   )
 }
 
-function AlertToggle({ label, description, checked, onChange }: { label: string; description: string; checked: boolean; onChange: (checked: boolean) => void }) {
-  return <Toggle label={label} description={description} checked={checked} onChange={onChange} className="py-3.5" />
+function ChatCard({ businessId, chat, stores }: { businessId: number; chat: TelegramChat; stores: StoreName[] }) {
+  const { toast } = useToast()
+  const [editingStores, setEditingStores] = useState(false)
+  const [confirmingDisconnect, setConfirmingDisconnect] = useState(false)
+  const updateMutation = useUpdateTelegramChat(businessId)
+  const disconnectMutation = useDisconnectTelegramChat(businessId)
+  const testMutation = useSendTelegramTest(businessId)
+  const title = chat.chatTitle || 'Telegram chat'
+  const storeNames = chat.allStores
+    ? null
+    : chat.storeIds.map((id) => stores.find((store) => store.id === id)?.name ?? `Store #${id}`).join(', ')
+
+  const update = async (changes: TelegramChatChanges) => {
+    try {
+      await updateMutation.mutateAsync({ chatId: chat.id, changes })
+      return true
+    } catch (error) {
+      toast(error instanceof Error ? error.message : 'The Telegram chat could not be saved.', 'error')
+      return false
+    }
+  }
+
+  const sendTest = async () => {
+    try {
+      await testMutation.mutateAsync(chat.id)
+      toast('Test alert sent. Check your Telegram.', 'success')
+    } catch (error) {
+      toast(error instanceof Error ? error.message : 'The test alert could not be sent.', 'error')
+    }
+  }
+
+  const disconnect = async () => {
+    try {
+      await disconnectMutation.mutateAsync(chat.id)
+      setConfirmingDisconnect(false)
+      toast(`${title} disconnected.`, 'success')
+    } catch (error) {
+      toast(error instanceof Error ? error.message : 'The Telegram chat could not be disconnected.', 'error')
+    }
+  }
+
+  return (
+    <li className="rounded-xl border border-vpos-line p-4">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+        <div className="flex min-w-0 items-start gap-3">
+          <span className="grid h-10 w-10 shrink-0 place-items-center rounded-lg bg-vpos-green-bg text-[19px] text-vpos-green">
+            <Icon name={chat.chatType === 'private' ? 'user-line' : 'group-line'} />
+          </span>
+          <span className="min-w-0">
+            <strong className="block truncate text-[14px] text-vpos-text">{title}</strong>
+            <span className="block text-[12px] text-vpos-muted">{placeLabel(chat)}</span>
+            <span className="mt-1 flex flex-wrap items-center gap-1.5 text-[12px] text-vpos-text">
+              <Icon name="store-2-line" className="text-vpos-muted" />
+              {storeNames === null ? <span>All stores</span> : <span>{storeNames}</span>}
+            </span>
+          </span>
+        </div>
+        <div className="flex shrink-0 flex-wrap gap-2">
+          <Button variant="secondary" onClick={() => void sendTest()} disabled={testMutation.isPending}>
+            <Icon name={testMutation.isPending ? 'loader-4-line' : 'send-plane-line'} className={testMutation.isPending ? 'animate-spin' : ''} /> Send test
+          </Button>
+          <Button variant="secondary" onClick={() => setEditingStores((open) => !open)}>
+            <Icon name="store-2-line" /> Change stores
+          </Button>
+          <Button variant="secondary" onClick={() => setConfirmingDisconnect(true)}>
+            <Icon name="link-unlink" /> Disconnect
+          </Button>
+        </div>
+      </div>
+
+      {editingStores ? (
+        <StorePicker
+          chat={chat}
+          stores={stores}
+          saving={updateMutation.isPending}
+          onCancel={() => setEditingStores(false)}
+          onSave={async (changes) => { if (await update(changes)) setEditingStores(false) }}
+        />
+      ) : null}
+
+      <div className="mt-3 grid gap-x-6 border-t border-vpos-line/70 pt-1 sm:grid-cols-2">
+        <Toggle label="KHQR payments" description="When a customer's KHQR payment arrives in your Bakong account." checked={chat.khqrAlerts} onChange={(khqrAlerts) => void update({ khqrAlerts })} className="py-2.5" />
+        <Toggle label="Online orders" description="When a customer places an order in your online store." checked={chat.orderAlerts} onChange={(orderAlerts) => void update({ orderAlerts })} className="py-2.5" />
+        <Toggle label="Low stock" description="When a sale leaves a product at or below the low stock level." checked={chat.lowStockAlerts} onChange={(lowStockAlerts) => void update({ lowStockAlerts })} className="py-2.5" />
+        <Toggle label="Daily summary" description="Sales by store and payment method, once a day." checked={chat.dailySummary} onChange={(dailySummary) => void update({ dailySummary })} className="py-2.5" />
+      </div>
+
+      <ConfirmModal
+        open={confirmingDisconnect}
+        onClose={() => setConfirmingDisconnect(false)}
+        onConfirm={disconnect}
+        title="Disconnect this chat?"
+        description="This chat will stop getting alerts. You can connect it again later."
+        confirmText="Disconnect"
+        variant="danger"
+        isLoading={disconnectMutation.isPending}
+      />
+    </li>
+  )
+}
+
+function StorePicker({ chat, stores, saving, onCancel, onSave }: {
+  chat: TelegramChat
+  stores: StoreName[]
+  saving: boolean
+  onCancel: () => void
+  onSave: (changes: TelegramChatChanges) => Promise<void>
+}) {
+  const [allStores, setAllStores] = useState(chat.allStores)
+  const [chosen, setChosen] = useState<number[]>(chat.allStores ? [] : chat.storeIds)
+  const invalid = !allStores && chosen.length === 0
+
+  return (
+    <fieldset className="mt-3 rounded-xl border border-vpos-line bg-vpos-subtle p-3">
+      <legend className="px-1 text-[12px] font-bold text-vpos-dark">Stores for this chat</legend>
+      <div className="flex flex-wrap gap-4 text-[13px] text-vpos-text">
+        <label className="flex items-center gap-2">
+          <input type="radio" checked={allStores} onChange={() => setAllStores(true)} className="h-4 w-4 accent-vpos-primary" /> All stores
+        </label>
+        <label className="flex items-center gap-2">
+          <input type="radio" checked={!allStores} onChange={() => setAllStores(false)} className="h-4 w-4 accent-vpos-primary" /> Only these stores
+        </label>
+      </div>
+      {!allStores ? (
+        <div className="mt-3 grid max-h-52 grid-cols-1 gap-2 overflow-y-auto sm:grid-cols-2">
+          {stores.map((store) => {
+            const checked = chosen.includes(store.id)
+            return (
+              <label key={store.id} className="flex cursor-pointer items-center gap-3 rounded-lg border border-vpos-line bg-white px-3.5 py-2.5 text-[13px] font-semibold text-vpos-text">
+                <input
+                  type="checkbox"
+                  checked={checked}
+                  onChange={() => setChosen((current) => (checked ? current.filter((id) => id !== store.id) : [...current, store.id]))}
+                  className="h-4 w-4 accent-vpos-primary"
+                />
+                <span className="min-w-0 truncate">{store.name}</span>
+              </label>
+            )
+          })}
+        </div>
+      ) : null}
+      {invalid ? <p className="mt-2 mb-0 text-[12px] text-vpos-red">Choose at least one store.</p> : null}
+      <div className="mt-3 flex justify-end gap-2">
+        <Button variant="secondary" onClick={onCancel}>Cancel</Button>
+        <Button
+         
+          disabled={saving || invalid}
+          onClick={() => void onSave(allStores ? { allStores: true } : { allStores: false, storeIds: chosen })}
+        >
+          <Icon name="save-line" /> Save stores
+        </Button>
+      </div>
+    </fieldset>
+  )
+}
+
+function SharedSettings({ status, onSave }: { status: TelegramStatus; onSave: (preferences: TelegramPreferences) => void }) {
+  return (
+    <section className="rounded-2xl border border-vpos-line bg-white p-5 sm:p-6">
+      <h3 className="m-0 text-[16px] font-extrabold text-vpos-text">Alert settings</h3>
+      <p className="mt-1 mb-3 text-[13px] leading-5 text-vpos-muted">Shared by all chats. Changes save straight away.</p>
+      <div className="flex flex-wrap gap-5">
+        <LowStockLevel status={status} onSave={(lowStockThreshold) => onSave({ lowStockThreshold })} />
+        <div className="w-[220px]">
+          <Select label="Send daily summary at" value={String(status.dailySummaryHour)} options={HOURS} onChange={(value) => onSave({ dailySummaryHour: Number(value) })} />
+        </div>
+      </div>
+    </section>
+  )
+}
+
+/** Where in Telegram the alerts arrive: a private chat, a group, or one topic of a group with topics. */
+function placeLabel(chat: TelegramChat) {
+  if (chat.chatType === 'private') return 'Private chat'
+  if (chat.inTopic) return chat.topicTitle ? `Group · topic “${chat.topicTitle}”` : 'Group · one topic'
+  return chat.topicTitle ? `Group · topic “${chat.topicTitle}”` : 'Group'
 }
 
 function LowStockLevel({ status, onSave }: { status: TelegramStatus; onSave: (threshold: number) => void }) {
@@ -194,7 +333,7 @@ function LowStockLevel({ status, onSave }: { status: TelegramStatus; onSave: (th
     if (threshold !== status.lowStockThreshold) onSave(threshold)
   }
   return (
-    <label className="block max-w-[220px] pb-3">
+    <label className="block w-[220px]">
       <span className="mb-2 block text-[12px] font-semibold tracking-[.02em] text-vpos-dark">Low stock level (units)</span>
       <input
         type="number"

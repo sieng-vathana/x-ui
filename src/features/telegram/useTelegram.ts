@@ -1,15 +1,15 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { telegramApi, type TelegramPreferences, type TelegramStatus } from './telegramApi'
+import { telegramApi, type TelegramChatChanges, type TelegramPreferences, type TelegramStatus } from './telegramApi'
 
 const statusKey = (businessId: number | undefined) => ['telegram', businessId] as const
 
-/** While waiting for the owner to press Start in Telegram, checks every 3 seconds until the chat connects. */
+/** While waiting for someone to press Start in Telegram, checks every 3 seconds until the link is used. */
 export function useTelegramStatus(businessId: number | undefined, waitingForConnection: boolean) {
   return useQuery({
     queryKey: statusKey(businessId),
     queryFn: () => telegramApi.status(businessId!, waitingForConnection),
     enabled: Boolean(businessId),
-    refetchInterval: (query) => (waitingForConnection && !query.state.data?.connected ? 3000 : false),
+    refetchInterval: (query) => (waitingForConnection && query.state.data?.linkPending !== false ? 3000 : false),
   })
 }
 
@@ -25,14 +25,23 @@ export function useUpdateTelegramPreferences(businessId: number | undefined) {
   return useStatusMutation(businessId, (id, preferences: TelegramPreferences) => telegramApi.updatePreferences(id, preferences))
 }
 
-export function useDisconnectTelegram(businessId: number | undefined) {
-  return useStatusMutation(businessId, (id, _: void) => telegramApi.disconnect(id))
+export function useUpdateTelegramChat(businessId: number | undefined) {
+  return useStatusMutation(businessId, (id, { chatId, changes }: { chatId: number; changes: TelegramChatChanges }) =>
+    telegramApi.updateChat(id, chatId, changes))
+}
+
+export function useDisconnectTelegramChat(businessId: number | undefined) {
+  return useStatusMutation(businessId, (id, chatId: number) => telegramApi.disconnectChat(id, chatId))
 }
 
 export function useCreateTelegramLink(businessId: number | undefined) {
-  return useMutation({ mutationFn: () => telegramApi.createLink(businessId!) })
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: () => telegramApi.createLink(businessId!),
+    onSuccess: () => queryClient.setQueryData<TelegramStatus>(statusKey(businessId), (status) => status && { ...status, linkPending: true }),
+  })
 }
 
 export function useSendTelegramTest(businessId: number | undefined) {
-  return useMutation({ mutationFn: () => telegramApi.sendTest(businessId!) })
+  return useMutation({ mutationFn: (chatId: number) => telegramApi.sendTest(businessId!, chatId) })
 }

@@ -74,7 +74,7 @@ export function BusinessProfilePage() {
         {section === 'telegram' && user ? <section className={`${card} overflow-hidden p-0`}>
           <div className="border-b border-vpos-line bg-vpos-subtle/45 px-6 py-5 sm:px-7">
             <h2 className="m-0 text-[17px] font-extrabold text-vpos-text">Telegram alerts</h2>
-            <p className="mt-1 mb-0 text-[13px] text-vpos-muted">Choose a Telegram chat for alerts about KHQR payments, online orders, low stock and the day's sales.</p>
+            <p className="mt-1 mb-0 text-[13px] text-vpos-muted">Choose Telegram chats for alerts about KHQR payments, online orders, low stock and the day's sales, and the stores each chat covers.</p>
           </div>
           <div className="p-5 sm:p-7"><TelegramAlertsForm businessId={Number(user.business.id)} /></div>
         </section> : null}
