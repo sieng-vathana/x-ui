@@ -52,6 +52,8 @@ export interface CreateDeliveryQuoteInput {
   commune?: string
   latitude?: number
   longitude?: number
+  destinationLatitude?: number
+  destinationLongitude?: number
   itemTotal?: number
   isCod?: boolean
 }

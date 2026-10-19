@@ -35,7 +35,8 @@ export function BookCourierModal({
   const [riderName, setRiderName] = useState('')
   const [riderPhone, setRiderPhone] = useState('')
   const [quotes, setQuotes] = useState<DeliveryQuote[]>([])
-  const [selectedQuoteId, setSelectedQuoteId] = useState<number | null>(null)
+  const [quoteError, setQuoteError] = useState<string | null>(null)
+  const [quotesLoading, setQuotesLoading] = useState(false)
 
   const quotesMutation = useCreateDeliveryQuotes()
   const deliveryMutation = useCreateDelivery()
@@ -47,14 +48,27 @@ export function BookCourierModal({
     setRiderName('')
     setRiderPhone('')
     setSelectedProvider('GRAB')
+    setQuotes([])
+    setQuoteError(null)
+    setQuotesLoading(false)
+
+    const destinationLatitude = order.deliveryAddress?.latitude
+    const destinationLongitude = order.deliveryAddress?.longitude
+    if (destinationLatitude == null || destinationLongitude == null) {
+      setQuoteError('Add a map location to the customer delivery address before requesting courier options.')
+      return
+    }
 
     // Fetch quotes
     const fetchQuotes = async () => {
+      setQuotesLoading(true)
       try {
         const res = await quotesMutation.mutateAsync({
           orderId: order.id,
           storeId: order.storeId,
           currencyCode: currency,
+          destinationLatitude,
+          destinationLongitude,
           receiverName: order.deliveryAddress?.receiverName || `Customer #${order.customerId}`,
           receiverPhone: order.deliveryAddress?.phone || '',
           streetAddress: order.deliveryAddress?.streetAddress || 'Store Pickup',
@@ -66,11 +80,14 @@ export function BookCourierModal({
         })
         setQuotes(res)
         if (res.length > 0) {
-          setSelectedQuoteId(res[0].quoteId)
           setSelectedProvider(res[0].providerType)
+        } else {
+          setQuoteError('No delivery providers are enabled for this store.')
         }
       } catch (err) {
-        console.error('Quote fetch failed, using fallback providers', err)
+        setQuoteError(err instanceof Error ? err.message : 'Courier options could not be loaded.')
+      } finally {
+        setQuotesLoading(false)
       }
     }
 
@@ -82,12 +99,15 @@ export function BookCourierModal({
   const handleBook = async () => {
     try {
       const quote = quotes.find((q) => q.providerType === selectedProvider)
-      const quoteId = quote ? quote.quoteId : (selectedQuoteId || 1)
+      if (!quote) {
+        toast('Select an available delivery provider with a current quote.', 'error')
+        return
+      }
 
       await deliveryMutation.mutateAsync({
         orderId: order.id,
         storeId: order.storeId,
-        quoteId,
+        quoteId: quote.quoteId,
         providerType: selectedProvider,
         riderName: selectedProvider === 'OWN_RIDER' ? riderName : undefined,
         riderPhone: selectedProvider === 'OWN_RIDER' ? riderPhone : undefined,
@@ -118,7 +138,7 @@ export function BookCourierModal({
           <Button
             variant="primary"
             onClick={() => void handleBook()}
-            disabled={deliveryMutation.isPending || (selectedProvider === 'OWN_RIDER' && (!riderName.trim() || !riderPhone.trim()))}
+            disabled={deliveryMutation.isPending || quotesLoading || !selectedQuote || (selectedProvider === 'OWN_RIDER' && (!riderName.trim() || !riderPhone.trim()))}
           >
             <Icon name="truck-line" /> Confirm & Dispatch
           </Button>
@@ -137,38 +157,45 @@ export function BookCourierModal({
 
         <div>
           <label className="mb-1.5 block text-[13px] font-bold text-vpos-text">Select Delivery Provider</label>
-          <div className="grid grid-cols-3 gap-2">
-            {[
-              { id: 'GRAB' as const, name: 'Grab Express', icon: 'motorbike-line' },
-              { id: 'VIREAK_BUNTHAM' as const, name: 'Vireak Buntham', icon: 'bus-2-line' },
-              { id: 'OWN_RIDER' as const, name: 'In-House Rider', icon: 'user-star-line' },
-            ].map((prov) => {
-              const isSelected = selectedProvider === prov.id
-              const quote = quotes.find((q) => q.providerType === prov.id)
+          {quotesLoading ? (
+            <div className="rounded-[4px] border border-vpos-line bg-vpos-subtle/30 p-4 text-center text-[12px] text-vpos-muted">
+              <Icon name="loader-4-line" className="mr-2 animate-spin" /> Loading enabled couriers…
+            </div>
+          ) : quotes.length > 0 ? (
+            <div className="grid grid-cols-1 gap-2 sm:grid-cols-3">
+            {quotes.map((quoteOption) => {
+              const provider = [
+                { id: 'GRAB' as const, name: 'GrabExpress', icon: 'motorbike-line' },
+                { id: 'VIREAK_BUNTHAM' as const, name: 'Vireak Buntham', icon: 'bus-2-line' },
+                { id: 'OWN_RIDER' as const, name: 'In-House Rider', icon: 'user-star-line' },
+              ].find((item) => item.id === quoteOption.providerType)
+              if (!provider) return null
+              const isSelected = selectedProvider === provider.id
               return (
                 <button
-                  key={prov.id}
+                  key={quoteOption.quoteId}
                   type="button"
-                  onClick={() => setSelectedProvider(prov.id)}
+                  onClick={() => setSelectedProvider(provider.id)}
                   className={`flex flex-col items-center justify-center rounded-[4px] border p-3 text-center transition-all ${
                     isSelected
                       ? 'border-vpos-primary bg-vpos-sand text-vpos-primary-2 ring-2 ring-vpos-primary/20'
                       : 'border-vpos-line bg-white hover:border-vpos-muted text-vpos-text'
                   }`}
                 >
-                  <Icon name={prov.icon as any} className="mb-1 text-[20px]" />
-                  <span className="text-[12px] font-bold">{prov.name}</span>
-                  {quote ? (
-                    <span className="mt-1 text-[11px] font-semibold text-vpos-primary">
-                      {formatCurrency(quote.quotedFee, currency)}
-                    </span>
-                  ) : (
-                    <span className="mt-1 text-[10px] text-vpos-muted">Standard</span>
-                  )}
+                  <Icon name={provider.icon as any} className="mb-1 text-[20px]" />
+                  <span className="text-[12px] font-bold">{provider.name}</span>
+                  <span className="mt-1 text-[11px] font-semibold text-vpos-primary">
+                    {formatCurrency(quoteOption.quotedFee, currency)}
+                  </span>
                 </button>
               )
             })}
-          </div>
+            </div>
+          ) : (
+            <div className="rounded-[4px] border border-vpos-line bg-vpos-subtle/30 p-3 text-[12px] text-vpos-muted">
+              {quoteError || 'No courier options are available for this store.'}
+            </div>
+          )}
         </div>
 
         {selectedProvider === 'OWN_RIDER' && (
@@ -207,6 +234,11 @@ export function BookCourierModal({
                 <span>{formatCurrency(order.grandTotal, currency)}</span>
               </div>
             )}
+          </div>
+        )}
+        {selectedQuote && (
+          <div className="rounded-[4px] border border-amber-200 bg-amber-50 p-3 text-[11px] leading-relaxed text-amber-900">
+            Provider booking is simulated in this environment. Confirming here does not create a live GrabExpress or Vireak Buntham booking.
           </div>
         )}
       </div>
