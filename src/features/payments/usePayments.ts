@@ -27,7 +27,10 @@ export function useCreateBakongPosQrCheckout() {
   return useMutation({ mutationFn: paymentApi.createBakongPosQr })
 }
 
-/** While a Bakong KHQR is pending, asks Bakong every few seconds whether it has been paid. */
+/** How often a pending Bakong KHQR is checked; the sale completes within this long of the customer paying. */
+const BAKONG_CHECK_INTERVAL_MS = 1500
+
+/** While a Bakong KHQR is pending, asks Bakong every 1.5 seconds whether it has been paid. */
 export function useBakongPaymentCheck(id: number | undefined, enabled: boolean) {
   const queryClient = useQueryClient()
 
@@ -40,7 +43,7 @@ export function useBakongPaymentCheck(id: number | undefined, enabled: boolean) 
     },
     enabled: enabled && Boolean(id),
     refetchInterval: (query) => (
-      query.state.status !== 'error' && query.state.data?.status === 'PENDING' ? 4000 : false
+      query.state.status !== 'error' && query.state.data?.status === 'PENDING' ? BAKONG_CHECK_INTERVAL_MS : false
     ),
     retry: false,
     refetchOnWindowFocus: false,
