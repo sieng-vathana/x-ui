@@ -52,7 +52,7 @@ function asUser(source: BackendUser, business?: BackendBusiness): AuthenticatedU
       }
     : {
         id: 'workspace',
-        name: 'V-POS workspace',
+        name: 'TinhLuk workspace',
         type: 'WORKSPACE',
         phone: '',
         address: '',

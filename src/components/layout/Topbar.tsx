@@ -90,7 +90,7 @@ export function Topbar({
                 </span>
                 <span className="hidden sm:block">
                   <span className="block text-[17px] font-extrabold leading-none tracking-tight text-vpos-text">
-                    {user?.business.name ?? 'V-POS'}
+                    {user?.business.name ?? 'TinhLuk'}
                   </span>
                   <span className="mt-1 block text-[11px] font-bold tracking-[1.2px] text-vpos-muted">
                     {user?.business.type?.toUpperCase() ?? 'SMART BUSINESS'}

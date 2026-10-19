@@ -166,7 +166,7 @@ export function BusinessRegistrationPage() {
         storeLongitude: Number(form.storeLongitude),
       })
       sessionStorage.removeItem(DRAFT_STORAGE_KEY)
-      toast('Workspace created. Welcome to V-POS!', 'success')
+      toast('Workspace created. Welcome to TinhLuk!', 'success')
       navigate('/', { replace: true })
     } catch (reason) {
       const message = reason instanceof Error ? reason.message : 'We could not create your workspace.'

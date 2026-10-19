@@ -25,14 +25,14 @@ export function AuthShell({
       <div className="fixed top-4 right-4 z-50"><LocaleSwitcher /></div>
       <div className={`auth-frame ${singleColumn ? 'auth-frame--single' : ''} ${isReference ? 'auth-frame--reference' : ''}`}>
         {!singleColumn ? (
-          isReference ? <ReferenceRail /> : <aside className="auth-rail" aria-label="V-POS workspace overview">
+          isReference ? <ReferenceRail /> : <aside className="auth-rail" aria-label="TinhLuk workspace overview">
             <div className="auth-rail-grid" />
             <div className="auth-rail-inner">
               <div className="auth-rail-topline">
                 <Link to="/sign-in" className="auth-brand auth-brand--light">
                   <span className="auth-brand-mark"><Icon name="store-3-fill" /></span>
                   <span>
-                    <strong className="auth-brand-name">V-POS</strong>
+                    <strong className="auth-brand-name">TinhLuk</strong>
                     <small className="auth-brand-caption">OPERATIONS, IN SYNC</small>
                   </span>
                 </Link>
@@ -71,7 +71,7 @@ export function AuthShell({
               </div>
 
               <div className="auth-rail-footer">
-                <span className="auth-mono">V-POS / COMMAND DESK</span>
+                <span className="auth-mono">TinhLuk / COMMAND DESK</span>
                 <span>Make the next decision obvious.</span>
               </div>
             </div>
@@ -82,7 +82,7 @@ export function AuthShell({
           <div className="auth-mobile-brand">
             <Link to="/sign-in" className="auth-brand">
               <span className="auth-brand-mark"><Icon name="store-3-fill" /></span>
-              <strong className="auth-brand-name">V-POS</strong>
+              <strong className="auth-brand-name">TinhLuk</strong>
             </Link>
             {singleColumn ? <span className="auth-mobile-meta">WORKSPACE SETUP</span> : null}
           </div>
@@ -92,7 +92,7 @@ export function AuthShell({
               <div className="auth-setup-strip">
                 <Link to="/sign-in" className="auth-setup-brand">
                   <span className="auth-setup-brand-mark"><Icon name="store-3-fill" /></span>
-                  <strong>V-POS</strong>
+                  <strong>TinhLuk</strong>
                 </Link>
                 <span className="auth-setup-badge"><Icon name="sparkling-2-line" /> Workspace setup</span>
                 <span className="auth-mono">3 STEPS / ABOUT 4 MIN</span>
@@ -112,13 +112,13 @@ export function AuthShell({
 
 function ReferenceRail() {
   return (
-    <aside className="auth-rail auth-rail--reference" aria-label="V-POS workspace overview">
+    <aside className="auth-rail auth-rail--reference" aria-label="TinhLuk workspace overview">
       <div className="auth-reference-grid" />
       <div className="auth-reference-inner">
         <div className="auth-reference-topline">
           <Link to="/sign-in" className="auth-reference-brand">
             <span className="auth-reference-brand-mark"><Icon name="store-3-fill" /></span>
-            <span>V-POS</span>
+            <span>TinhLuk</span>
           </Link>
           <span className="auth-reference-status"><i /> Secure workspace</span>
         </div>
@@ -141,13 +141,13 @@ function ReferenceRail() {
         </div>
 
         <article className="auth-reference-quote">
-          <div className="auth-reference-quote__brand"><span><Icon name="store-3-fill" /></span><strong>V-POS</strong></div>
+          <div className="auth-reference-quote__brand"><span><Icon name="store-3-fill" /></span><strong>TinhLuk</strong></div>
           <p>“A calm command center for every busy hour.”</p>
           <footer>Workspace operations, in sync.</footer>
         </article>
 
         <div className="auth-reference-footer">
-          <span className="auth-mono">V-POS / COMMAND DESK</span>
+          <span className="auth-mono">TinhLuk / COMMAND DESK</span>
           <span>Make the next decision obvious.</span>
         </div>
       </div>

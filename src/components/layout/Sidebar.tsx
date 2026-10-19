@@ -128,7 +128,7 @@ function SidebarBrand({ iconOnly, compact, theme }: { iconOnly: boolean; compact
   const isLight = theme.divider === 'bg-vpos-line'
   return <div className={cn('flex h-[70px] shrink-0 items-center border-b px-5', compact ? 'gap-2 px-3' : 'gap-3', isLight ? 'border-vpos-line' : 'border-white/10')}>
     <span className={cn('grid shrink-0 place-items-center overflow-hidden rounded-xl', isLight ? 'bg-vpos-primary text-white' : 'bg-white/15 text-white', compact ? 'h-8 w-8 text-[17px]' : 'h-10 w-10 text-[20px]')}>{business?.logoUrl ? <img src={business.logoUrl} alt="" className="h-full w-full object-cover" /> : <Icon name="store-3-fill" />}</span>
-    {!iconOnly ? <span className="min-w-0"><span className="block truncate text-[17px] font-extrabold leading-none tracking-tight">{business?.name ?? 'V-POS'}</span><span className={cn('mt-1 block text-[11px] font-bold tracking-[1.2px]', theme.title)}>{business?.type?.toUpperCase() ?? 'SMART BUSINESS'}</span></span> : null}
+    {!iconOnly ? <span className="min-w-0"><span className="block truncate text-[17px] font-extrabold leading-none tracking-tight">{business?.name ?? 'TinhLuk'}</span><span className={cn('mt-1 block text-[11px] font-bold tracking-[1.2px]', theme.title)}>{business?.type?.toUpperCase() ?? 'SMART BUSINESS'}</span></span> : null}
   </div>
 }
 

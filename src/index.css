@@ -50,7 +50,7 @@
   --app-font: 'Public Sans', sans-serif;
 }
 
-/* V-POS aliases keep shared components and Tailwind utilities in sync. */
+/* TinhLuk aliases keep shared components and Tailwind utilities in sync. */
 @theme {
   --font-sans: 'Public Sans', ui-sans-serif, system-ui, sans-serif, 'Apple Color Emoji',
     'Segoe UI Emoji';
