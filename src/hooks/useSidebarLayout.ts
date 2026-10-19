@@ -148,7 +148,7 @@ export function useSidebarLayout() {
   const [hovered, setHovered] = useState(false)
   const [hoveredMenuItem, setHoveredMenuItem] = useState<string | null>(null)
   const [openGroup, setOpenGroup] = useState<string | null>(null)
-  const [twoColumnSection, setTwoColumnSection] = useState('overview')
+  const [twoColumnSection, setTwoColumnSection] = useState('')
   const [twoColumnOpen, setTwoColumnOpen] = useState(true)
   const skipPersistRef = useRef(false)
   const [isMobile, setIsMobile] = useState(() => typeof window !== 'undefined' && window.innerWidth <= 1024)

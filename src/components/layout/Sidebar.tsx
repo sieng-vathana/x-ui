@@ -1,4 +1,4 @@
-import { useRef } from 'react'
+import { useEffect, useRef } from 'react'
 import { NavLink, useLocation } from 'react-router-dom'
 import { isDarkThemeMode, type SidebarLayoutState } from '../../hooks/useSidebarLayout'
 import { navPrimary } from '../../data/mockup'
@@ -238,10 +238,67 @@ function HorizontalMenu({ darkMode }: { darkMode: boolean }) {
   return <nav aria-label="Horizontal navigation" className={cn('fixed top-[70px] right-0 left-0 z-30 flex h-12 items-center gap-1 overflow-x-auto border-b px-6 shadow-sm', darkMode ? 'border-vpos-topbar-border bg-vpos-topbar-dark' : 'border-vpos-line bg-white')}>{items.map(item => <NavLink key={item.key} to={keyToPath[item.key] ?? paths.products} className={({ isActive }) => cn('inline-flex h-8 items-center gap-1.5 rounded-[4px] px-3 text-[14px] font-medium no-underline', isActive || (item.key === 'products' && location.pathname.startsWith('/products')) ? theme.active : theme.item)}><Icon name={item.icon} />{item.label}</NavLink>)}</nav>
 }
 
+type SubLink = { to: string; label: string; end?: boolean; permission?: string }
+/** A row in the second column: a page with an icon, or a titled list of sub-pages. */
+type ColumnRow = { key: string; icon: string; label: string; to?: string; end?: boolean; links?: SubLink[] }
+type ColumnSection = { id: string; label: string; icon: string; rows: ColumnRow[]; matches: (path: string) => boolean }
+
+/** Same pages as the vertical sidebar, grouped into the icon rail's sections. */
+const twoColumnSections: ColumnSection[] = [
+  { id: 'overview', label: 'Overview', icon: 'dashboard-line', matches: (path) => path === paths.dashboard || path.startsWith(paths.pos), rows: [
+    { key: 'dashboard', icon: 'dashboard-line', label: 'Overview', to: paths.dashboard, end: true },
+    { key: 'pos', icon: 'store-2-line', label: 'Point of Sale', to: paths.pos },
+  ] },
+  { id: 'catalog', label: 'Products', icon: 'shopping-bag-3-line', matches: (path) => path.startsWith(paths.products), rows: [
+    { key: 'products', icon: 'shopping-bag-3-line', label: 'Products', links: productSubItems },
+  ] },
+  { id: 'orders', label: 'Sales', icon: 'line-chart-line', matches: (path) => [paths.orders, paths.sales, paths.customers].some((root) => path.startsWith(root)), rows: [
+    { key: 'orders', icon: 'file-list-3-line', label: 'Order management', to: paths.orders },
+    { key: 'sales', icon: 'line-chart-line', label: 'Sales', links: salesSubItems },
+    { key: 'customers', icon: 'user-heart-line', label: 'Customers', to: paths.customers },
+  ] },
+  { id: 'purchases', label: 'Purchases', icon: 'truck-line', matches: (path) => path.startsWith(paths.purchases), rows: [
+    { key: 'purchases', icon: 'truck-line', label: 'Purchases', links: purchaseSubItems },
+  ] },
+  { id: 'reports', label: 'Reports', icon: 'bar-chart-box-line', matches: (path) => path.startsWith(paths.reports), rows: [
+    { key: 'reports', icon: 'bar-chart-box-line', label: 'Reports', links: reportSubItems },
+  ] },
+  { id: 'management', label: 'Management', icon: 'settings-3-line', matches: (path) => [paths.stores, paths.settings, paths.users, paths.roles].some((root) => path.startsWith(root)), rows: [
+    { key: 'stores', icon: 'building-2-line', label: 'Store management', to: paths.stores },
+    { key: 'settings', icon: 'settings-3-line', label: 'Settings', links: settingsSubItems },
+    { key: 'users', icon: 'group-line', label: 'User management', to: paths.users },
+    { key: 'roles', icon: 'shield-keyhole-line', label: 'Role management', to: paths.roles },
+  ] },
+]
+
 function TwoColumnMenu({ state, theme }: { state: SidebarLayoutState; theme: ReturnType<typeof themeClasses> }) {
   const { user } = useAuth()
-  const sections = [{ id: 'overview', label: 'Overview', icon: 'dashboard-line', items: navPrimary.slice(0, 2) }, { id: 'orders', label: 'Orders', icon: 'file-list-3-line', items: staticItems.filter(item => item.key === 'orders' || item.key === 'sales') }, { id: 'catalog', label: 'Products', icon: 'shopping-bag-3-line', items: [{ key: 'products', label: 'Products', icon: 'shopping-bag-3-line' }] }, { id: 'purchases', label: 'Purchases', icon: 'truck-line', items: [{ key: 'purchases', label: 'Purchases', icon: 'truck-line' }] }, { id: 'management', label: 'Management', icon: 'settings-3-line', items: managementItems }]
-  const selected = sections.find(section => section.id === state.twoColumnSection) ?? sections[0]
-  const visibleItems = selected.items.filter((item) => !navigationPermissions[item.key] || user?.permissions.includes(navigationPermissions[item.key]))
-  return <aside aria-label="Two column navigation" className={cn('fixed top-0 bottom-0 left-0 z-40 flex overflow-hidden shadow-sm', theme.shell)} style={{ width: state.twoColumnOpen ? 290 : 70 }}><div className="flex w-[70px] shrink-0 flex-col items-center gap-3 py-5">{sections.map(section => <button key={section.id} type="button" title={section.label} aria-label={section.label} aria-pressed={selected.id === section.id} onClick={() => { state.setTwoColumnSection(section.id); state.setTwoColumnOpen(true) }} className={cn('grid h-10 w-10 place-items-center rounded-md border-0 bg-transparent text-[20px]', selected.id === section.id ? theme.active : theme.item)}><Icon name={section.icon} /></button>)}</div>{state.twoColumnOpen ? <div className="flex w-[220px] flex-col border-l border-white/10"><div className="flex h-20 items-center px-5 text-[16px] font-bold">{selected.label}<button type="button" onClick={() => state.setTwoColumnOpen(false)} className="ml-auto border-0 bg-transparent text-inherit" aria-label="Collapse secondary navigation"><Icon name="arrow-left-s-line" /></button></div><nav className="flex-1 overflow-y-auto px-3 py-3">{visibleItems.map(item => <NavItem key={item.key} to={keyToPath[item.key] ?? paths.dashboard} icon={item.icon} label={item.label} iconOnly={false} hint={navMeta[item.key]?.hint} theme={theme} onNavigate={() => undefined} />)}</nav></div> : null}</aside>
+  const location = useLocation()
+  const allowed = (permission?: string) => !permission || Boolean(user?.permissions.includes(permission))
+  const sections = twoColumnSections
+    .map((section) => ({ ...section, rows: section.rows
+      .filter((row) => allowed(navigationPermissions[row.key]))
+      .map((row) => (row.links ? { ...row, links: row.links.filter((link) => allowed(link.permission)) } : row))
+      .filter((row) => !row.links || row.links.length > 0) }))
+    .filter((section) => section.rows.length > 0)
+  const current = sections.find((section) => section.matches(location.pathname))
+  const { setTwoColumnSection } = state
+  // Follow the page: opening a page from anywhere shows its section in the second column.
+  useEffect(() => { if (current) setTwoColumnSection(current.id) }, [current?.id, setTwoColumnSection])
+  const selected =sections.find((section) => section.id === state.twoColumnSection) ?? current ?? sections[0]
+  const isLight = theme.divider === 'bg-vpos-line'
+  if (!selected) return null
+  return <aside aria-label="Two column navigation" className={cn('fixed top-0 bottom-0 left-0 z-40 flex overflow-hidden shadow-sm', theme.shell)} style={{ width: state.twoColumnOpen ? 290 : 70 }}>
+    <div className="flex w-[70px] shrink-0 flex-col items-center gap-3 py-5">{sections.map((section) => <button key={section.id} type="button" title={section.label} aria-label={section.label} aria-pressed={selected.id === section.id} onClick={() => { state.setTwoColumnSection(section.id); state.setTwoColumnOpen(true) }} className={cn('relative grid h-10 w-10 place-items-center rounded-md border-0 bg-transparent text-[20px]', selected.id === section.id ? theme.active : theme.item)}><Icon name={section.icon} />{current?.id === section.id && selected.id !== section.id ? <span className="absolute top-1 right-1 h-1.5 w-1.5 rounded-full bg-current" /> : null}</button>)}</div>
+    {state.twoColumnOpen ? <div className={cn('flex w-[220px] flex-col border-l', isLight ? 'border-vpos-line' : 'border-white/10')}>
+      <div className="flex h-20 shrink-0 items-center px-5 text-[16px] font-bold">{selected.label}<button type="button" onClick={() => state.setTwoColumnOpen(false)} className="ml-auto border-0 bg-transparent text-inherit" aria-label="Collapse secondary navigation"><Icon name="arrow-left-s-line" /></button></div>
+      <nav className="flex flex-1 flex-col gap-1 overflow-y-auto px-3 pb-4">{selected.rows.map((row) => row.links
+        ? <div key={row.key} className="flex flex-col gap-0.5 py-1">
+            <p className={cn('mb-1 flex items-center gap-2 px-3 pt-1 text-[11px] font-semibold tracking-[1.2px] uppercase', theme.title)}><Icon name={row.icon} className="text-[14px]" />{row.label}</p>
+            {row.links.map((link) => <NavLink key={link.to} to={link.to} end={link.end} className={({ isActive }) => cn('flex h-9 items-center gap-2 rounded-lg px-3 text-[13px] font-semibold no-underline transition-colors', isActive ? theme.subActive : theme.subItem)}>{({ isActive }) => <><span className={cn('h-1.5 w-1.5 rounded-full bg-current', !isActive && 'opacity-40')} /><span className="truncate">{link.label}</span></>}</NavLink>)}
+          </div>
+        : <NavItem key={row.key} to={row.to ?? paths.dashboard} end={row.end} icon={row.icon} label={row.label} iconOnly={false} hint={navMeta[row.key]?.hint} theme={theme} onNavigate={() => undefined} />)}
+      </nav>
+    </div> : null}
+  </aside>
 }
