@@ -324,9 +324,9 @@ function TelegramMessagePreview({ businessName, chat, storeName, lowStockThresho
 function previewMessage(kind: PreviewKind, businessName: string, storeName: string, lowStockThreshold: number) {
   switch (kind) {
     case 'khqr':
-      return '💰 KHQR payment received\n$12.50\nOrder ORD-1042'
+      return '💰 KHQR payment received\n$12.50\n👤 Customer: Dara Sok\nOrder ORD-1042'
     case 'order':
-      return '🛒 New online order ORD-1042\n$24.50 · 2 items\n• Iced latte x1\n• Croissant x1\nDeliver to: Sample customer · 012 345 678 · Phnom Penh'
+      return '🛒 New online order ORD-1042\n$24.50 · 2 items\n• Iced latte x1\n• Croissant x1\n👤 Customer: Dara Sok\nDeliver to: Dara Sok · 012 345 678 · Phnom Penh'
     case 'stock':
       return `⚠️ Low stock after order ORD-1042\n• Iced latte: ${Math.max(0, lowStockThreshold - 1)} left`
     case 'summary':
