@@ -9,7 +9,7 @@ import {
 } from 'react'
 import { useLocation } from 'react-router-dom'
 import { useQueryClient } from '@tanstack/react-query'
-import { authApi } from '../features/auth/authApi'
+import { authApi, type RegistrationOutcome } from '../features/auth/authApi'
 import type { AuthenticatedUser, RegistrationInput, SignInInput } from '../features/auth/types'
 
 type BusinessBrandInput = { name: string; logoUrl?: string }
@@ -29,7 +29,7 @@ interface AuthContextValue {
   isRestoring: boolean
   signIn: (input: SignInInput) => Promise<void>
   signInWithMfa: (input: { username: string; challengeToken: string; code: string; method: 'EMAIL' | 'TELEGRAM' }) => Promise<void>
-  register: (input: RegistrationInput) => Promise<void>
+  register: (input: RegistrationInput) => Promise<RegistrationOutcome>
   updateBusinessBrand: (input: BusinessBrandInput) => Promise<void>
   updateBusinessSettings: (input: BusinessSettingsInput) => Promise<void>
   signOut: () => Promise<void>
@@ -76,7 +76,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, [applySession])
 
   const register = useCallback(async (input: RegistrationInput) => {
-    applySession(await authApi.register(input))
+    const outcome = await authApi.register(input)
+    if (!outcome.pending) applySession(outcome.session)
+    return outcome
   }, [applySession])
 
   const updateBusinessBrand = useCallback(async (input: BusinessBrandInput) => {

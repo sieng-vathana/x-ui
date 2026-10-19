@@ -99,6 +99,7 @@ export function BusinessRegistrationPage() {
   const [step, setStep] = useState(() => getStepFromQuery(requestedStep))
   const [error, setError] = useState('')
   const [submitting, setSubmitting] = useState(false)
+  const [submitted, setSubmitted] = useState<{ businessName: string; storeName: string; email?: string } | null>(null)
 
   useEffect(() => {
     setStep(getStepFromQuery(requestedStep))
@@ -142,7 +143,7 @@ export function BusinessRegistrationPage() {
 
     setSubmitting(true)
     try {
-      await register({
+      const outcome = await register({
         fullName: form.fullName,
         username: form.username,
         password: form.password,
@@ -166,6 +167,10 @@ export function BusinessRegistrationPage() {
         storeLongitude: Number(form.storeLongitude),
       })
       sessionStorage.removeItem(DRAFT_STORAGE_KEY)
+      if (outcome.pending) {
+        setSubmitted({ businessName: outcome.businessName, storeName: outcome.storeName, email: form.email })
+        return
+      }
       toast('Workspace created. Welcome to TinhLuk!', 'success')
       navigate('/', { replace: true })
     } catch (reason) {
@@ -179,6 +184,30 @@ export function BusinessRegistrationPage() {
 
   const goBack = () => {
     goToStep(Math.max(0, step - 1))
+  }
+
+  if (submitted) {
+    return (
+      <AuthShell eyebrow="APPLICATION RECEIVED" title="Thank you for applying." description="TinhLuk reviews every new merchant before their shop goes live." singleColumn>
+        <div className="auth-form" role="status">
+          <div className="auth-alert auth-alert--notice">
+            <Icon name="mail-send-line" />
+            <span>
+              <strong>{submitted.businessName}</strong> and the shop <strong>{submitted.storeName}</strong> were sent to our team for review.
+              {' '}We will email {submitted.email ? <strong>{submitted.email}</strong> : 'you'} as soon as they are approved, usually within one business day.
+            </span>
+          </div>
+          <ol className="auth-field-hint" style={{ paddingLeft: 18, lineHeight: 1.8 }}>
+            <li>We check your business and shop details.</li>
+            <li>You receive an approval email from TinhLuk.</li>
+            <li>Sign in with the username and password you just created.</li>
+          </ol>
+          <Link to="/sign-in" className="auth-submit-button" style={{ display: 'inline-flex', justifyContent: 'center', alignItems: 'center', gap: 8, textDecoration: 'none' }}>
+            Back to sign in <Icon name="arrow-right-line" />
+          </Link>
+        </div>
+      </AuthShell>
+    )
   }
 
   return (
@@ -195,7 +224,7 @@ export function BusinessRegistrationPage() {
         <div className="auth-setup-actions">
           {step > 0 ? <Button type="button" variant="secondary" onClick={goBack} className="auth-back-button"><Icon name="arrow-left-line" /> Back</Button> : <span />}
           <Button type="submit" disabled={submitting} className="auth-setup-submit">
-            {submitting ? 'Creating workspace…' : step === steps.length - 1 ? 'Create workspace' : 'Continue'}
+            {submitting ? 'Submitting application…' : step === steps.length - 1 ? 'Submit application' : 'Continue'}
             <Icon name={step === steps.length - 1 ? 'checkbox-circle-line' : 'arrow-right-line'} />
           </Button>
         </div>

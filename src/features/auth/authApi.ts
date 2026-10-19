@@ -50,8 +50,13 @@ type BackendAuthResponse = {
   mfaDestination?: string
   mfaMethods?: string[]
   mfaSelectionToken?: string
+  applicationStatus?: string
 }
 type BrandCache = { businessId: string; name: string; logoUrl?: string }
+
+export type RegistrationOutcome =
+  | { pending: true; businessName: string; storeName: string }
+  | { pending: false; session: AuthenticatedSession }
 
 export type AuthenticatedSession = {
   user: AuthenticatedUser
@@ -217,14 +222,22 @@ export const authApi = {
     return asSession(response.data)
   },
 
-  async register(input: RegistrationInput): Promise<AuthenticatedSession> {
+  /** A new merchant is an application: TinhLuk reviews it and emails the owner, so no session is returned. */
+  async register(input: RegistrationInput): Promise<RegistrationOutcome> {
     const response = await api.request<ApiEnvelope<BackendAuthResponse>>('/auth/register', {
       method: 'POST',
       headers: { 'X-Client-Type': 'web' },
       body: JSON.stringify(input),
     })
+    if (response.data?.applicationStatus === 'PENDING_REVIEW') {
+      return {
+        pending: true,
+        businessName: response.data.business?.name ?? input.businessName,
+        storeName: response.data.stores?.[0]?.name ?? input.storeName,
+      }
+    }
     if (!response.data?.user) throw new Error(response.message || 'The registration response did not include a user.')
-    return asSession(response.data)
+    return { pending: false, session: asSession(response.data) }
   },
 
   updateUser(user: AuthenticatedUser): AuthenticatedUser {
