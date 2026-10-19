@@ -5,7 +5,7 @@ import { Button } from '../../components/ui/Button'
 import { Icon } from '../../components/ui/Icon'
 import { useAuth } from '../../context/AuthContext'
 import { useToast } from '../../context/ToastContext'
-import { MfaRequiredError } from '../../features/auth/authApi'
+import { authApi, MfaRequiredError, type MfaChallenge, type MfaMethod } from '../../features/auth/authApi'
 
 export function SignInPage() {
   const { isAuthenticated, isRestoring, signIn, signInWithMfa } = useAuth()
@@ -17,7 +17,9 @@ export function SignInPage() {
   const [showPassword, setShowPassword] = useState(false)
   const [error, setError] = useState('')
   const [submitting, setSubmitting] = useState(false)
-  const [challenge, setChallenge] = useState<{ token: string; expiresAt?: string; method: 'EMAIL' | 'TELEGRAM'; destination?: string } | null>(null)
+  const [mfa, setMfa] = useState<{ methods: MfaMethod[]; selectionToken?: string } | null>(null)
+  const [challenge, setChallenge] = useState<MfaChallenge | null>(null)
+  const [sendingTo, setSendingTo] = useState<MfaMethod | null>(null)
   const [mfaCode, setMfaCode] = useState('')
 
   const isSessionExpired = new URLSearchParams(location.search).get('reason') === 'session_expired'
@@ -38,7 +40,8 @@ export function SignInPage() {
       navigate((location.state as { from?: string } | null)?.from ?? '/', { replace: true })
     } catch (reason) {
       if (reason instanceof MfaRequiredError) {
-        setChallenge({ token: reason.challengeToken, expiresAt: reason.expiresAt, method: reason.method, destination: reason.destination })
+        setMfa({ methods: reason.methods, selectionToken: reason.selectionToken })
+        setChallenge(reason.challenge ?? null)
         setPassword('')
         setError('')
         return
@@ -51,6 +54,33 @@ export function SignInPage() {
     }
   }
 
+  const sendCode = async (method: MfaMethod) => {
+    if (!mfa?.selectionToken) return
+    setError('')
+    setSendingTo(method)
+    try {
+      setChallenge(await authApi.sendMfaCode({ username, selectionToken: mfa.selectionToken, method }))
+      setMfaCode('')
+      toast(method === 'EMAIL' ? 'Verification code sent to your email.' : 'Verification code sent to your Telegram.', 'success')
+    } catch (reason) {
+      const message = reason instanceof Error ? reason.message : 'The verification code could not be sent.'
+      setError(message)
+      toast(message, 'error')
+    } finally {
+      setSendingTo(null)
+    }
+  }
+
+  const backToPassword = () => {
+    setMfa(null)
+    setChallenge(null)
+    setMfaCode('')
+    setError('')
+  }
+
+  const choosing = Boolean(mfa && !challenge)
+  const otherMethod = challenge && mfa ? mfa.methods.find((method) => method !== challenge.method) : undefined
+
   return (
     <AuthShell variant="reference" eyebrow="WELCOME BACK" title="Pick up where you left off." description="Sign in to open your workspace and keep the floor moving.">
       <form onSubmit={submit} noValidate className="auth-form">
@@ -60,7 +90,24 @@ export function SignInPage() {
             <span>Your session expired after 30 minutes of inactivity. Please sign in again.</span>
           </div>
         ) : null}
-        {challenge ? <div className="auth-form-fields">
+        {choosing && mfa ? <div className="auth-form-fields">
+          <div className="auth-field">
+            <span className="auth-field-label">Two-step verification</span>
+            <span className="auth-field-hint">Choose where to send your 8-digit verification code.</span>
+          </div>
+          <div className="auth-mfa-options">
+            {mfa.methods.map((method) => (
+              <button key={method} type="button" className="auth-mfa-option" disabled={sendingTo !== null} onClick={() => void sendCode(method)}>
+                <span className="auth-mfa-option-icon"><Icon name={method === 'EMAIL' ? 'mail-line' : 'telegram-line'} /></span>
+                <span className="auth-mfa-option-text">
+                  <strong>{method === 'EMAIL' ? 'Email' : 'Telegram'}</strong>
+                  <span>{method === 'EMAIL' ? 'Send the code to your verified email address' : 'Send the code to your linked Telegram chat'}</span>
+                </span>
+                <Icon name={sendingTo === method ? 'loader-4-line' : 'arrow-right-s-line'} />
+              </button>
+            ))}
+          </div>
+        </div> : challenge ? <div className="auth-form-fields">
           <label className="auth-field">
             <span className="auth-field-label">{challenge.method === 'EMAIL' ? 'Email' : 'Telegram'} verification code <b>*</b></span>
             <span className="auth-field-hint">{challenge.method === 'EMAIL' ? `Enter the 8-digit code sent to ${challenge.destination || 'your verified email address'}.` : 'Enter the 8-digit code sent to your linked Telegram chat.'}</span>
@@ -82,9 +129,13 @@ export function SignInPage() {
           </div>
         </div>}
         {error ? <p role="alert" className="auth-alert auth-alert--error">{error}</p> : null}
-        {!challenge ? <div className="auth-security-note"><span className="auth-security-icon"><Icon name="shield-check-line" /></span><span><strong>Private session.</strong> Your access stays in secure browser cookies — never local storage.</span></div> : null}
-        <Button type="submit" disabled={submitting || isRestoring || Boolean(challenge && mfaCode.length !== 8)} className="auth-submit-button">{submitting ? 'Checking access…' : challenge ? 'Verify and sign in' : 'Open workspace'} <Icon name="arrow-right-line" /></Button>
-        {challenge ? <button type="button" className="mt-3 text-sm font-semibold text-vpos-primary underline" onClick={() => { setChallenge(null); setMfaCode(''); setError('') }}>Back to password</button> : null}
+        {!mfa ? <div className="auth-security-note"><span className="auth-security-icon"><Icon name="shield-check-line" /></span><span><strong>Private session.</strong> Your access stays in secure browser cookies — never local storage.</span></div> : null}
+        {!choosing ? <Button type="submit" disabled={submitting || isRestoring || Boolean(challenge && mfaCode.length !== 8)} className="auth-submit-button">{submitting ? 'Checking access…' : challenge ? 'Verify and sign in' : 'Open workspace'} <Icon name="arrow-right-line" /></Button> : null}
+        {mfa ? <div className="auth-mfa-links">
+          {challenge && mfa.selectionToken ? <button type="button" disabled={sendingTo !== null} onClick={() => void sendCode(challenge.method)}>{sendingTo === challenge.method ? 'Sending…' : 'Resend code'}</button> : null}
+          {otherMethod && mfa.selectionToken ? <button type="button" disabled={sendingTo !== null} onClick={() => void sendCode(otherMethod)}>{otherMethod === 'EMAIL' ? 'Send to email instead' : 'Send to Telegram instead'}</button> : null}
+          <button type="button" onClick={backToPassword}>Back to password</button>
+        </div> : null}
       </form>
       <div className="auth-form-footer"><span>New here?</span> <Link to="/register-business">Create your workspace account <Icon name="arrow-up-right-line" /></Link></div>
     </AuthShell>

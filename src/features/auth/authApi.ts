@@ -44,6 +44,8 @@ type BackendAuthResponse = {
   mfaChallengeToken?: string
   mfaExpiresAt?: string
   mfaDestination?: string
+  mfaMethods?: string[]
+  mfaSelectionToken?: string
 }
 type BrandCache = { businessId: string; name: string; logoUrl?: string }
 
@@ -52,20 +54,39 @@ export type AuthenticatedSession = {
   stores?: BffStore[]
 }
 
-export class MfaRequiredError extends Error {
-  readonly challengeToken: string
-  readonly expiresAt?: string
-  readonly method: 'EMAIL' | 'TELEGRAM'
-  readonly destination?: string
+export type MfaMethod = 'EMAIL' | 'TELEGRAM'
 
-  constructor(challengeToken: string, method: 'EMAIL' | 'TELEGRAM', expiresAt?: string, destination?: string) {
-    super(method === 'EMAIL' ? 'Enter the email code to finish signing in.' : 'Enter the Telegram code to finish signing in.')
+/** A sign-in code that has been sent and is waiting to be entered. */
+export type MfaChallenge = {
+  token: string
+  method: MfaMethod
+  expiresAt?: string
+  destination?: string
+}
+
+/**
+ * Thrown when the password is accepted but a second step is needed. When the user has more than one
+ * method turned on, challenge is empty and they pick where the code is sent.
+ */
+export class MfaRequiredError extends Error {
+  readonly methods: MfaMethod[]
+  readonly selectionToken?: string
+  readonly challenge?: MfaChallenge
+
+  constructor(methods: MfaMethod[], selectionToken?: string, challenge?: MfaChallenge) {
+    super(challenge ? 'Enter the verification code to finish signing in.' : 'Choose where to send your verification code.')
     this.name = 'MfaRequiredError'
-    this.challengeToken = challengeToken
-    this.expiresAt = expiresAt
-    this.method = method
-    this.destination = destination
+    this.methods = methods
+    this.selectionToken = selectionToken
+    this.challenge = challenge
   }
+}
+
+const asMfaMethod = (value?: string): MfaMethod => (value === 'EMAIL' ? 'EMAIL' : 'TELEGRAM')
+
+function asMfaChallenge(data: BackendAuthResponse): MfaChallenge | undefined {
+  if (!data.mfaChallengeToken) return undefined
+  return { token: data.mfaChallengeToken, method: asMfaMethod(data.mfaMethod), expiresAt: data.mfaExpiresAt, destination: data.mfaDestination }
 }
 
 function asUser(source: BackendUser, business?: BackendBusiness): AuthenticatedUser {
@@ -158,12 +179,26 @@ export const authApi = {
       headers: { 'X-Client-Type': 'web' },
       body: JSON.stringify({ username, password: input.password }),
     })
-    if (response.data?.mfaRequired && response.data.mfaChallengeToken) {
-      throw new MfaRequiredError(response.data.mfaChallengeToken,
-        response.data.mfaMethod === 'EMAIL' ? 'EMAIL' : 'TELEGRAM', response.data.mfaExpiresAt, response.data.mfaDestination)
+    const data = response.data
+    if (data?.mfaRequired && (data.mfaChallengeToken || data.mfaSelectionToken)) {
+      const challenge = asMfaChallenge(data)
+      const methods = (data.mfaMethods ?? []).filter((method): method is MfaMethod => method === 'EMAIL' || method === 'TELEGRAM')
+      throw new MfaRequiredError(methods.length ? methods : challenge ? [challenge.method] : [], data.mfaSelectionToken, challenge)
     }
-    if (!response.data?.user) throw new Error(response.message || 'The sign-in response did not include a user.')
-    return asSession(response.data)
+    if (!data?.user) throw new Error(response.message || 'The sign-in response did not include a user.')
+    return asSession(data)
+  },
+
+  /** Sends a sign-in code to the chosen method after the password step. */
+  async sendMfaCode(input: { username: string; selectionToken: string; method: MfaMethod }): Promise<MfaChallenge> {
+    const response = await api.request<ApiEnvelope<BackendAuthResponse>>('/auth/mfa/send', {
+      method: 'POST',
+      headers: { 'X-Client-Type': 'web' },
+      body: JSON.stringify({ username: input.username.trim(), selectionToken: input.selectionToken, method: input.method }),
+    })
+    const challenge = response.data ? asMfaChallenge(response.data) : undefined
+    if (!challenge) throw new Error(response.message || 'The verification code could not be sent.')
+    return challenge
   },
 
   async verifyMfaSignIn(input: { username: string; challengeToken: string; code: string; method: 'EMAIL' | 'TELEGRAM' }): Promise<AuthenticatedSession> {

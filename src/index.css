@@ -3523,3 +3523,30 @@ html[data-bs-theme='dark'] [role='dialog'].vpos-modal-backdrop {
     font-size: 14px !important;
   }
 }
+
+/* Sign-in: choose where the verification code is sent */
+.auth-mfa-options { display: grid; gap: 10px; }
+.auth-mfa-option {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  padding: 13px 14px;
+  border: 1px solid var(--auth-reference-line, #282828);
+  border-radius: 8px;
+  color: var(--auth-reference-text, #f3f3ef);
+  background: var(--auth-reference-surface, #151515);
+  text-align: left;
+  cursor: pointer;
+  transition: border-color 0.15s ease, background 0.15s ease;
+}
+.auth-mfa-option:hover:not(:disabled),
+.auth-mfa-option:focus-visible { border-color: var(--auth-reference-accent, #8d87ff); background: #1c1c1b; outline: none; }
+.auth-mfa-option:disabled { opacity: 0.55; cursor: wait; }
+.auth-mfa-option-icon { display: grid; place-items: center; width: 34px; height: 34px; flex: 0 0 auto; border-radius: 8px; background: #232322; font-size: 18px; }
+.auth-mfa-option-text { display: grid; gap: 2px; flex: 1; min-width: 0; }
+.auth-mfa-option-text strong { font-size: 13px; font-weight: 600; }
+.auth-mfa-option-text span { color: var(--auth-reference-muted, #969691); font-size: 11px; line-height: 1.45; }
+.auth-mfa-links { display: flex; flex-wrap: wrap; gap: 6px 16px; margin-top: 12px; font-size: 12px; }
+.auth-mfa-links button { color: var(--auth-reference-text, #f3f3ef); font-weight: 600; text-decoration: underline; text-underline-offset: 3px; background: none; border: 0; padding: 0; cursor: pointer; }
+.auth-mfa-links button:disabled { opacity: 0.5; cursor: default; }

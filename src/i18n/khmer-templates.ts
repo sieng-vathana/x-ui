@@ -156,4 +156,6 @@ export const khmerTemplates: Record<string, string> = {
   "{0} skipped": "{0} បានរំលង",
   "{0} ready": "{0} រួចរាល់",
   "Row {0} · {1}": "ជួរ {0} · {1}",
+  "Enter the 8-digit code sent to {0}.": "សូមបញ្ចូលលេខកូដ 8 ខ្ទង់ដែលបានផ្ញើទៅ {0}។",
+  "Expires at {0}.": "ផុតកំណត់នៅម៉ោង {0}។",
 }
