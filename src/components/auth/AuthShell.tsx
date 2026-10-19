@@ -95,7 +95,7 @@ export function AuthShell({
                   <strong>TinhLuk</strong>
                 </Link>
                 <span className="auth-setup-badge"><Icon name="sparkling-2-line" /> Workspace setup</span>
-                <span className="auth-mono">3 STEPS / ABOUT 4 MIN</span>
+                <span className="auth-mono">4 STEPS / ABOUT 5 MIN</span>
               </div>
             ) : null}
             <p className="auth-eyebrow">{eyebrow}</p>

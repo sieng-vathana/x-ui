@@ -6,11 +6,11 @@ export const loyaltyQueryKeys = {
   customerPoints: (businessId: number, customerId: number) => ['loyalty', 'customer', businessId, customerId] as const,
 }
 
-export function useLoyaltyProgram(businessId: number) {
+export function useLoyaltyProgram(businessId: number, enabled = true) {
   return useQuery({
     queryKey: loyaltyQueryKeys.program(businessId),
     queryFn: () => loyaltyApi.program(businessId),
-    enabled: businessId > 0,
+    enabled: enabled && businessId > 0,
     staleTime: 60 * 1000,
   })
 }

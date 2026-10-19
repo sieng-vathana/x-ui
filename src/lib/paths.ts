@@ -43,6 +43,7 @@ export const paths = {
   settingsLayout: '/settings/layout',
   settingsTelegram: '/settings/telegram',
   settingsSecurity: '/settings/security',
+  settingsPlan: '/settings/plan',
   settingsLoyalty: '/settings/loyalty',
   users: '/users',
   roles: '/roles',

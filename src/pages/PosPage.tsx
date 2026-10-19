@@ -24,6 +24,7 @@ import { QuickCustomerModal } from '../components/customers/QuickCustomerModal'
 import { useAuth } from '../context/AuthContext'
 import { useToast } from '../context/ToastContext'
 import { useCreateCustomer, useCustomers } from '../features/customers/useCustomers'
+import { usePlanFeatures } from '../features/plans/usePlan'
 import type { Customer, CustomerPayload } from '../features/customers/types'
 import {
   useCancelOrder,
@@ -127,7 +128,9 @@ export function PosPage() {
   const usdToKhrRate = Number(user?.business.usdToKhrExchangeRate || 4000)
   const productsQuery = useProductsList(storeId)
   const storesQuery = useStoresRaw()
-  const customersQuery = useCustomers()
+  // Customers and loyalty are in the Business and Pro plans; on Starter every sale is to a walk-in customer.
+  const hasCustomers = usePlanFeatures().has('CUSTOMERS_LOYALTY')
+  const customersQuery = useCustomers(hasCustomers)
   const createCustomerMutation = useCreateCustomer()
   const createOrderMutation = useCreatePosOrder()
   const createCashPaymentMutation = useCreateCashPayment()
@@ -160,7 +163,7 @@ export function PosPage() {
   const [redeemPoints, setRedeemPoints] = useState(0)
   const [phoneSearchOpen, setPhoneSearchOpen] = useState(false)
   const [pointsEditorOpen, setPointsEditorOpen] = useState(false)
-  const loyaltyProgramQuery = useLoyaltyProgram(businessId)
+  const loyaltyProgramQuery = useLoyaltyProgram(businessId, hasCustomers)
   const loyaltyProgram = loyaltyProgramQuery.data?.enabled ? loyaltyProgramQuery.data : null
   const selectedCustomerNumber = Number(customerId)
   const customerPointsQuery = useCustomerPoints(businessId, selectedCustomerNumber, Boolean(loyaltyProgram))
@@ -1626,14 +1629,14 @@ export function PosPage() {
                 <h2 className="m-0 text-[14px] font-extrabold text-vpos-text">
                   Customer
                 </h2>
-                <button
+                {hasCustomers ? <button
                   type="button"
                   onClick={() => setPhoneSearchOpen((open) => !open)}
                   className="flex items-center gap-1 border-0 bg-transparent p-0 text-[12px] font-bold text-vpos-primary hover:underline"
                 >
                   <Icon name={phoneSearchOpen ? 'close-line' : 'phone-line'} />
                   {phoneSearchOpen ? 'Close' : 'Find by phone'}
-                </button>
+                </button> : null}
               </div>
               {phoneSearchOpen ? (
                 <form

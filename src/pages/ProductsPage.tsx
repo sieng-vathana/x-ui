@@ -24,6 +24,7 @@ import { cn } from '../lib/cn'
 import { paths } from '../lib/paths'
 import { useDeleteProduct, useProductCategories, useProductsList } from '../features/products/useProducts'
 import { card, pageContent } from '../lib/ui'
+import { usePlanFeatures } from '../features/plans/usePlan'
 
 function ProductActionsMenu({
   product,
@@ -140,6 +141,8 @@ function ProductActionsMenu({
 
 export function ProductsPage() {
   const navigate = useNavigate()
+  // Importing from Excel or CSV is in the Business and Pro plans.
+  const canImport = usePlanFeatures().has('PRODUCT_IMPORT')
   const { storeId, setStoreId } = useAdminStore()
   const [statusFilter, setStatusFilter] = useState('All status')
   const [categoryFilter, setCategoryFilter] = useState('All categories')
@@ -317,9 +320,9 @@ export function ProductsPage() {
             <Breadcrumb items={[{ label: 'Products' }, { label: 'All products' }]} />
           </div>
           <div className="flex shrink-0 flex-wrap gap-2.5">
-            <Button variant="secondary" onClick={() => setImporting(true)}>
+            {canImport ? <Button variant="secondary" onClick={() => setImporting(true)}>
               <Icon name="upload-2-line" /> Import
-            </Button>
+            </Button> : null}
             <Button variant="primary" onClick={() => navigate(paths.productNew)}>
               <Icon name="add-line" /> Add product
             </Button>

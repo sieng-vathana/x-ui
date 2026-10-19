@@ -53,4 +53,7 @@ export interface RegistrationInput {
   storeCountryCode: string
   storeLatitude?: number
   storeLongitude?: number
+  /** STARTER, BUSINESS or PRO, chosen on the last sign-up step. */
+  plan?: string
+  billingCycle?: string
 }

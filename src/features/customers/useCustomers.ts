@@ -14,7 +14,8 @@ function useBusinessId() {
   return Number.isInteger(businessId) && businessId > 0 ? businessId : null
 }
 
-export function useCustomers() {
+/** enabled false when the merchant's plan has no customers (Starter); the POS then sells to walk-in customers. */
+export function useCustomers(enabled = true) {
   const businessId = useBusinessId()
   return useQuery({
     queryKey: customerQueryKeys.list(businessId ?? 0),
@@ -22,7 +23,7 @@ export function useCustomers() {
       if (businessId === null) throw new Error('A valid business is required to load customers.')
       return customerApi.list(businessId)
     },
-    enabled: businessId !== null,
+    enabled: enabled && businessId !== null,
     staleTime: 30 * 1000,
     refetchOnMount: 'always',
     retry: (failureCount, error) => {

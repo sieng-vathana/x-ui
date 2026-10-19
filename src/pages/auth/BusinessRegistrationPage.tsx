@@ -1,5 +1,8 @@
 import { useCallback, useEffect, useState, type FormEvent, type InputHTMLAttributes } from 'react'
 import { Link, Navigate, useNavigate, useSearchParams } from 'react-router-dom'
+import { PlanPicker } from '../../components/plans/PlanPicker'
+import { usePlans } from '../../features/plans/usePlan'
+import type { BillingCycle, PlanCode } from '../../features/plans/planApi'
 import { AuthShell } from '../../components/auth/AuthShell'
 import { StoreLocationPicker } from '../../components/business/StoreLocationPicker'
 import { Select } from '../../components/ui/Select'
@@ -14,6 +17,7 @@ const steps = [
   { label: 'Owner account', icon: 'user-line' },
   { label: 'Business details', icon: 'building-line' },
   { label: 'First store', icon: 'store-3-line' },
+  { label: 'Plan', icon: 'vip-crown-2-line' },
 ] as const
 
 const DRAFT_STORAGE_KEY = 'vpos.business-registration-draft.v1'
@@ -39,6 +43,8 @@ type RegistrationForm = {
   storeCountryCode: string
   storeLatitude: string
   storeLongitude: string
+  plan: PlanCode
+  billingCycle: BillingCycle
 }
 
 const initialForm: RegistrationForm = {
@@ -62,6 +68,8 @@ const initialForm: RegistrationForm = {
   storeCountryCode: 'KH',
   storeLatitude: '',
   storeLongitude: '',
+  plan: 'BUSINESS',
+  billingCycle: 'MONTHLY',
 }
 
 function getDraftForm(): RegistrationForm {
@@ -165,6 +173,8 @@ export function BusinessRegistrationPage() {
         storeCountryCode: form.storeCountryCode,
         storeLatitude: Number(form.storeLatitude),
         storeLongitude: Number(form.storeLongitude),
+        plan: form.plan,
+        billingCycle: form.billingCycle,
       })
       sessionStorage.removeItem(DRAFT_STORAGE_KEY)
       if (outcome.pending) {
@@ -218,6 +228,7 @@ export function BusinessRegistrationPage() {
         {step === 0 ? <AccountStep form={form} updateField={updateField} /> : null}
         {step === 1 ? <BusinessStep form={form} updateField={updateField} /> : null}
         {step === 2 ? <StoreStep form={form} updateField={updateField} onLocationChange={updateLocation} /> : null}
+        {step === 3 ? <PlanStep form={form} updateField={updateField} /> : null}
 
         {error ? <p role="alert" className="auth-alert auth-alert--error auth-alert--setup">{error}</p> : null}
 
@@ -260,7 +271,7 @@ function StepProgress({ activeStep }: { activeStep: number }) {
 function AccountStep({ form, updateField }: StepProps) {
   return (
     <section className="auth-step-panel" aria-labelledby="account-step-title">
-      <p className="auth-step-kicker">STEP 1 OF 3</p>
+      <p className="auth-step-kicker">STEP 1 OF 4</p>
       <h3 id="account-step-title" className="auth-step-title">Create the owner account</h3>
       <p className="auth-step-description">This account owns the workspace and can invite the rest of your team later.</p>
       <div className="auth-step-fields">
@@ -278,7 +289,7 @@ function AccountStep({ form, updateField }: StepProps) {
 function BusinessStep({ form, updateField }: StepProps) {
   return (
     <section className="auth-step-panel" aria-labelledby="business-step-title">
-      <p className="auth-step-kicker">STEP 2 OF 3</p>
+      <p className="auth-step-kicker">STEP 2 OF 4</p>
       <h3 id="business-step-title" className="auth-step-title">Describe your business</h3>
       <p className="auth-step-description">These defaults organize prices and reports. You can add currencies and tax rules after setup.</p>
       <div className="auth-step-fields">
@@ -315,7 +326,7 @@ function BusinessStep({ form, updateField }: StepProps) {
 function StoreStep({ form, updateField, onLocationChange }: StepProps & { onLocationChange: (value: { latitude: string; longitude: string }) => void }) {
   return (
     <section className="auth-step-panel" aria-labelledby="store-step-title">
-      <p className="auth-step-kicker">STEP 3 OF 3</p>
+      <p className="auth-step-kicker">STEP 3 OF 4</p>
       <h3 id="store-step-title" className="auth-step-title">Add your first store</h3>
       <p className="auth-step-description">Every workspace starts with one store. You can prepare it while your merchant account awaits backoffice approval.</p>
       <div className="auth-step-fields">
@@ -339,6 +350,20 @@ function Field({ label, value, onChange, ...props }: FieldProps) {
   return <label className={`auth-field ${props.className ?? ''}`}><span className="auth-field-label">{label}{props.required ? <b> *</b> : null}</span><input {...props} value={value} onChange={(event) => onChange(event.target.value)} className={inputClass} /></label>
 }
 
+
+function PlanStep({ form, updateField }: StepProps) {
+  const plansQuery = usePlans()
+  return (
+    <section className="auth-step-panel" aria-labelledby="plan-step-title">
+      <p className="auth-step-kicker">STEP 4 OF 4</p>
+      <h3 id="plan-step-title" className="auth-step-title">Choose your plan</h3>
+      <p className="auth-step-description">Every plan starts with a free trial. You can change plan later by asking TinhLuk.</p>
+      {plansQuery.isLoading ? <p className="auth-field-hint">Loading plans…</p>
+        : plansQuery.isError || !plansQuery.data?.length ? <p role="alert" className="auth-alert auth-alert--error">Plans could not be loaded. Check your connection and try again.</p>
+        : <PlanPicker plans={plansQuery.data} selected={form.plan} billingCycle={form.billingCycle} onSelect={(code) => updateField('plan', code)} onBillingCycleChange={(cycle) => updateField('billingCycle', cycle)} />}
+    </section>
+  )
+}
 
 function validateStep(form: RegistrationForm, step: number) {
   if (step === 0) {

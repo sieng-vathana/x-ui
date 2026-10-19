@@ -6,6 +6,8 @@ import { cn } from '../../lib/cn'
 import { paths } from '../../lib/paths'
 import { Icon } from '../ui/Icon'
 import { useAuth } from '../../context/AuthContext'
+import { usePlanFeatures } from '../../features/plans/usePlan'
+import type { PlanFeature } from '../../features/plans/planApi'
 import sidebarGrid from '../../assets/sidebar-grid.svg'
 import sidebarOrbit from '../../assets/sidebar-orbit.svg'
 import sidebarLines from '../../assets/sidebar-lines.svg'
@@ -37,14 +39,19 @@ const navigationPermissions: Record<string, string> = {
   reports: 'x-report:read', settings: 'x-business:read', users: 'x-user:read', roles: 'x-user:read',
 }
 
-const productSubItems: Array<{ to: string; label: string; end?: boolean; permission?: string }> = [
+/** Menu areas that need a plan feature; they are hidden when the merchant's plan does not include it. */
+const navigationPlanFeatures: Record<string, PlanFeature> = {
+  purchases: 'PURCHASING', customers: 'CUSTOMERS_LOYALTY', reports: 'FULL_REPORTS',
+}
+
+const productSubItems: Array<{ to: string; label: string; end?: boolean; permission?: string; planFeature?: PlanFeature }> = [
   { to: paths.products, label: 'All products', end: true },
   { to: paths.productUnits, label: 'Unit', permission: 'x-product:unit' },
   { to: paths.productBrands, label: 'Brand', permission: 'x-product:brand' },
   { to: paths.productCategories, label: 'Category', permission: 'x-product:category' },
   { to: paths.productOptions, label: 'Options' },
-  { to: paths.productStockMovement, label: 'Stock movement' }, { to: paths.productLowStock, label: 'Low stock' },
-  { to: paths.productExpiry, label: 'Expiry management', permission: 'x-inventory:read' },
+  { to: paths.productStockMovement, label: 'Stock movement', planFeature: 'INVENTORY' }, { to: paths.productLowStock, label: 'Low stock', planFeature: 'INVENTORY' },
+  { to: paths.productExpiry, label: 'Expiry management', permission: 'x-inventory:read', planFeature: 'INVENTORY' },
 ]
 
 const purchaseSubItems = [
@@ -67,10 +74,11 @@ const reportSubItems: Array<{ to: string; label: string; end?: boolean }> = [
   { to: paths.reportsTax, label: 'Tax, discounts & refunds' },
 ]
 
-const settingsSubItems = [
+const settingsSubItems: Array<{ to: string; label: string; end?: boolean; planFeature?: PlanFeature }> = [
   { to: paths.settings, label: 'Business profile', end: true },
   { to: paths.settingsPos, label: 'POS configuration' },
-  { to: paths.settingsLoyalty, label: 'Loyalty' },
+  { to: paths.settingsLoyalty, label: 'Loyalty', planFeature: 'CUSTOMERS_LOYALTY' },
+  { to: paths.settingsPlan, label: 'Plan & usage' },
   { to: paths.settingsTelegram, label: 'Telegram alerts' },
   { to: paths.settingsSecurity, label: 'Security & 2FA' },
   { to: paths.settingsLayout, label: 'Workspace layout' },
@@ -192,13 +200,16 @@ export function Sidebar({ state }: SidebarProps) {
   const inPurchases = location.pathname.startsWith(paths.purchases)
   const inReports = location.pathname === paths.reports || location.pathname.startsWith(`${paths.reports}/`)
   const inSettings = location.pathname === paths.settings || location.pathname.startsWith(`${paths.settings}/`)
+  const plan = usePlanFeatures()
   const visibleProductSubItems = productSubItems.filter(
-    (item) => !item.permission || user?.permissions.includes(item.permission),
+    (item) => (!item.permission || user?.permissions.includes(item.permission)) && (!item.planFeature || plan.has(item.planFeature)),
   )
+  const visibleSettingsSubItems = settingsSubItems.filter((item) => !item.planFeature || plan.has(item.planFeature))
   const visibleSalesSubItems = salesSubItems.filter(
     (item) => !item.permission || user?.permissions.includes(item.permission),
   )
-  const canVisit = (key: string) => !navigationPermissions[key] || user?.permissions.includes(navigationPermissions[key])
+  const canVisit = (key: string) => (!navigationPermissions[key] || user?.permissions.includes(navigationPermissions[key]))
+    && (!navigationPlanFeatures[key] || plan.has(navigationPlanFeatures[key]))
   const onNavigate = () => { if (isMobile) setMobileOpen(false) }
 
   const backgroundImages: Record<string, string> = { 'img-1': sidebarGrid, 'img-2': sidebarOrbit, 'img-3': sidebarLines, 'img-4': sidebarDots }
@@ -224,7 +235,7 @@ export function Sidebar({ state }: SidebarProps) {
       {staticItems.filter((item) => item.key !== 'sales' && item.key !== 'reports' && canVisit(item.key)).map((item) => <NavItem key={item.key} to={keyToPath[item.key]} icon={item.icon} label={item.label} iconOnly={iconOnly} hint={navMeta[item.key]?.hint} theme={effectiveTheme} onNavigate={onNavigate} hovered={state.hoveredMenuItem === item.label} onHover={state.setHoveredMenuItem} />)}
       <div className={cn('my-2 h-px shrink-0', iconOnly ? 'w-8' : 'mx-1 w-auto', effectiveTheme.divider)} />
       {!iconOnly ? <p className={cn('mb-1 px-3 text-[11px] font-semibold tracking-[1.2px]', effectiveTheme.title)}>MANAGEMENT</p> : null}
-      {managementItems.filter((item) => canVisit(item.key)).map((item) => item.key === 'settings' ? <MenuGroup key={item.key} id="settings" icon={item.icon} label={item.label} items={settingsSubItems} active={inSettings} state={state} iconOnly={iconOnly} theme={effectiveTheme} onNavigate={onNavigate} /> : item.linked ? <NavItem key={item.key} to={keyToPath[item.key] ?? paths.home} icon={item.icon} label={item.label} iconOnly={iconOnly} hint={navMeta[item.key]?.hint} theme={effectiveTheme} onNavigate={onNavigate} hovered={state.hoveredMenuItem === item.label} onHover={state.setHoveredMenuItem} /> : <StaticNavItem key={item.key} icon={item.icon} label={item.label} iconOnly={iconOnly} hint={navMeta[item.key]?.hint} theme={effectiveTheme} hovered={state.hoveredMenuItem === item.label} onHover={state.setHoveredMenuItem} />)}
+      {managementItems.filter((item) => canVisit(item.key)).map((item) => item.key === 'settings' ? <MenuGroup key={item.key} id="settings" icon={item.icon} label={item.label} items={visibleSettingsSubItems} active={inSettings} state={state} iconOnly={iconOnly} theme={effectiveTheme} onNavigate={onNavigate} /> : item.linked ? <NavItem key={item.key} to={keyToPath[item.key] ?? paths.home} icon={item.icon} label={item.label} iconOnly={iconOnly} hint={navMeta[item.key]?.hint} theme={effectiveTheme} onNavigate={onNavigate} hovered={state.hoveredMenuItem === item.label} onHover={state.setHoveredMenuItem} /> : <StaticNavItem key={item.key} icon={item.icon} label={item.label} iconOnly={iconOnly} hint={navMeta[item.key]?.hint} theme={effectiveTheme} hovered={state.hoveredMenuItem === item.label} onHover={state.setHoveredMenuItem} />)}
     </nav>
   </aside>
 }
@@ -238,7 +249,7 @@ function HorizontalMenu({ darkMode }: { darkMode: boolean }) {
   return <nav aria-label="Horizontal navigation" className={cn('fixed top-[70px] right-0 left-0 z-30 flex h-12 items-center gap-1 overflow-x-auto border-b px-6 shadow-sm', darkMode ? 'border-vpos-topbar-border bg-vpos-topbar-dark' : 'border-vpos-line bg-white')}>{items.map(item => <NavLink key={item.key} to={keyToPath[item.key] ?? paths.products} className={({ isActive }) => cn('inline-flex h-8 items-center gap-1.5 rounded-[4px] px-3 text-[14px] font-medium no-underline', isActive || (item.key === 'products' && location.pathname.startsWith('/products')) ? theme.active : theme.item)}><Icon name={item.icon} />{item.label}</NavLink>)}</nav>
 }
 
-type SubLink = { to: string; label: string; end?: boolean; permission?: string }
+type SubLink = { to: string; label: string; end?: boolean; permission?: string; planFeature?: PlanFeature }
 /** A row in the second column: a page with an icon, or a titled list of sub-pages. */
 type ColumnRow = { key: string; icon: string; label: string; to?: string; end?: boolean; links?: SubLink[] }
 type ColumnSection = { id: string; label: string; icon: string; rows: ColumnRow[]; matches: (path: string) => boolean }
@@ -274,11 +285,13 @@ const twoColumnSections: ColumnSection[] = [
 function TwoColumnMenu({ state, theme }: { state: SidebarLayoutState; theme: ReturnType<typeof themeClasses> }) {
   const { user } = useAuth()
   const location = useLocation()
+  const plan = usePlanFeatures()
   const allowed = (permission?: string) => !permission || Boolean(user?.permissions.includes(permission))
+  const inPlan = (feature?: PlanFeature) => !feature || plan.has(feature)
   const sections = twoColumnSections
     .map((section) => ({ ...section, rows: section.rows
-      .filter((row) => allowed(navigationPermissions[row.key]))
-      .map((row) => (row.links ? { ...row, links: row.links.filter((link) => allowed(link.permission)) } : row))
+      .filter((row) => allowed(navigationPermissions[row.key]) && inPlan(navigationPlanFeatures[row.key]))
+      .map((row) => (row.links ? { ...row, links: row.links.filter((link) => allowed(link.permission) && inPlan(link.planFeature)) } : row))
       .filter((row) => !row.links || row.links.length > 0) }))
     .filter((section) => section.rows.length > 0)
   const current = sections.find((section) => section.matches(location.pathname))

@@ -30,6 +30,7 @@ import { ToastProvider } from './context/ToastContext'
 import { Toaster } from './components/Toaster'
 import { useAppLoading } from './hooks/useAppLoading'
 import { BusinessProfilePage } from './pages/BusinessProfilePage'
+import { PlanUsagePage } from './pages/PlanUsagePage'
 import { SignInPage } from './pages/auth/SignInPage'
 import { BusinessRegistrationPage } from './pages/auth/BusinessRegistrationPage'
 import { UsersPage } from './pages/UsersPage'
@@ -161,6 +162,7 @@ export default function App() {
                 <Route path="settings/telegram" element={<BusinessProfilePage />} />
                 <Route path="settings/security" element={<BusinessProfilePage />} />
                 <Route path="settings/loyalty" element={<BusinessProfilePage />} />
+                <Route path="settings/plan" element={<PlanUsagePage />} />
                 <Route path="users" element={<UsersPage />} />
                 <Route path="roles" element={<RoleManagementPage />} />
               </Route>
