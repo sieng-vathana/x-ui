@@ -7,15 +7,22 @@ export type PortalLanguage = 'en' | 'km'
 type LocaleContextValue = {
   language: PortalLanguage
   setLanguage: (language: PortalLanguage) => void
+  t: (text: string) => string
 }
 
 const STORAGE_KEY = 'vpos.portal-language'
 const translationCatalog: Record<string, string> = khmerTranslations
+const lowerCatalog = new Map<string, string>()
+for (const [key, val] of Object.entries(translationCatalog)) {
+  const lk = key.toLowerCase()
+  if (!lowerCatalog.has(lk)) lowerCatalog.set(lk, val)
+}
+
 const LocaleContext = createContext<LocaleContextValue | null>(null)
 
 type TemplatePattern = { anchor: string; pattern: RegExp; slots: number[]; translation: string; numericOnly: boolean }
 
-/** "{0} is fully received. {1} unit{2} added to stock." becomes a pattern that captures the three values. */
+/** "{0} is fully received. {1} unit{2} added to stock." becomes a pattern that captures the values. */
 const templatePatterns: TemplatePattern[] = Object.entries(khmerTemplates).map(([english, translation]) => {
   const parts = english.split(/\{(\d+)\}/)
   const slots: number[] = []
@@ -29,30 +36,73 @@ const templatePatterns: TemplatePattern[] = Object.entries(khmerTemplates).map((
   })
   const literals = parts.filter((_, index) => index % 2 === 0)
   const anchor = [...literals].sort((a, b) => b.length - a.length)[0] ?? ''
-  // With little fixed text, like "Edit {0}", only numbers and codes count as values, so a product named
-  // "Edit Mode Coffee" is not half translated.
+  // With little fixed text, like "Edit {0}", require slot values to either contain digits or be known catalog terms.
   const numericOnly = literals.join('').trim().length < 10
   return { anchor, pattern: new RegExp(`${source}$`), slots, translation, numericOnly }
 })
 
-/** Khmer for a whole text: an exact catalog entry first, then a template with its values put back in. */
-function lookup(text: string): string | undefined {
+/** Khmer for a whole text: exact match, punctuation handling, case-insensitive fallback, or template. */
+export function lookup(text: string): string | undefined {
+  if (!text) return undefined
+
+  // 1. Exact catalog match
   const exact = translationCatalog[text]
   if (exact !== undefined) return exact
+
+  // 2. Trailing colon: "Store:" -> lookup("Store") + "៖"
+  if (text.endsWith(':') || text.endsWith('：')) {
+    const base = text.slice(0, -1).trim()
+    const baseTrans = lookup(base)
+    if (baseTrans) return `${baseTrans}៖`
+  }
+
+  // 3. Trailing ellipsis: "Loading…" / "Loading..." -> lookup("Loading") + "…"
+  if (text.endsWith('…')) {
+    const base = text.slice(0, -1).trim()
+    const baseTrans = lookup(base)
+    if (baseTrans) return `${baseTrans}…`
+  } else if (text.endsWith('...')) {
+    const base = text.slice(0, -3).trim()
+    const baseTrans = lookup(base)
+    if (baseTrans) return `${baseTrans}…`
+  }
+
+  // 4. Case-insensitive fallback
+  const lower = lowerCatalog.get(text.toLowerCase())
+  if (lower !== undefined) return lower
+
+  // 5. Template patterns
   for (const template of templatePatterns) {
     if (template.anchor && !text.includes(template.anchor)) continue
     const match = template.pattern.exec(text)
     if (!match) continue
-    if (template.numericOnly && !match.slice(1).some((value) => /\d/.test(value))) continue
+
+    // For short templates, check that captured slots either contain numbers OR are known words
+    if (template.numericOnly) {
+      const captured = match.slice(1)
+      const valid = captured.some((val) => {
+        const trimmed = val.trim()
+        return /\d/.test(trimmed) || translationCatalog[trimmed] !== undefined || lowerCatalog.has(trimmed.toLowerCase())
+      })
+      if (!valid) continue
+    }
+
     const values = new Map(template.slots.map((slot, index) => [slot, match[index + 1]]))
-    // A value that is itself known text, like a status, is translated too.
     return template.translation.replace(/\{(\d+)\}/g, (_, slot: string) => {
       const value = values.get(Number(slot)) ?? ''
-      return translationCatalog[value.trim()] ?? value
+      const trimmed = value.trim()
+      return lookup(trimmed) ?? value
     })
   }
+
   return undefined
 }
+
+export function t(text: string, language: PortalLanguage = 'km'): string {
+  if (language !== 'km') return text
+  return lookup(text) ?? text
+}
+
 const textState = new WeakMap<Text, { original: string; translated: string }>()
 const attributeState = new WeakMap<Element, Map<string, { original: string; translated: string }>>()
 
@@ -170,7 +220,8 @@ export function LocaleProvider({ children }: { children: ReactNode }) {
     return () => observer.disconnect()
   }, [language])
 
-  const value = useMemo(() => ({ language, setLanguage }), [language, setLanguage])
+  const translate = useCallback((text: string) => (language === 'km' ? (lookup(text) ?? text) : text), [language])
+  const value = useMemo(() => ({ language, setLanguage, t: translate }), [language, setLanguage, translate])
   return <LocaleContext.Provider value={value}>{children}</LocaleContext.Provider>
 }
 
