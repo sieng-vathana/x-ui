@@ -47,7 +47,7 @@ export interface PosActivityModalProps {
   heldLoading?: boolean
   heldError?: string
   onHeldRetry?: () => void
-  onAction?: (action: 'resume' | 'discard' | 'receipt' | 'reorder', id: string) => void
+  onAction?: (action: 'resume' | 'discard' | 'receipt' | 'reorder' | 'continue', id: string) => void
 }
 
 export function PosActivityModal({
@@ -282,14 +282,14 @@ function RecentOrdersView({
       </div>
 
       <div className="overflow-hidden rounded-[14px] border border-vpos-line bg-white">
-        <div className="hidden grid-cols-[1fr_120px_125px_105px_86px] gap-4 border-b border-vpos-line bg-vpos-subtle px-4 py-3 text-[11px] font-extrabold tracking-wide text-vpos-muted uppercase md:grid">
+        <div className="hidden grid-cols-[1fr_110px_110px_105px_150px] gap-4 border-b border-vpos-line bg-vpos-subtle px-4 py-3 text-[11px] font-extrabold tracking-wide text-vpos-muted uppercase md:grid">
           <span>Order</span><span>Payment</span><span>Status</span><span>Total</span><span />
         </div>
         {isLoading ? <ActivityEmpty icon="loader-4-line" label="Loading recent orders..." /> : error ? <ActivityError message={error} onRetry={onRetry} /> : orders.length === 0 ? <ActivityEmpty label="No recent orders match your filters." /> : orders.map((order, index) => (
           <div
             key={order.id}
             className={cn(
-              'grid gap-3 px-4 py-4 transition-colors hover:bg-vpos-subtle/60 md:grid-cols-[1fr_120px_125px_105px_86px] md:items-center',
+              'grid gap-3 px-4 py-4 transition-colors hover:bg-vpos-subtle/60 md:grid-cols-[1fr_110px_110px_105px_150px] md:items-center',
               index < orders.length - 1 && 'border-b border-vpos-line/70',
             )}
           >
@@ -310,7 +310,12 @@ function RecentOrdersView({
                 : order.status === 'Cancelled' ? 'bg-vpos-red/10 text-vpos-red' : 'bg-vpos-orange-bg text-vpos-orange',
             )}>{order.status}</span>
             <strong className="text-[14px] text-vpos-primary">{formatCurrency(order.total, order.currencyCode)}</strong>
-            <div className="flex gap-1 md:justify-end">
+            <div className="flex items-center gap-1 md:justify-end">
+              {order.status === 'Pending' ? (
+                <button type="button" aria-label={`Continue ${order.id}`} onClick={() => onAction?.('continue', String(order.orderId))} className="inline-flex h-8 items-center gap-1 rounded-lg border-0 bg-vpos-primary px-2.5 text-[12px] font-bold text-white transition hover:bg-vpos-primary-2">
+                  <Icon name="play-circle-line" />Continue
+                </button>
+              ) : null}
               <button type="button" aria-label={`View receipt ${order.id}`} onClick={() => onAction?.('receipt', String(order.orderId))} className="grid h-8 w-8 place-items-center rounded-lg border-0 bg-vpos-subtle text-vpos-muted transition hover:bg-vpos-sand hover:text-vpos-primary">
                 <Icon name="file-list-3-line" />
               </button>

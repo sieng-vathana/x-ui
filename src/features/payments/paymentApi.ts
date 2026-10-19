@@ -86,6 +86,18 @@ export const paymentApi = {
     )
   },
 
+  /** A new KHQR for a POS order left unpaid, so the cashier can continue it from Recent orders. */
+  async resumePosQr(input: { orderId: number; bakong: boolean; businessId: number; storeId: number; cashierId: number; paymentIdempotencyKey: string; paymentNote?: string }): Promise<PosQrCheckoutResponse> {
+    const { orderId, bakong, ...body } = input
+    return requireData(
+      await api.request<ApiEnvelope<PosQrCheckoutResponse>>(`/payments/${bakong ? 'pos-qr-bakong' : 'pos-qr-demo'}/orders/${encodeURIComponent(orderId)}`, {
+        method: 'POST',
+        body: JSON.stringify(body),
+      }),
+      'The KHQR for this order could not be created.',
+    )
+  },
+
   /** Asks Bakong (through the payment service) whether a pending KHQR has been paid. */
   async checkBakong(id: number): Promise<Payment> {
     return requireData(

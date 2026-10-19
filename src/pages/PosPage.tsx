@@ -16,6 +16,7 @@ import {
 } from '../components/pos/DiscountModal'
 import { PosActivityModal, type HeldOrder } from '../components/pos/PosActivityModal'
 import { PosCashPaymentModal } from '../components/pos/PosCashPaymentModal'
+import { PosContinueOrderModal, type ContinueOrderChoice } from '../components/pos/PosContinueOrderModal'
 import { PosQrPaymentModal } from '../components/pos/PosQrPaymentModal'
 import { ShortcutsModal } from '../components/pos/ShortcutsModal'
 import { QuickCustomerModal } from '../components/customers/QuickCustomerModal'
@@ -24,6 +25,7 @@ import { useToast } from '../context/ToastContext'
 import { useCreateCustomer, useCustomers } from '../features/customers/useCustomers'
 import type { Customer, CustomerPayload } from '../features/customers/types'
 import {
+  useCancelOrder,
   useCompleteOrder,
   useCreateHeldSale,
   useCreatePosOrder,
@@ -44,6 +46,7 @@ import {
   usePaymentStatus,
   useSimulatePaymentCallback,
 } from '../features/payments/usePayments'
+import { paymentApi } from '../features/payments/paymentApi'
 import type { QrPaymentResponse } from '../features/payments/types'
 import { useProductsList } from '../features/products/useProducts'
 import { useStoresRaw } from '../features/stores/useStores'
@@ -166,6 +169,10 @@ export function PosPage() {
   const [activityMode, setActivityMode] = useState<'hold' | 'recent' | null>(null)
   const [qrCheckout, setQrCheckout] = useState<{ orderNo: string; response: QrPaymentResponse } | null>(null)
   const [cashPaymentOpen, setCashPaymentOpen] = useState(false)
+  const [continueOrder, setContinueOrder] = useState<PosOrder | null>(null)
+  const [continueBusy, setContinueBusy] = useState<ContinueOrderChoice | null>(null)
+  const [cashForOrder, setCashForOrder] = useState<PosOrder | null>(null)
+  const cancelOrderMutation = useCancelOrder()
   const [isFullscreen, setIsFullscreen] = useState(false)
   const [mobileOrderOpen, setMobileOrderOpen] = useState(false)
   const createHeldSaleMutation = useCreateHeldSale()
@@ -231,7 +238,130 @@ export function PosPage() {
     }
   }, [customersQuery.data, selectedStore, settings.receiptFooter, settings.receiptPaperSize, settings.receiptShowCustomer, settings.receiptShowLogo, settings.receiptShowSku, usdToKhrRate, user])
 
-  const handleActivityAction = useCallback((action: 'resume' | 'discard' | 'receipt' | 'reorder', id: string) => {
+  /** Completes an order whose payment is already in, and prints its receipt when that is switched on. */
+  const finishPaidOrder = useCallback(async (order: PosOrder, method: string | null | undefined, message: string, cash?: ReceiptCash) => {
+    const receiptWindow = settings.autoPrintReceipt ? openReceiptWindow() : null
+    try {
+      const completed = await completeOrderMutation.mutateAsync(order.id)
+      toast(message, 'success')
+      void customerPointsQuery.refetch()
+      if (settings.autoPrintReceipt && !openReceiptPrint(completed, getReceiptOptions(completed, method, cash), receiptWindow)) {
+        toast('The receipt window was blocked. Allow pop-ups for this POS site and reprint it from Recent orders.', 'warning')
+      }
+    } catch (error) {
+      receiptWindow?.close()
+      throw error
+    }
+  }, [completeOrderMutation, customerPointsQuery, getReceiptOptions, settings.autoPrintReceipt, toast])
+
+  /**
+   * Continue a sale from Recent orders that was never paid. If the customer paid the earlier KHQR after all,
+   * the sale is completed straight away; otherwise the cashier chooses how to take the payment.
+   */
+  const continuePendingOrder = useCallback(async (orderId: number) => {
+    try {
+      const order = await orderApi.get(orderId)
+      if (String(order.orderStatus).toUpperCase() !== 'PENDING_PAYMENT') {
+        toast(`${order.orderNo} is no longer waiting for payment.`, 'info')
+        return
+      }
+      const payments = await paymentApi.listForOrder(order.id)
+      const paidTotal = () => payments.filter((item) => item.status === 'PAID').reduce((sum, item) => sum + Number(item.amount ?? 0), 0)
+      for (const pending of payments.filter((item) => item.status === 'PENDING' && item.provider === 'BAKONG')) {
+        const checked = await paymentApi.checkBakong(pending.id).catch(() => pending)
+        if (checked.status === 'PAID') Object.assign(pending, checked)
+      }
+      if (paidTotal() >= Number(order.grandTotal ?? 0) - 0.0001) {
+        setActivityMode(null)
+        await finishPaidOrder(order, 'qr', `${order.orderNo} was already paid. The sale is now completed.`)
+        return
+      }
+      setActivityMode(null)
+      setContinueOrder(order)
+    } catch (error) {
+      toast(error instanceof Error ? error.message : 'This sale could not be continued.', 'error')
+    }
+  }, [finishPaidOrder, toast])
+
+  const chooseContinueOption = useCallback(async (choice: ContinueOrderChoice) => {
+    const order = continueOrder
+    if (!order) return
+    if (choice === 'cash') {
+      if (!currentCashSessionQuery.data) {
+        toast('Open the cash register before accepting cash payments.', 'warning')
+        return
+      }
+      setContinueOrder(null)
+      setCashForOrder(order)
+      return
+    }
+    setContinueBusy(choice)
+    try {
+      if (choice === 'cancel') {
+        await cancelOrderMutation.mutateAsync(order.id)
+        toast(`${order.orderNo} cancelled. Its items are back in stock.`, 'warning')
+        setContinueOrder(null)
+        return
+      }
+      const qr = await paymentApi.resumePosQr({
+        orderId: order.id,
+        bakong: usesBakongKhqr,
+        businessId: Number(user?.business.id),
+        storeId: Number(order.storeId ?? storeId),
+        cashierId: Number(user?.id),
+        paymentIdempotencyKey: `PAY-${order.id}-${Date.now()}`,
+        paymentNote: (order.items ?? []).map((item) => `${item.productName} x${Number(item.quantity ?? item.qty ?? 0)}`).join(', ').slice(0, 500),
+      })
+      if (!qr.payment.qrImageDataUrl?.startsWith('data:image/')) {
+        throw new Error('The payment service did not return a valid QR image.')
+      }
+      pendingQrReceiptWindowRef.current = settings.autoPrintReceipt ? openReceiptWindow() : null
+      setContinueOrder(null)
+      setQrCheckout({ orderNo: qr.order.orderNo, response: qr.payment })
+      if (!usesBakongKhqr) {
+        window.setTimeout(() => {
+          void simulatePaymentCallbackMutation.mutateAsync(qr.payment.payment.id).catch(() => undefined)
+        }, SIMULATED_QR_CALLBACK_DELAY_MS)
+      }
+    } catch (error) {
+      toast(error instanceof Error ? error.message : 'The sale could not be continued.', 'error')
+    } finally {
+      setContinueBusy(null)
+    }
+  }, [cancelOrderMutation, continueOrder, currentCashSessionQuery.data, settings.autoPrintReceipt, simulatePaymentCallbackMutation, storeId, toast, user, usesBakongKhqr])
+
+  const payOrderWithCash = useCallback(async (order: PosOrder, received: CashReceived) => {
+    try {
+      const tender = evaluateCashTender(order.grandTotal, order.currencyCode, received, usdToKhrRate)
+      if (!tender.enough) throw new Error(`Order ${order.orderNo} totals ${formatCurrency(order.grandTotal, order.currencyCode)}. The cash received does not cover it.`)
+      const change = formatCashMix(tender.changeUsd, tender.changeKhr)
+      await createCashPaymentMutation.mutateAsync({
+        orderId: order.id,
+        businessId: Number(user?.business.id),
+        storeId: Number(order.storeId ?? storeId),
+        cashierId: Number(user?.id),
+        amount: order.grandTotal,
+        tenderedAmount: Math.max(order.grandTotal, tender.tendered),
+        currencyCode: order.currencyCode,
+        method: 'CASH',
+        provider: 'NONE',
+        idempotencyKey: `PAY-${order.id}-${Date.now()}`,
+        note: `POS cash payment. Received ${formatCashMix(received.usd, received.khr)}, change ${change}, 1 USD = ${usdToKhrRate} KHR`,
+      })
+      setCashForOrder(null)
+      const cash: ReceiptCash = { receivedUsd: received.usd, receivedKhr: received.khr, changeUsd: tender.changeUsd, changeKhr: tender.changeKhr }
+      await finishPaidOrder(order, 'cash', tender.changeAllKhr > 0 ? `Order ${order.orderNo} completed. Give change: ${change}.` : `Order ${order.orderNo} completed.`, cash)
+    } catch (error) {
+      toast(error instanceof Error ? error.message : 'The cash payment could not be completed.', 'error')
+    }
+  }, [createCashPaymentMutation, finishPaidOrder, storeId, toast, usdToKhrRate, user])
+
+  const handleActivityAction = useCallback((action: 'resume' | 'discard' | 'receipt' | 'reorder' | 'continue', id: string) => {
+    if (action === 'continue') {
+      const orderId = Number(id)
+      if (Number.isInteger(orderId) && orderId > 0) void continuePendingOrder(orderId)
+      return
+    }
     if (action === 'resume' || action === 'discard') {
       const heldOrderId = Number(id)
       if (!Number.isInteger(heldOrderId) || heldOrderId <= 0) {
@@ -285,9 +415,29 @@ export function PosPage() {
         })
       return
     }
-    toast(`Reorder for ${id} will be connected to the order service later.`, 'info')
-    setActivityMode(null)
-  }, [discardHeldSaleMutation, getReceiptOptions, resumeHeldSaleMutation, toast])
+    // Reorder: the same items and customer go into a new sale in the cart.
+    const orderId = Number(id)
+    if (!Number.isInteger(orderId) || orderId <= 0) {
+      toast('The selected order is invalid.', 'warning')
+      return
+    }
+    void orderApi.get(orderId)
+      .then((order) => {
+        const entries = toCartEntries(order)
+        if (Object.keys(entries).length === 0) {
+          toast(`${order.orderNo} has no items that can be sold again.`, 'warning')
+          return
+        }
+        setCart(entries)
+        setCustomerId(String(order.customerId ?? 0))
+        setDiscountTargetId(null)
+        setActivityMode(null)
+        toast(`Items from ${order.orderNo} added to a new sale.`, 'success')
+      })
+      .catch((error) => {
+        toast(error instanceof Error ? error.message : 'The order could not be loaded.', 'error')
+      })
+  }, [continuePendingOrder, discardHeldSaleMutation, getReceiptOptions, resumeHeldSaleMutation, toast])
 
   const products = useMemo<PosProduct[]>(() => {
     return (productsQuery.data ?? []).flatMap((product) => {
@@ -1823,6 +1973,23 @@ export function PosPage() {
           if (!checkoutPending) setCashPaymentOpen(false)
         }}
         onConfirm={(received) => void completeCashPayment(received, total)}
+      />
+      <PosContinueOrderModal
+        order={continueOrder}
+        busy={continueBusy}
+        onClose={() => setContinueOrder(null)}
+        onChoose={(choice) => void chooseContinueOption(choice)}
+      />
+      <PosCashPaymentModal
+        open={cashForOrder !== null}
+        total={Number(cashForOrder?.grandTotal ?? 0)}
+        currencyCode={(cashForOrder?.currencyCode || currencyCode).toUpperCase()}
+        usdToKhrRate={usdToKhrRate}
+        submitting={createCashPaymentMutation.isPending || completeOrderMutation.isPending}
+        onClose={() => {
+          if (!createCashPaymentMutation.isPending && !completeOrderMutation.isPending) setCashForOrder(null)
+        }}
+        onConfirm={(received) => { if (cashForOrder) void payOrderWithCash(cashForOrder, received) }}
       />
     </div>
   )

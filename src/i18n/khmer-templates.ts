@@ -158,4 +158,10 @@ export const khmerTemplates: Record<string, string> = {
   "Row {0} · {1}": "ជួរ {0} · {1}",
   "Enter the 8-digit code sent to {0}.": "សូមបញ្ចូលលេខកូដ 8 ខ្ទង់ដែលបានផ្ញើទៅ {0}។",
   "Expires at {0}.": "ផុតកំណត់នៅម៉ោង {0}។",
+  "Continue {0}": "បន្ត {0}",
+  "{0} was already paid. The sale is now completed.": "{0} បានបង់ប្រាក់រួចហើយ។ ការលក់ត្រូវបានបញ្ចប់។",
+  "{0} cancelled. Its items are back in stock.": "{0} ត្រូវបានបោះបង់។ ទំនិញបានត្រឡប់ចូលស្តុកវិញ។",
+  "{0} is no longer waiting for payment.": "{0} លែងរង់ចាំការបង់ប្រាក់ទៀតហើយ។",
+  "Items from {0} added to a new sale.": "ទំនិញពី {0} ត្រូវបានបន្ថែមទៅការលក់ថ្មី។",
+  "{0} has no items that can be sold again.": "{0} គ្មានទំនិញដែលអាចលក់ម្តងទៀតបានទេ។",
 }

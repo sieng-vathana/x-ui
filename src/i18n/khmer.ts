@@ -2515,4 +2515,17 @@ export const khmerTranslations: Record<string, string> = {
   "Verification code sent to your Telegram.": "លេខកូដផ្ទៀងផ្ទាត់ត្រូវបានផ្ញើទៅតេឡេក្រាមរបស់អ្នក។",
   "Enter the 8-digit code sent to your linked Telegram chat.": "សូមបញ្ចូលលេខកូដ 8 ខ្ទង់ដែលបានផ្ញើទៅការជជែកតេឡេក្រាមដែលបានភ្ជាប់របស់អ្នក។",
   "Your sign-in session expired. Please sign in again": "វគ្គចូលប្រើរបស់អ្នកបានផុតកំណត់។ សូមចូលម្តងទៀត",
+  // components/pos/PosContinueOrderModal.tsx
+  "This sale was not paid yet. Take the payment now, or cancel it to put the stock back.": "ការលក់នេះមិនទាន់បានបង់ប្រាក់នៅឡើយ។ សូមទទួលការបង់ប្រាក់ឥឡូវនេះ ឬបោះបង់វា ដើម្បីដាក់ស្តុកត្រឡប់វិញ។",
+  "Total due": "សរុបត្រូវបង់",
+  "Pay with KHQR": "បង់ដោយ KHQR",
+  "Pay with cash": "បង់ជាសាច់ប្រាក់",
+  "Cancel sale": "បោះបង់ការលក់",
+  "Keep it": "រក្សាទុក",
+  "The customer left without paying?": "អតិថិជនចាកចេញដោយមិនបានបង់ប្រាក់?",
+  "Cancel this sale and put its items back in stock?": "បោះបង់ការលក់នេះ ហើយដាក់ទំនិញត្រឡប់ចូលស្តុកវិញ?",
+  "This sale could not be continued.": "មិនអាចបន្តការលក់នេះបានទេ។",
+  "The sale could not be continued.": "មិនអាចបន្តការលក់បានទេ។",
+  "The cash payment could not be completed.": "មិនអាចបញ្ចប់ការបង់ប្រាក់ជាសាច់ប្រាក់បានទេ។",
+  "The order could not be loaded.": "មិនអាចផ្ទុកការបញ្ជាទិញបានទេ។",
 }
