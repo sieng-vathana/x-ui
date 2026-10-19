@@ -1,4 +1,5 @@
 import { useMemo, useState } from 'react'
+import { savedImageUrl } from '../../lib/api'
 import { useNavigate } from 'react-router-dom'
 import {
   Breadcrumb,
@@ -47,7 +48,7 @@ function indexVariants(products: ProductItem[]) {
         product,
         sku: variant.sku || product.productCode,
         variantName: variant.displayName || variant.variantName || '',
-        image: variant.image || product.thumbnail || product.images?.[0]?.imageUrl,
+        image: savedImageUrl(variant.image, product.thumbnail, product.images?.[0]?.imageUrl),
       })
     }
   }

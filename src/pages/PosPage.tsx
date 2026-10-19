@@ -50,7 +50,7 @@ import { useStoresRaw } from '../features/stores/useStores'
 import { useCustomerLookup, useCustomerPoints, useLoyaltyProgram } from '../features/loyalty/useLoyalty'
 import { usePosSettings, type PosPaymentMethod } from '../features/pos/posSettings'
 import { useAdminStore } from '../hooks/useAdminStore'
-import { resolveImageUrl } from '../lib/api'
+import { savedImageUrl, resolveImageUrl } from '../lib/api'
 import { evaluateCashTender, formatCashMix, type CashReceived } from '../lib/cashTender'
 import { cn } from '../lib/cn'
 import { maxRedeemablePoints, pointsValue } from '../lib/loyalty'
@@ -309,7 +309,7 @@ export function PosPage() {
              : canConvertCurrency((product.currencyCode || 'USD').toUpperCase(), currencyCode)
                ? convertCurrency(Number(variant.compareAtPrice), (product.currencyCode || 'USD').toUpperCase(), currencyCode, usdToKhrRate)
                : Number(variant.compareAtPrice),
-           image: resolveImageUrl(variant.image || product.thumbnail || product.images?.[0]?.imageUrl),
+           image: resolveImageUrl(savedImageUrl(variant.image, product.thumbnail, product.images?.[0]?.imageUrl)),
            sku: variant.sku,
            barcode: variant.barcode,
           categoryId,

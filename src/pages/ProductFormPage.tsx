@@ -80,6 +80,11 @@ interface VariantOptionEntry {
   value: string
 }
 
+/** blob: and data: URLs are previews that live only in this browser tab, so they are never saved. */
+function isLocalPreviewUrl(url: string) {
+  return url.startsWith('blob:') || url.startsWith('data:')
+}
+
 function emptyVariant(id: number): VariantInput {
   return {
     key: String(Date.now() + id),
@@ -515,17 +520,24 @@ export function ProductFormPage() {
       if (images.length > 0) {
         toast('Processing product images...', 'info')
         const finalImageUrls: string[] = []
+        const savedUrlByImage = new Map<string, string>()
         for (const img of images) {
+          let savedUrl: string | undefined
           if (img.file) {
             const res = await productApi.uploadFile(img.file)
-            finalImageUrls.push(fileContentPath(res.id))
-          } else if (img.previewUrl) {
-            finalImageUrls.push(img.previewUrl)
+            savedUrl = fileContentPath(res.id)
+          } else if (img.previewUrl && !isLocalPreviewUrl(img.previewUrl)) {
+            savedUrl = img.previewUrl
+          }
+          if (savedUrl) {
+            savedUrlByImage.set(img.id, savedUrl)
+            finalImageUrls.push(savedUrl)
           }
         }
         if (finalImageUrls.length > 0) {
+          // The thumbnail is the primary image's saved address; its preview is a blob: URL that only this tab can open.
           const primaryImg = images.find((i) => i.isPrimary)
-          uploadedThumbnail = primaryImg?.previewUrl || finalImageUrls[0]
+          uploadedThumbnail = (primaryImg && savedUrlByImage.get(primaryImg.id)) || finalImageUrls[0]
           uploadedImages = finalImageUrls.map((url) => ({ imageUrl: url }))
         }
       }
@@ -549,7 +561,9 @@ export function ProductFormPage() {
         shortName: shortName || productName,
         currencyCode: currencyCode || 'USD',
         salesChannel: numSalesChannel,
-        thumbnail: uploadedThumbnail || (existingProduct?.thumbnail ? (resolveImageUrl(existingProduct.thumbnail) ?? existingProduct.thumbnail) : undefined),
+        thumbnail: uploadedThumbnail || (existingProduct?.thumbnail && !isLocalPreviewUrl(existingProduct.thumbnail)
+          ? (resolveImageUrl(existingProduct.thumbnail) ?? existingProduct.thumbnail)
+          : undefined),
         images: uploadedImages || (existingProduct?.images as any),
         description,
         category: categoryId ? { id: Number(categoryId) } : undefined,

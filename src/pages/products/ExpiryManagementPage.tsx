@@ -29,7 +29,7 @@ import { cn } from '../../lib/cn'
 import { paths } from '../../lib/paths'
 import { card, pageContent } from '../../lib/ui'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
-import { API_BASE_URL, ApiClient } from '../../lib/api'
+import { savedImageUrl, API_BASE_URL, ApiClient } from '../../lib/api'
 
 const PAGE_SIZE = 25
 const FILTERS: Array<{ value: ExpiryBatchFilter; label: string }> = [
@@ -56,7 +56,7 @@ function indexProducts(products: ProductItem[]) {
         productName: product.productName,
         variantName: variant.displayName || variant.variantName || '',
         sku: variant.sku || product.productCode,
-        image: variant.image || product.thumbnail || product.images?.[0]?.imageUrl,
+        image: savedImageUrl(variant.image, product.thumbnail, product.images?.[0]?.imageUrl),
       })
     }
   }

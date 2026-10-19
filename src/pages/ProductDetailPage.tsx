@@ -20,7 +20,7 @@ import { useDeleteProduct, useProduct } from '../features/products/useProducts'
 import { cn } from '../lib/cn'
 import { paths } from '../lib/paths'
 import { card, pageContent } from '../lib/ui'
-import { resolveImageUrl } from '../lib/api'
+import { savedImageUrl, resolveImageUrl } from '../lib/api'
 
 export function ProductDetailPage() {
   const navigate = useNavigate()
@@ -37,7 +37,8 @@ export function ProductDetailPage() {
   const imagesList = useMemo(() => {
     if (!product) return []
     const list: string[] = []
-    if (product.thumbnail) list.push(product.thumbnail)
+    const thumbnail = savedImageUrl(product.thumbnail)
+    if (thumbnail) list.push(thumbnail)
     if (product.images && product.images.length > 0) {
       for (const img of product.images) {
         if (img.imageUrl && !list.includes(img.imageUrl)) {
@@ -205,7 +206,7 @@ export function ProductDetailPage() {
     )
   }
 
-  const selectedImageUrl = imagesList[activeImageIndex] || product.thumbnail
+  const selectedImageUrl = imagesList[activeImageIndex] || savedImageUrl(product.thumbnail)
 
   return (
     <>

@@ -1,4 +1,5 @@
 import { useMemo, useState, type ReactNode } from 'react'
+import { savedImageUrl } from '../lib/api'
 import { Link } from 'react-router-dom'
 import {
   Breadcrumb,
@@ -676,7 +677,7 @@ function buildStockAlerts(products: ProductItem[]): StockAlertRow[] {
         id: variant.id ?? `${product.id}-${index}`,
         productName: product.productName,
         sku: variant.sku || product.productCode,
-        image: variant.image || product.thumbnail || product.images?.[0]?.imageUrl,
+        image: savedImageUrl(variant.image, product.thumbnail, product.images?.[0]?.imageUrl),
         quantity,
         threshold,
       }]

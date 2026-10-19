@@ -43,6 +43,14 @@ export function isBackgroundRequest(init?: RequestInit) {
   return Boolean((init as BackgroundRequestInit | undefined)?.vposBackground)
 }
 
+/**
+ * The first image address that was really saved. A blob: address is a browser preview that only
+ * the tab which made it can open, so one that reached the server is skipped.
+ */
+export function savedImageUrl(...candidates: (string | null | undefined)[]): string | undefined {
+  return candidates.find((url): url is string => Boolean(url) && !url!.startsWith('blob:')) ?? undefined
+}
+
 export function resolveImageUrl(url?: string): string | undefined {
   if (!url) return undefined
   if (url.startsWith('data:') || url.startsWith('blob:')) {

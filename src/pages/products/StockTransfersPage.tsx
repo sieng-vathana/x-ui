@@ -12,6 +12,7 @@ import { useAdminStore } from '../../hooks/useAdminStore'
 import { cn } from '../../lib/cn'
 import { paths } from '../../lib/paths'
 import { card, pageContent } from '../../lib/ui'
+import { savedImageUrl } from '../../lib/api'
 
 const STATUS_FILTERS = [
   { value: 'ALL', label: 'All statuses' },
@@ -57,7 +58,7 @@ function variantRows(products: ProductItem[]) {
       productName: product.productName,
       variantName: variant.displayName || variant.variantName || '',
       sku: variant.sku || product.productCode,
-      image: variant.image || product.thumbnail || product.images?.[0]?.imageUrl,
+      image: savedImageUrl(variant.image, product.thumbnail, product.images?.[0]?.imageUrl),
       label: [product.productName, variant.displayName || variant.variantName, variant.sku || product.productCode]
         .filter(Boolean).join(' · '),
     }]

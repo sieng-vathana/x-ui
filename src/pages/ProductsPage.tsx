@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
+import { savedImageUrl } from '../lib/api'
 import { createPortal } from 'react-dom'
 import { useNavigate } from 'react-router-dom'
 import {
@@ -164,7 +165,7 @@ export function ProductsPage() {
     return apiProducts
       .map((p) => {
         const defaultVar = p.variants?.find((v) => v.isDefault) || p.variants?.[0]
-        const img = p.thumbnail || defaultVar?.image || p.images?.[0]?.imageUrl
+        const img = savedImageUrl(p.thumbnail, defaultVar?.image, p.images?.[0]?.imageUrl)
         const totalStock = p.variants && p.variants.length > 0
           ? p.variants.reduce((sum, v) => sum + ((v as any).quantity ?? (v as any).stockQuantity ?? (v as any).stock ?? v.stockAlertQty ?? 0), 0)
           : 0
