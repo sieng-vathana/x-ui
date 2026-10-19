@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from 'react'
-import { Outlet } from 'react-router-dom'
+import { Link, Outlet } from 'react-router-dom'
+import { useQuery } from '@tanstack/react-query'
 import { Sidebar } from '../components/layout/Sidebar'
 import { SidebarSettingsDrawer } from '../components/layout/SidebarSettingsDrawer'
 import { useSidebarLayout, type SidebarLayoutState } from '../hooks/useSidebarLayout'
@@ -10,10 +11,20 @@ import { useStores } from '../features/stores/useStores'
 import { cn } from '../lib/cn'
 import { Icon } from '../components/ui/Icon'
 import { readStoredValue, writeStoredValue } from '../lib/storage'
+import { useAuth } from '../context/AuthContext'
+import { paths } from '../lib/paths'
 
 const ACTIVE_STORE_STORAGE_KEY = 'vpos.active-store-id'
 
 export function AdminLayout() {
+  const { user } = useAuth()
+  const businessId = user?.business.id
+  const { data: businessReview } = useQuery({
+    queryKey: ['businessReview', businessId],
+    queryFn: () => authApi.getBusinessReview(businessId!),
+    enabled: Boolean(businessId && businessId !== 'workspace'),
+    refetchInterval: 30000,
+  })
   const { data: stores = [] } = useStores()
   const [storeId, setStoreIdState] = useState(() => readStoredValue(ACTIVE_STORE_STORAGE_KEY, ''))
   const sidebar = useSidebarLayout()
@@ -80,6 +91,13 @@ export function AdminLayout() {
         className={cn('min-h-screen overflow-x-clip transition-[margin,width,padding] duration-200 ease-out', isHorizontal && 'pt-12', sidebar.config.width === 'boxed' && 'mx-auto max-w-[1300px]')}
         style={{ marginLeft: contentOffset, width: `calc(100% - ${contentOffset}px)` }}
       >
+        {businessReview && businessReview.status !== 1 ? (
+          <div role="status" className="border-b border-amber-200 bg-amber-50 px-5 py-3 text-[14px] font-semibold text-amber-900">
+            {businessReview.status === -1 ? 'Merchant application needs changes.' : 'Merchant application is awaiting backoffice approval.'}
+            {' '}Your workspace is available for setup; orders and public listings are unavailable until approval.
+            <Link to={paths.settings} className="ml-2 underline">View status</Link>
+          </div>
+        ) : null}
         <Outlet
           context={{
             storeId,

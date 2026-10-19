@@ -25,7 +25,11 @@ type BackendBusiness = {
   pricesIncludeTax?: boolean
   bakongAccountId?: string | null
   timeZone: string
+  status?: number
+  reviewReason?: string | null
 }
+
+export type BusinessReview = { status: number; reviewReason?: string | null }
 export type ExchangeRateReference = {
   baseCurrency: string
   targetCurrency: string
@@ -280,6 +284,16 @@ export const authApi = {
       bakongAccountId: response.data.bakongAccountId || undefined,
       logoUrl: input.logoUrl,
     }
+  },
+
+  async getBusinessReview(businessId: string): Promise<BusinessReview> {
+    const response = await api.request<ApiEnvelope<BackendBusiness>>(`/businesses/${businessId}`)
+    if (!response.data) throw new Error(response.message || 'Could not load merchant approval status.')
+    return { status: response.data.status ?? 0, reviewReason: response.data.reviewReason }
+  },
+
+  async resubmitBusiness(businessId: string): Promise<void> {
+    await api.request<ApiEnvelope<BackendBusiness>>(`/businesses/${businessId}/approval/resubmit`, { method: 'POST' })
   },
 
   async signOut(): Promise<void> {

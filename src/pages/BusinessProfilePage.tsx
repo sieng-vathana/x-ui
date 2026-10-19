@@ -11,9 +11,28 @@ import { useAdminStore } from '../hooks/useAdminStore'
 import { card, pageContent } from '../lib/ui'
 import { paths } from '../lib/paths'
 import { useLocation } from 'react-router-dom'
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { authApi } from '../features/auth/authApi'
+import { useToast } from '../context/ToastContext'
 
 export function BusinessProfilePage() {
   const { user, updateBusinessSettings } = useAuth()
+  const queryClient = useQueryClient()
+  const { toast } = useToast()
+  const businessId = user?.business.id
+  const { data: businessReview } = useQuery({
+    queryKey: ['businessReview', businessId],
+    queryFn: () => authApi.getBusinessReview(businessId!),
+    enabled: Boolean(businessId && businessId !== 'workspace'),
+  })
+  const resubmit = useMutation({
+    mutationFn: () => authApi.resubmitBusiness(businessId!),
+    onSuccess: () => {
+      toast.success('Merchant application submitted for review.')
+      queryClient.invalidateQueries({ queryKey: ['businessReview', businessId] })
+    },
+    onError: (failure: Error) => toast.error(failure.message),
+  })
   const { storeId, setStoreId, sidebar } = useAdminStore()
   const { data: stores = [] } = useStores()
   const location = useLocation()
@@ -56,6 +75,18 @@ export function BusinessProfilePage() {
       <Topbar title={sectionLabel} subtitle={sectionSubtitle} actions={<StoreSwitcher value={storeId} onChange={setStoreId} />} />
       <main className={pageContent}>
         <section className="mb-6"><Breadcrumb items={[{ label: 'Settings', to: paths.settings }, { label: sectionLabel }]} /></section>
+        {section === 'profile' && businessReview ? <section className={`${card} mb-6 p-5`}>
+          <h2 className="m-0 text-[17px] font-extrabold text-vpos-text">Merchant approval</h2>
+          <p className="mt-2 mb-0 text-[14px] text-vpos-muted">
+            {businessReview.status === 1 ? 'Your merchant account is approved. Each store listing still needs its own marketplace review.'
+              : businessReview.status === -1 ? 'Your application was returned. Update your business details and submit it again.'
+                : 'Your merchant account is awaiting backoffice review. You can prepare your workspace now.'}
+          </p>
+          {businessReview.status === -1 ? <>
+            <p className="mt-3 text-[14px] font-semibold text-rose-700">Reason: {businessReview.reviewReason || 'Contact backoffice for details.'}</p>
+            <button type="button" disabled={resubmit.isPending} onClick={() => resubmit.mutate()} className="mt-3 rounded-lg bg-vpos-primary px-4 py-2 text-[14px] font-bold text-white disabled:opacity-60">Resubmit for approval</button>
+          </> : null}
+        </section> : null}
         {section === 'profile' ? <section className={`${card} overflow-hidden p-0`}>
           <div className="border-b border-vpos-line bg-vpos-subtle/45 px-6 py-6 sm:px-7">
             <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">

@@ -182,7 +182,7 @@ export function BusinessRegistrationPage() {
   }
 
   return (
-    <AuthShell eyebrow="FIRST, MAKE IT YOURS" title="A better shift starts here." description="Create your workspace, add your first store, and be ready to ring up sales in minutes." singleColumn>
+    <AuthShell eyebrow="FIRST, MAKE IT YOURS" title="A better shift starts here." description="Create your workspace and first store. Backoffice will review your merchant account before your store can go live." singleColumn>
       <StepProgress activeStep={step} />
 
       <form onSubmit={handleSubmit} noValidate className="auth-setup-form">
@@ -288,7 +288,7 @@ function StoreStep({ form, updateField, onLocationChange }: StepProps & { onLoca
     <section className="auth-step-panel" aria-labelledby="store-step-title">
       <p className="auth-step-kicker">STEP 3 OF 3</p>
       <h3 id="store-step-title" className="auth-step-title">Add your first store</h3>
-      <p className="auth-step-description">Every workspace starts with one store. You can add branches once setup is complete.</p>
+      <p className="auth-step-description">Every workspace starts with one store. You can prepare it while your merchant account awaits backoffice approval.</p>
       <div className="auth-step-fields">
         <Field label="Store name" value={form.storeName} onChange={(value) => updateField('storeName', value)} required />
         <Field label="Store code" value={form.storeCode} onChange={(value) => updateField('storeCode', value.toUpperCase())} required />
