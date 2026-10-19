@@ -5,9 +5,10 @@ import { Button } from '../../components/ui/Button'
 import { Icon } from '../../components/ui/Icon'
 import { useAuth } from '../../context/AuthContext'
 import { useToast } from '../../context/ToastContext'
+import { TelegramMfaRequiredError } from '../../features/auth/authApi'
 
 export function SignInPage() {
-  const { isAuthenticated, isRestoring, signIn } = useAuth()
+  const { isAuthenticated, isRestoring, signIn, signInWithTelegram } = useAuth()
   const { toast } = useToast()
   const navigate = useNavigate()
   const location = useLocation()
@@ -16,6 +17,8 @@ export function SignInPage() {
   const [showPassword, setShowPassword] = useState(false)
   const [error, setError] = useState('')
   const [submitting, setSubmitting] = useState(false)
+  const [challenge, setChallenge] = useState<{ token: string; expiresAt?: string } | null>(null)
+  const [telegramCode, setTelegramCode] = useState('')
 
   const isSessionExpired = new URLSearchParams(location.search).get('reason') === 'session_expired'
 
@@ -26,10 +29,20 @@ export function SignInPage() {
     setError('')
     setSubmitting(true)
     try {
-      await signIn({ username, password })
+      if (challenge) {
+        await signInWithTelegram({ username, challengeToken: challenge.token, code: telegramCode })
+      } else {
+        await signIn({ username, password })
+      }
       toast('Signed in successfully.', 'success')
       navigate((location.state as { from?: string } | null)?.from ?? '/', { replace: true })
     } catch (reason) {
+      if (reason instanceof TelegramMfaRequiredError) {
+        setChallenge({ token: reason.challengeToken, expiresAt: reason.expiresAt })
+        setPassword('')
+        setError('')
+        return
+      }
       const message = reason instanceof Error ? reason.message : 'Unable to sign in. Please try again.'
       setError(message)
       toast(message, 'error')
@@ -47,7 +60,14 @@ export function SignInPage() {
             <span>Your session expired after 30 minutes of inactivity. Please sign in again.</span>
           </div>
         ) : null}
-        <div className="auth-form-fields">
+        {challenge ? <div className="auth-form-fields">
+          <label className="auth-field">
+            <span className="auth-field-label">Telegram verification code <b>*</b></span>
+            <span className="auth-field-hint">Enter the 8-digit code sent to your linked Telegram chat.</span>
+            <input autoFocus inputMode="numeric" autoComplete="one-time-code" maxLength={8} value={telegramCode} onChange={(event) => setTelegramCode(event.target.value.replace(/\D/g, '').slice(0, 8))} placeholder="00000000" required className="auth-input" />
+          </label>
+          {challenge.expiresAt ? <span className="auth-field-hint">Expires at {new Date(challenge.expiresAt).toLocaleTimeString()}.</span> : null}
+        </div> : <div className="auth-form-fields">
           <Field label="Username" leadingIcon="user-line" autoComplete="username" value={username} onChange={setUsername} placeholder="e.g. vathana.admin" required />
           <div className="auth-field">
             <div className="auth-field-heading">
@@ -60,10 +80,11 @@ export function SignInPage() {
               <button type="button" onClick={() => setShowPassword((value) => !value)} aria-label={showPassword ? 'Hide password' : 'Show password'} className="auth-password-toggle"><Icon name={showPassword ? 'eye-off-line' : 'eye-line'} /></button>
             </div>
           </div>
-        </div>
+        </div>}
         {error ? <p role="alert" className="auth-alert auth-alert--error">{error}</p> : null}
-        <div className="auth-security-note"><span className="auth-security-icon"><Icon name="shield-check-line" /></span><span><strong>Private session.</strong> Your access stays in secure browser cookies — never local storage.</span></div>
-        <Button type="submit" disabled={submitting || isRestoring} className="auth-submit-button">{submitting ? 'Checking access…' : 'Open workspace'} <Icon name="arrow-right-line" /></Button>
+        {!challenge ? <div className="auth-security-note"><span className="auth-security-icon"><Icon name="shield-check-line" /></span><span><strong>Private session.</strong> Your access stays in secure browser cookies — never local storage.</span></div> : null}
+        <Button type="submit" disabled={submitting || isRestoring || Boolean(challenge && telegramCode.length !== 8)} className="auth-submit-button">{submitting ? 'Checking access…' : challenge ? 'Verify and sign in' : 'Open workspace'} <Icon name="arrow-right-line" /></Button>
+        {challenge ? <button type="button" className="mt-3 text-sm font-semibold text-vpos-primary underline" onClick={() => { setChallenge(null); setTelegramCode(''); setError('') }}>Back to password</button> : null}
       </form>
       <div className="auth-form-footer"><span>New here?</span> <Link to="/register-business">Create your workspace account <Icon name="arrow-up-right-line" /></Link></div>
     </AuthShell>

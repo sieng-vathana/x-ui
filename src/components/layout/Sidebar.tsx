@@ -72,6 +72,7 @@ const settingsSubItems = [
   { to: paths.settingsPos, label: 'POS configuration' },
   { to: paths.settingsLoyalty, label: 'Loyalty' },
   { to: paths.settingsTelegram, label: 'Telegram alerts' },
+  { to: paths.settingsSecurity, label: 'Security & 2FA' },
   { to: paths.settingsLayout, label: 'Workspace layout' },
 ]
 

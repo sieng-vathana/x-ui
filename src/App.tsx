@@ -159,6 +159,7 @@ export default function App() {
                 <Route path="settings/pos" element={<BusinessProfilePage />} />
                 <Route path="settings/layout" element={<BusinessProfilePage />} />
                 <Route path="settings/telegram" element={<BusinessProfilePage />} />
+                <Route path="settings/security" element={<BusinessProfilePage />} />
                 <Route path="settings/loyalty" element={<BusinessProfilePage />} />
                 <Route path="users" element={<UsersPage />} />
                 <Route path="roles" element={<RoleManagementPage />} />

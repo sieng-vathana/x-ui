@@ -91,6 +91,7 @@ export function UserMenu({
             <div className="py-1">
               <MenuItem icon="user-settings-line" label="My profile" onClick={() => { setOpen(false); navigate('/settings') }} />
               <MenuItem icon="settings-3-line" label="Account settings" onClick={() => { setOpen(false); navigate('/settings') }} />
+              <MenuItem icon="shield-keyhole-line" label="Security & 2FA" onClick={() => { setOpen(false); navigate('/settings/security') }} />
             </div>
             <div className="border-t border-vpos-line py-1">
               <MenuItem

@@ -35,12 +35,32 @@ export type ExchangeRateReference = {
   provider: string
   stale: boolean
 }
-type BackendAuthResponse = { user?: BackendUser; business?: BackendBusiness; stores?: BffStore[] }
+type BackendAuthResponse = {
+  user?: BackendUser
+  business?: BackendBusiness
+  stores?: BffStore[]
+  mfaRequired?: boolean
+  mfaMethod?: string
+  mfaChallengeToken?: string
+  mfaExpiresAt?: string
+}
 type BrandCache = { businessId: string; name: string; logoUrl?: string }
 
 export type AuthenticatedSession = {
   user: AuthenticatedUser
   stores?: BffStore[]
+}
+
+export class TelegramMfaRequiredError extends Error {
+  readonly challengeToken: string
+  readonly expiresAt?: string
+
+  constructor(challengeToken: string, expiresAt?: string) {
+    super('Enter the Telegram code to finish signing in.')
+    this.name = 'TelegramMfaRequiredError'
+    this.challengeToken = challengeToken
+    this.expiresAt = expiresAt
+  }
 }
 
 function asUser(source: BackendUser, business?: BackendBusiness): AuthenticatedUser {
@@ -133,7 +153,20 @@ export const authApi = {
       headers: { 'X-Client-Type': 'web' },
       body: JSON.stringify({ username, password: input.password }),
     })
+    if (response.data?.mfaRequired && response.data.mfaChallengeToken) {
+      throw new TelegramMfaRequiredError(response.data.mfaChallengeToken, response.data.mfaExpiresAt)
+    }
     if (!response.data?.user) throw new Error(response.message || 'The sign-in response did not include a user.')
+    return asSession(response.data)
+  },
+
+  async verifyTelegramSignIn(input: { username: string; challengeToken: string; code: string }): Promise<AuthenticatedSession> {
+    const response = await api.request<ApiEnvelope<BackendAuthResponse>>('/auth/verify-telegram', {
+      method: 'POST',
+      headers: { 'X-Client-Type': 'web' },
+      body: JSON.stringify(input),
+    })
+    if (!response.data?.user) throw new Error(response.message || 'The Telegram code could not be verified.')
     return asSession(response.data)
   },
 

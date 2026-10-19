@@ -28,6 +28,7 @@ interface AuthContextValue {
   isAuthenticated: boolean
   isRestoring: boolean
   signIn: (input: SignInInput) => Promise<void>
+  signInWithTelegram: (input: { username: string; challengeToken: string; code: string }) => Promise<void>
   register: (input: RegistrationInput) => Promise<void>
   updateBusinessBrand: (input: BusinessBrandInput) => Promise<void>
   updateBusinessSettings: (input: BusinessSettingsInput) => Promise<void>
@@ -68,6 +69,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const signIn = useCallback(async (input: SignInInput) => {
     applySession(await authApi.signIn(input))
+  }, [applySession])
+
+  const signInWithTelegram = useCallback(async (input: { username: string; challengeToken: string; code: string }) => {
+    applySession(await authApi.verifyTelegramSignIn(input))
   }, [applySession])
 
   const register = useCallback(async (input: RegistrationInput) => {
@@ -114,11 +119,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     isAuthenticated: Boolean(user),
     isRestoring,
     signIn,
+    signInWithTelegram,
     register,
     updateBusinessBrand,
     updateBusinessSettings,
     signOut,
-  }), [user, isRestoring, signIn, register, updateBusinessBrand, signOut])
+  }), [user, isRestoring, signIn, signInWithTelegram, register, updateBusinessBrand, signOut])
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>
 }

@@ -2,6 +2,7 @@ import { BusinessBrandForm } from '../components/business/BusinessBrandForm'
 import { LoyaltySettingsForm } from '../components/business/LoyaltySettingsForm'
 import { PosConfigurationForm } from '../components/business/PosConfigurationForm'
 import { TelegramAlertsForm } from '../components/business/TelegramAlertsForm'
+import { TelegramMfaSettings } from '../components/auth/TelegramMfaSettings'
 import { Breadcrumb, Icon, StoreSwitcher, Topbar } from '../components'
 import { useAuth } from '../context/AuthContext'
 import { useStores } from '../features/stores/useStores'
@@ -21,15 +22,19 @@ export function BusinessProfilePage() {
       ? 'layout'
       : location.pathname === paths.settingsTelegram
         ? 'telegram'
-        : location.pathname === paths.settingsLoyalty
-          ? 'loyalty'
-          : 'profile'
+        : location.pathname === paths.settingsSecurity
+          ? 'security'
+          : location.pathname === paths.settingsLoyalty
+            ? 'loyalty'
+            : 'profile'
   const sectionLabel = section === 'pos'
     ? 'POS configuration'
     : section === 'layout'
       ? 'Workspace layout'
       : section === 'telegram'
         ? 'Telegram alerts'
+        : section === 'security'
+          ? 'Security & 2FA'
         : section === 'loyalty'
           ? 'Loyalty'
           : 'Business profile'
@@ -39,6 +44,8 @@ export function BusinessProfilePage() {
       ? 'Choose how the workspace navigation behaves while you work.'
       : section === 'telegram'
         ? 'Get payments, online orders, low stock and a daily summary in Telegram.'
+        : section === 'security'
+          ? 'Protect your own account and manage your sign-in verification.'
         : section === 'loyalty'
           ? 'Reward customers by phone number with points and member prices.'
           : 'Control the identity your staff sees throughout the workspace.'
@@ -77,6 +84,13 @@ export function BusinessProfilePage() {
             <p className="mt-1 mb-0 text-[13px] text-vpos-muted">Choose Telegram chats for alerts about KHQR payments, online orders, low stock and the day's sales, and the stores each chat covers.</p>
           </div>
           <div className="p-5 sm:p-7"><TelegramAlertsForm businessId={Number(user.business.id)} businessName={user.business.name} /></div>
+        </section> : null}
+        {section === 'security' ? <section className={`${card} overflow-hidden p-0`}>
+          <div className="border-b border-vpos-line bg-vpos-subtle/45 px-6 py-5 sm:px-7">
+            <h2 className="m-0 text-[17px] font-extrabold text-vpos-text">Account security</h2>
+            <p className="mt-1 mb-0 text-[13px] text-vpos-muted">Connect your personal Telegram account and choose whether to require its code at sign-in.</p>
+          </div>
+          <div className="p-5 sm:p-7"><TelegramMfaSettings /></div>
         </section> : null}
         {section === 'layout' ? <section className={`${card} overflow-hidden p-0`}>
           <div className="border-b border-vpos-line bg-vpos-subtle/45 px-6 py-5 sm:px-7">
