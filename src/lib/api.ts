@@ -106,7 +106,7 @@ export class ApiClient {
   async request<T>(path: string, init: RequestInit = {}): Promise<T> {
     const token = this.options.getToken?.()
     const url = `${this.options.baseUrl ?? ''}${path}`
-    const isAuthRequest = path.startsWith('/auth/login') || path.startsWith('/auth/verify-telegram') || path.startsWith('/auth/refresh') || path.startsWith('/auth/register')
+    const isAuthRequest = path.startsWith('/auth/login') || path.startsWith('/auth/verify-telegram') || path.startsWith('/auth/verify-email') || path.startsWith('/auth/refresh') || path.startsWith('/auth/register')
 
     const isFormData = typeof FormData !== 'undefined' && init.body instanceof FormData
 

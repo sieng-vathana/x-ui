@@ -28,7 +28,7 @@ interface AuthContextValue {
   isAuthenticated: boolean
   isRestoring: boolean
   signIn: (input: SignInInput) => Promise<void>
-  signInWithTelegram: (input: { username: string; challengeToken: string; code: string }) => Promise<void>
+  signInWithMfa: (input: { username: string; challengeToken: string; code: string; method: 'EMAIL' | 'TELEGRAM' }) => Promise<void>
   register: (input: RegistrationInput) => Promise<void>
   updateBusinessBrand: (input: BusinessBrandInput) => Promise<void>
   updateBusinessSettings: (input: BusinessSettingsInput) => Promise<void>
@@ -71,8 +71,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     applySession(await authApi.signIn(input))
   }, [applySession])
 
-  const signInWithTelegram = useCallback(async (input: { username: string; challengeToken: string; code: string }) => {
-    applySession(await authApi.verifyTelegramSignIn(input))
+  const signInWithMfa = useCallback(async (input: { username: string; challengeToken: string; code: string; method: 'EMAIL' | 'TELEGRAM' }) => {
+    applySession(await authApi.verifyMfaSignIn(input))
   }, [applySession])
 
   const register = useCallback(async (input: RegistrationInput) => {
@@ -119,12 +119,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     isAuthenticated: Boolean(user),
     isRestoring,
     signIn,
-    signInWithTelegram,
+    signInWithMfa,
     register,
     updateBusinessBrand,
     updateBusinessSettings,
     signOut,
-  }), [user, isRestoring, signIn, signInWithTelegram, register, updateBusinessBrand, signOut])
+  }), [user, isRestoring, signIn, signInWithMfa, register, updateBusinessBrand, signOut])
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>
 }

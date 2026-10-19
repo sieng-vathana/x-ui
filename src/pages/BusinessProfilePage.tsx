@@ -3,6 +3,7 @@ import { LoyaltySettingsForm } from '../components/business/LoyaltySettingsForm'
 import { PosConfigurationForm } from '../components/business/PosConfigurationForm'
 import { TelegramAlertsForm } from '../components/business/TelegramAlertsForm'
 import { TelegramMfaSettings } from '../components/auth/TelegramMfaSettings'
+import { EmailMfaSettings } from '../components/auth/EmailMfaSettings'
 import { Breadcrumb, Icon, StoreSwitcher, Topbar } from '../components'
 import { useAuth } from '../context/AuthContext'
 import { useStores } from '../features/stores/useStores'
@@ -88,9 +89,9 @@ export function BusinessProfilePage() {
         {section === 'security' ? <section className={`${card} overflow-hidden p-0`}>
           <div className="border-b border-vpos-line bg-vpos-subtle/45 px-6 py-5 sm:px-7">
             <h2 className="m-0 text-[17px] font-extrabold text-vpos-text">Account security</h2>
-            <p className="mt-1 mb-0 text-[13px] text-vpos-muted">Connect your personal Telegram account and choose whether to require its code at sign-in.</p>
+            <p className="mt-1 mb-0 text-[13px] text-vpos-muted">Choose Telegram or email verification for your sign-in. You can manage either method below.</p>
           </div>
-          <div className="p-5 sm:p-7"><TelegramMfaSettings /></div>
+          <div className="grid gap-5 p-5 sm:p-7"><TelegramMfaSettings /><EmailMfaSettings /></div>
         </section> : null}
         {section === 'layout' ? <section className={`${card} overflow-hidden p-0`}>
           <div className="border-b border-vpos-line bg-vpos-subtle/45 px-6 py-5 sm:px-7">

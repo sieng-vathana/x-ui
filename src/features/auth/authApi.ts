@@ -43,6 +43,7 @@ type BackendAuthResponse = {
   mfaMethod?: string
   mfaChallengeToken?: string
   mfaExpiresAt?: string
+  mfaDestination?: string
 }
 type BrandCache = { businessId: string; name: string; logoUrl?: string }
 
@@ -51,15 +52,19 @@ export type AuthenticatedSession = {
   stores?: BffStore[]
 }
 
-export class TelegramMfaRequiredError extends Error {
+export class MfaRequiredError extends Error {
   readonly challengeToken: string
   readonly expiresAt?: string
+  readonly method: 'EMAIL' | 'TELEGRAM'
+  readonly destination?: string
 
-  constructor(challengeToken: string, expiresAt?: string) {
-    super('Enter the Telegram code to finish signing in.')
-    this.name = 'TelegramMfaRequiredError'
+  constructor(challengeToken: string, method: 'EMAIL' | 'TELEGRAM', expiresAt?: string, destination?: string) {
+    super(method === 'EMAIL' ? 'Enter the email code to finish signing in.' : 'Enter the Telegram code to finish signing in.')
+    this.name = 'MfaRequiredError'
     this.challengeToken = challengeToken
     this.expiresAt = expiresAt
+    this.method = method
+    this.destination = destination
   }
 }
 
@@ -154,17 +159,20 @@ export const authApi = {
       body: JSON.stringify({ username, password: input.password }),
     })
     if (response.data?.mfaRequired && response.data.mfaChallengeToken) {
-      throw new TelegramMfaRequiredError(response.data.mfaChallengeToken, response.data.mfaExpiresAt)
+      throw new MfaRequiredError(response.data.mfaChallengeToken,
+        response.data.mfaMethod === 'EMAIL' ? 'EMAIL' : 'TELEGRAM', response.data.mfaExpiresAt, response.data.mfaDestination)
     }
     if (!response.data?.user) throw new Error(response.message || 'The sign-in response did not include a user.')
     return asSession(response.data)
   },
 
-  async verifyTelegramSignIn(input: { username: string; challengeToken: string; code: string }): Promise<AuthenticatedSession> {
-    const response = await api.request<ApiEnvelope<BackendAuthResponse>>('/auth/verify-telegram', {
+  async verifyMfaSignIn(input: { username: string; challengeToken: string; code: string; method: 'EMAIL' | 'TELEGRAM' }): Promise<AuthenticatedSession> {
+    const endpoint = input.method === 'EMAIL' ? '/auth/verify-email' : '/auth/verify-telegram'
+    const { method: _method, ...request } = input
+    const response = await api.request<ApiEnvelope<BackendAuthResponse>>(endpoint, {
       method: 'POST',
       headers: { 'X-Client-Type': 'web' },
-      body: JSON.stringify(input),
+      body: JSON.stringify(request),
     })
     if (!response.data?.user) throw new Error(response.message || 'The Telegram code could not be verified.')
     return asSession(response.data)
