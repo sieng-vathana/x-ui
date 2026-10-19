@@ -24,7 +24,7 @@ const HOURS = Array.from({ length: 24 }, (_, hour) => ({
 type StoreName = { id: number; name: string }
 
 /** Connects Telegram chats to the business and chooses, per chat, which stores and alerts it gets. */
-export function TelegramAlertsForm({ businessId }: { businessId: number }) {
+export function TelegramAlertsForm({ businessId, businessName }: { businessId: number; businessName: string }) {
   const { toast } = useToast()
   const [pendingLink, setPendingLink] = useState<{ url: string; expiresAt: string } | null>(null)
   const statusQuery = useTelegramStatus(businessId, Boolean(pendingLink))
@@ -124,7 +124,7 @@ export function TelegramAlertsForm({ businessId }: { businessId: number }) {
 
         {status.chats.length ? (
           <ul className="mt-5 mb-0 list-none space-y-3 p-0">
-            {status.chats.map((chat) => <ChatCard key={chat.id} businessId={businessId} chat={chat} stores={stores} />)}
+            {status.chats.map((chat) => <ChatCard key={chat.id} businessId={businessId} businessName={businessName} chat={chat} stores={stores} lowStockThreshold={status.lowStockThreshold} />)}
           </ul>
         ) : (
           <p className="mt-5 mb-0 rounded-xl border border-dashed border-vpos-line px-4 py-6 text-center text-[13px] text-vpos-muted">
@@ -143,7 +143,7 @@ export function TelegramAlertsForm({ businessId }: { businessId: number }) {
   )
 }
 
-function ChatCard({ businessId, chat, stores }: { businessId: number; chat: TelegramChat; stores: StoreName[] }) {
+function ChatCard({ businessId, businessName, chat, stores, lowStockThreshold }: { businessId: number; businessName: string; chat: TelegramChat; stores: StoreName[]; lowStockThreshold: number }) {
   const { toast } = useToast()
   const [editingStores, setEditingStores] = useState(false)
   const [confirmingDisconnect, setConfirmingDisconnect] = useState(false)
@@ -154,6 +154,9 @@ function ChatCard({ businessId, chat, stores }: { businessId: number; chat: Tele
   const storeNames = chat.allStores
     ? null
     : chat.storeIds.map((id) => stores.find((store) => store.id === id)?.name ?? `Store #${id}`).join(', ')
+  const previewStoreName = chat.allStores
+    ? stores[0]?.name ?? 'Example store'
+    : chat.storeIds.map((id) => stores.find((store) => store.id === id)?.name).find(Boolean) ?? 'Example store'
 
   const update = async (changes: TelegramChatChanges) => {
     try {
@@ -230,6 +233,13 @@ function ChatCard({ businessId, chat, stores }: { businessId: number; chat: Tele
         <Toggle label="Daily summary" description="Sales by store and payment method, once a day." checked={chat.dailySummary} onChange={(dailySummary) => void update({ dailySummary })} className="py-2.5" />
       </div>
 
+      <TelegramMessagePreview
+        businessName={businessName}
+        chat={chat}
+        storeName={previewStoreName}
+        lowStockThreshold={lowStockThreshold}
+      />
+
       <ConfirmModal
         open={confirmingDisconnect}
         onClose={() => setConfirmingDisconnect(false)}
@@ -242,6 +252,86 @@ function ChatCard({ businessId, chat, stores }: { businessId: number; chat: Tele
       />
     </li>
   )
+}
+
+type PreviewKind = 'khqr' | 'order' | 'stock' | 'summary'
+
+const PREVIEW_LABELS: Record<PreviewKind, string> = {
+  khqr: 'KHQR payments',
+  order: 'Online orders',
+  stock: 'Low stock',
+  summary: 'Daily summary',
+}
+
+function TelegramMessagePreview({ businessName, chat, storeName, lowStockThreshold }: {
+  businessName: string
+  chat: TelegramChat
+  storeName: string
+  lowStockThreshold: number
+}) {
+  const available: PreviewKind[] = []
+  if (chat.khqrAlerts) available.push('khqr')
+  if (chat.orderAlerts) available.push('order')
+  if (chat.lowStockAlerts) available.push('stock')
+  if (chat.dailySummary) available.push('summary')
+  const [selected, setSelected] = useState<PreviewKind>('khqr')
+  const active = available.includes(selected) ? selected : available[0]
+  const message = active ? previewMessage(active, businessName, storeName, lowStockThreshold) : ''
+
+  return (
+    <section className="mt-4 overflow-hidden rounded-xl border border-vpos-line" aria-label="Telegram message preview">
+      <div className="flex flex-wrap items-center justify-between gap-2 border-b border-vpos-line bg-vpos-subtle/50 px-3.5 py-3">
+        <div className="flex items-center gap-2">
+          <span className="grid h-8 w-8 place-items-center rounded-lg bg-[#229ED9] text-[17px] text-white"><Icon name="telegram-line" /></span>
+          <div>
+            <h4 className="m-0 text-[13px] font-bold text-vpos-text">Message preview</h4>
+            <p className="m-0 text-[11px] text-vpos-muted">Example only · no message is sent</p>
+          </div>
+        </div>
+        <span className="max-w-full truncate text-[12px] font-semibold text-vpos-muted">{chat.chatTitle || 'Telegram chat'}</span>
+      </div>
+
+      {available.length ? (
+        <>
+          <div className="flex gap-1.5 overflow-x-auto border-b border-vpos-line bg-vpos-surface px-3 py-2" role="tablist" aria-label="Preview alert type">
+            {available.map((kind) => (
+              <button
+                key={kind}
+                type="button"
+                role="tab"
+                aria-selected={active === kind}
+                onClick={() => setSelected(kind)}
+                className={`shrink-0 rounded-full px-3 py-1.5 text-[11px] font-bold transition-colors ${active === kind ? 'bg-vpos-primary text-white' : 'bg-vpos-subtle text-vpos-muted hover:text-vpos-text'}`}
+              >
+                {PREVIEW_LABELS[kind]}
+              </button>
+            ))}
+          </div>
+          <div className="bg-[#0e1621] p-3.5 sm:p-4">
+            <div className="ml-auto max-w-[560px] rounded-2xl rounded-tl-sm bg-[#182533] px-3.5 py-3 text-[13px] leading-5 text-[#f2f5f8] shadow-sm">
+              <div className="whitespace-pre-line break-words" data-locale-ignore="true">{message}</div>
+              <div className="mt-1 text-right text-[10px] leading-4 text-[#91a0ad]">9:41 PM</div>
+            </div>
+          </div>
+        </>
+      ) : (
+        <p className="m-0 bg-vpos-surface px-4 py-5 text-[12px] text-vpos-muted">Turn on an alert above to preview its Telegram message.</p>
+      )}
+    </section>
+  )
+}
+
+function previewMessage(kind: PreviewKind, businessName: string, storeName: string, lowStockThreshold: number) {
+  switch (kind) {
+    case 'khqr':
+      return '💰 KHQR payment received\n$12.50\nOrder ORD-1042'
+    case 'order':
+      return '🛒 New online order ORD-1042\n$24.50 · 2 items\n• Iced latte x1\n• Croissant x1\nDeliver to: Sample customer · 012 345 678 · Phnom Penh'
+    case 'stock':
+      return `⚠️ Low stock after order ORD-1042\n• Iced latte: ${Math.max(0, lowStockThreshold - 1)} left`
+    case 'summary':
+      return `📊 Daily summary · ${businessName || 'Your business'}\n${new Date().toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short', year: 'numeric' }).replace(',', '')}\n\n${storeName}\n• Sales: $142.50 from 8 payments\n• Cash $55.00 · KHQR $87.50\n\nTotal after refunds: $142.50`
+  }
 }
 
 function StorePicker({ chat, stores, saving, onCancel, onSave }: {

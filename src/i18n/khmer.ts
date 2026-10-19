@@ -2405,6 +2405,10 @@ export const khmerTranslations: Record<string, string> = {
   "Choose at least one store, or all stores": "សូមជ្រើសរើសហាងយ៉ាងហោចណាស់មួយ ឬហាងទាំងអស់",
   "Telegram chat not found": "រកមិនឃើញការជជែក Telegram",
   "Choose Telegram chats for alerts about KHQR payments, online orders, low stock and the day's sales, and the stores each chat covers.": "ជ្រើសរើសការជជែក Telegram សម្រាប់ទទួលការជូនដំណឹងអំពីការទូទាត់ KHQR ការបញ្ជាទិញអនឡាញ ស្តុកជិតអស់ និងការលក់ប្រចាំថ្ងៃ ព្រមទាំងហាងដែលការជជែកនីមួយៗទទួល។",
+  "Message preview": "ការមើលសារជាមុន",
+  "Example only · no message is sent": "សម្រាប់ជាឧទាហរណ៍ប៉ុណ្ណោះ · មិនមានការផ្ញើសារទេ",
+  "Preview alert type": "ប្រភេទការជូនដំណឹងសម្រាប់មើលជាមុន",
+  "Turn on an alert above to preview its Telegram message.": "បើកការជូនដំណឹងខាងលើ ដើម្បីមើលសារ Telegram ជាមុន។",
   // permission names
   "Open the portal": "បើកប្រព័ន្ធគ្រប់គ្រង",
   "Create a business": "បង្កើតអាជីវកម្ម",
