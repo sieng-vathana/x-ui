@@ -17,6 +17,7 @@ import {
 import { PosActivityModal, type HeldOrder } from '../components/pos/PosActivityModal'
 import { PosCashPaymentModal } from '../components/pos/PosCashPaymentModal'
 import { PosContinueOrderModal, type ContinueOrderChoice } from '../components/pos/PosContinueOrderModal'
+import { OrderDetailModal } from '../components/orders/OrderDetailModal'
 import { PosQrPaymentModal } from '../components/pos/PosQrPaymentModal'
 import { ShortcutsModal } from '../components/pos/ShortcutsModal'
 import { QuickCustomerModal } from '../components/customers/QuickCustomerModal'
@@ -61,6 +62,7 @@ import { canConvertCurrency, convertCurrency, formatCurrency, formatKhr } from '
 import { paths } from '../lib/paths'
 import { openReceiptWindow, printReceipt as openReceiptPrint, type ReceiptCash } from '../lib/receipt'
 import { card, pageContent, searchField } from '../lib/ui'
+import { parseServerTime } from '../lib/serverTime'
 
 type CartEntry = { qty: number; discount?: LineDiscount | null }
 type PosProduct = {
@@ -172,6 +174,7 @@ export function PosPage() {
   const [continueOrder, setContinueOrder] = useState<PosOrder | null>(null)
   const [continueBusy, setContinueBusy] = useState<ContinueOrderChoice | null>(null)
   const [cashForOrder, setCashForOrder] = useState<PosOrder | null>(null)
+  const [detailOrder, setDetailOrder] = useState<PosOrder | null>(null)
   const cancelOrderMutation = useCancelOrder()
   const [isFullscreen, setIsFullscreen] = useState(false)
   const [mobileOrderOpen, setMobileOrderOpen] = useState(false)
@@ -406,10 +409,21 @@ export function PosPage() {
     }
   }, [createCashPaymentMutation, finishPaidOrder, storeId, toast, usdToKhrRate, user])
 
-  const handleActivityAction = useCallback((action: 'resume' | 'discard' | 'receipt' | 'reorder' | 'continue', id: string) => {
+  const handleActivityAction = useCallback((action: 'resume' | 'discard' | 'receipt' | 'reorder' | 'continue' | 'details', id: string) => {
     if (action === 'continue') {
       const orderId = Number(id)
       if (Number.isInteger(orderId) && orderId > 0) void continuePendingOrder(orderId)
+      return
+    }
+    if (action === 'details') {
+      const orderId = Number(id)
+      if (!Number.isInteger(orderId) || orderId <= 0) return
+      void orderApi.get(orderId)
+        .then((order) => {
+          setActivityMode(null)
+          setDetailOrder(order)
+        })
+        .catch((error) => toast(error instanceof Error ? error.message : 'The order could not be loaded.', 'error'))
       return
     }
     if (action === 'resume' || action === 'discard') {
@@ -2031,6 +2045,16 @@ export function PosPage() {
         }}
         onConfirm={(received) => void completeCashPayment(received, total)}
       />
+      <OrderDetailModal
+        order={detailOrder}
+        store={selectedStore}
+        isOpen={detailOrder !== null}
+        onClose={() => {
+          // Back to the Recent orders list the order was opened from.
+          setDetailOrder(null)
+          setActivityMode('recent')
+        }}
+      />
       <PosContinueOrderModal
         order={continueOrder}
         busy={continueBusy}
@@ -2082,7 +2106,7 @@ function toCartEntries(order: PosOrder): Record<string, CartEntry> {
 
 function formatHeldAge(createdAt?: string): { label: string; minutes: number } {
   if (!createdAt) return { label: 'Time unavailable', minutes: 0 }
-  const createdTime = new Date(createdAt).getTime()
+  const createdTime = parseServerTime(createdAt).getTime()
   if (Number.isNaN(createdTime)) return { label: 'Time unavailable', minutes: 0 }
 
   const minutes = Math.max(0, Math.floor((Date.now() - createdTime) / 60000))

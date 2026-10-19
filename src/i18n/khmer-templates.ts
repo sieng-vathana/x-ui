@@ -167,4 +167,8 @@ export const khmerTemplates: Record<string, string> = {
   "Expires in {0}": "ផុតកំណត់ក្នុង {0}",
   "{0} is on hold. Continue it from Recent orders when the customer is ready.": "{0} កំពុងរង់ចាំ។ សូមបន្តវាពីការបញ្ជាទិញថ្មីៗ នៅពេលអតិថិជនរួចរាល់។",
   "Switched {0} to cash.": "បានប្តូរ {0} ទៅសាច់ប្រាក់។",
+  "Payments ({0})": "ការបង់ប្រាក់ ({0})",
+  "Paid {0}": "បានបង់ {0}",
+  "Created {0}": "បានបង្កើត {0}",
+  "Refunded {0}": "បានសងប្រាក់វិញ {0}",
 }

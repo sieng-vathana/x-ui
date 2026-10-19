@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState } from 'react'
 import { Icon } from '../ui/Icon'
 import { useToast } from '../../context/ToastContext'
 import { emailMfaApi, type EmailMfaStatus } from '../../features/auth/emailMfaApi'
+import { parseServerTime } from '../../lib/serverTime'
 
 export function EmailMfaSettings() {
   const { toast } = useToast()
@@ -95,7 +96,7 @@ export function EmailMfaSettings() {
     {!status.verified && !challenge ? <button type="button" disabled={!status.mailConfigured || !status.emailAvailable || busy} onClick={() => void sendCode()} className="min-h-11 w-fit rounded-lg bg-vpos-primary px-4 text-sm font-bold text-white disabled:cursor-not-allowed disabled:opacity-50">Send verification code</button> : null}
 
     {challenge ? <div className="grid max-w-md gap-3 rounded-lg border border-vpos-line bg-vpos-subtle/40 p-4">
-      <p className="m-0 text-sm text-vpos-text">Enter the 8-digit code sent to <strong>{challenge.email}</strong>. It expires at {new Date(challenge.expiresAt).toLocaleTimeString()}.</p>
+      <p className="m-0 text-sm text-vpos-text">Enter the 8-digit code sent to <strong>{challenge.email}</strong>. It expires at {parseServerTime(challenge.expiresAt).toLocaleTimeString()}.</p>
       <label className="text-sm font-semibold text-vpos-text" htmlFor="email-mfa-code">Email verification code
         <input id="email-mfa-code" autoFocus inputMode="numeric" autoComplete="one-time-code" maxLength={8} value={code} onChange={(event) => setCode(event.target.value.replace(/\D/g, '').slice(0, 8))} className="mt-2 min-h-11 w-full rounded-lg border border-vpos-line px-3 font-mono text-base tracking-[0.3em]" placeholder="00000000" />
       </label>

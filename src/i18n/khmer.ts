@@ -2547,4 +2547,10 @@ export const khmerTranslations: Record<string, string> = {
   "A new QR could not be created.": "មិនអាចបង្កើត QR ថ្មីបានទេ។",
   "Customer scans the KHQR": "អតិថិជនស្កេន KHQR",
   "Take dollars or riel instead": "ទទួលដុល្លារ ឬរៀលជំនួសវិញ",
+  // components/orders/OrderDetailModal.tsx (payments)
+  "Order & payment details": "ព័ត៌មានលម្អិតការបញ្ជាទិញ និងការបង់ប្រាក់",
+  "Sell the same items again": "លក់ទំនិញដដែលម្តងទៀត",
+  "No payment has been recorded for this order yet.": "មិនទាន់មានការបង់ប្រាក់ត្រូវបានកត់ត្រាសម្រាប់ការបញ្ជាទិញនេះនៅឡើយទេ។",
+  "This QR was shown but not paid.": "QR នេះត្រូវបានបង្ហាញ ប៉ុន្តែមិនបានបង់ប្រាក់ទេ។",
+  "Reference:": "លេខយោង៖",
 }

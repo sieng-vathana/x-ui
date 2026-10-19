@@ -13,6 +13,7 @@ import { cn } from '../../lib/cn'
 import { paths } from '../../lib/paths'
 import { card, pageContent } from '../../lib/ui'
 import { savedImageUrl } from '../../lib/api'
+import { parseServerTime } from '../../lib/serverTime'
 
 const STATUS_FILTERS = [
   { value: 'ALL', label: 'All statuses' },
@@ -67,7 +68,7 @@ function variantRows(products: ProductItem[]) {
 
 function formatDate(value?: string | null) {
   if (!value) return '—'
-  return new Intl.DateTimeFormat(undefined, { dateStyle: 'medium', timeStyle: 'short' }).format(new Date(value))
+  return new Intl.DateTimeFormat(undefined, { dateStyle: 'medium', timeStyle: 'short' }).format(parseServerTime(value))
 }
 
 export function StockTransfersPage() {
@@ -113,7 +114,7 @@ export function StockTransfersPage() {
 
   const transfers = (transferQuery.data?.content ?? [])
     .filter((transfer) => filter === 'ALL' || transfer.status === filter)
-    .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
+    .sort((a, b) => parseServerTime(b.createdAt).getTime() - parseServerTime(a.createdAt).getTime())
 
   const closeCreate = () => {
     setCreateOpen(false)

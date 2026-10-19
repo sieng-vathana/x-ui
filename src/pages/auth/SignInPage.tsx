@@ -6,6 +6,7 @@ import { Icon } from '../../components/ui/Icon'
 import { useAuth } from '../../context/AuthContext'
 import { useToast } from '../../context/ToastContext'
 import { authApi, MfaRequiredError, type MfaChallenge, type MfaMethod } from '../../features/auth/authApi'
+import { parseServerTime } from '../../lib/serverTime'
 
 export function SignInPage() {
   const { isAuthenticated, isRestoring, signIn, signInWithMfa } = useAuth()
@@ -113,7 +114,7 @@ export function SignInPage() {
             <span className="auth-field-hint">{challenge.method === 'EMAIL' ? `Enter the 8-digit code sent to ${challenge.destination || 'your verified email address'}.` : 'Enter the 8-digit code sent to your linked Telegram chat.'}</span>
             <input autoFocus inputMode="numeric" autoComplete="one-time-code" maxLength={8} value={mfaCode} onChange={(event) => setMfaCode(event.target.value.replace(/\D/g, '').slice(0, 8))} placeholder="00000000" required className="auth-input" />
           </label>
-          {challenge.expiresAt ? <span className="auth-field-hint">Expires at {new Date(challenge.expiresAt).toLocaleTimeString()}.</span> : null}
+          {challenge.expiresAt ? <span className="auth-field-hint">Expires at {parseServerTime(challenge.expiresAt).toLocaleTimeString()}.</span> : null}
         </div> : <div className="auth-form-fields">
           <Field label="Username" leadingIcon="user-line" autoComplete="username" value={username} onChange={setUsername} placeholder="e.g. vathana.admin" required />
           <div className="auth-field">

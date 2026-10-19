@@ -15,6 +15,7 @@ import { ConfirmModal } from '../ui/ConfirmModal'
 import { Icon } from '../ui/Icon'
 import { Select } from '../ui/Select'
 import { Toggle } from '../ui/Toggle'
+import { parseServerTime } from '../../lib/serverTime'
 
 const HOURS = Array.from({ length: 24 }, (_, hour) => ({
   value: String(hour),
@@ -42,7 +43,7 @@ export function TelegramAlertsForm({ businessId, businessName }: { businessId: n
 
   useEffect(() => {
     if (!pendingLink) return
-    const expiresIn = new Date(pendingLink.expiresAt).getTime() - Date.now()
+    const expiresIn = parseServerTime(pendingLink.expiresAt).getTime() - Date.now()
     const timer = window.setTimeout(() => setPendingLink(null), Math.max(0, expiresIn))
     return () => window.clearTimeout(timer)
   }, [pendingLink])

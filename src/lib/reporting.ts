@@ -1,3 +1,5 @@
+import { parseServerTime } from './serverTime'
+
 export function localDateValue(date = new Date()): string {
   const year = date.getFullYear()
   const month = String(date.getMonth() + 1).padStart(2, '0')
@@ -22,7 +24,7 @@ export function reportDateTimeRange(from: string, to: string): { from: string; t
 
 export function formatReportDate(value?: string): string {
   if (!value) return '—'
-  const date = new Date(value)
+  const date = parseServerTime(value)
   if (Number.isNaN(date.getTime())) return value
   return new Intl.DateTimeFormat('en-GB', { dateStyle: 'medium', timeStyle: 'short' }).format(date)
 }

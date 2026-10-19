@@ -5,6 +5,7 @@ import { useToast } from '../context/ToastContext'
 import { formatCurrency } from '../lib/currency'
 import { pageContent, searchField, selectClass } from '../lib/ui'
 import { paths } from '../lib/paths'
+import { parseServerTime } from '../lib/serverTime'
 
 type OrderStatus = 'PENDING_CONFIRMATION' | 'CONFIRMED' | 'PACKING' | 'SHIPPED' | 'DELIVERED' | 'COMPLETED' | 'CANCELLED'
 type PaymentStatus = 'PAID' | 'PENDING' | 'UNPAID'
@@ -103,7 +104,7 @@ function total(order: DemoOrder) {
 function formatPlacedAt(value: string) {
   return new Intl.DateTimeFormat('en-KH', {
     timeZone: 'Asia/Phnom_Penh', month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit', hour12: true,
-  }).format(new Date(value))
+  }).format(parseServerTime(value))
 }
 
 function nextStatus(status: OrderStatus): OrderStatus | null {

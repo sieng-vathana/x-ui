@@ -7,6 +7,7 @@ import { useRecentOrders } from '../../features/orders/useOrders'
 import type { PosOrder } from '../../features/orders/types'
 import { formatCurrency } from '../../lib/currency'
 import { cn } from '../../lib/cn'
+import { parseServerTime } from '../../lib/serverTime'
 
 type ActivityMode = 'hold' | 'recent'
 type RecentOrderStatus = 'Completed' | 'Pending' | 'Cancelled'
@@ -47,7 +48,7 @@ export interface PosActivityModalProps {
   heldLoading?: boolean
   heldError?: string
   onHeldRetry?: () => void
-  onAction?: (action: 'resume' | 'discard' | 'receipt' | 'reorder' | 'continue', id: string) => void
+  onAction?: (action: 'resume' | 'discard' | 'receipt' | 'reorder' | 'continue' | 'details', id: string) => void
 }
 
 export function PosActivityModal({
@@ -282,26 +283,31 @@ function RecentOrdersView({
       </div>
 
       <div className="overflow-hidden rounded-[14px] border border-vpos-line bg-white">
-        <div className="hidden grid-cols-[1fr_110px_110px_105px_150px] gap-4 border-b border-vpos-line bg-vpos-subtle px-4 py-3 text-[11px] font-extrabold tracking-wide text-vpos-muted uppercase md:grid">
+        <div className="hidden grid-cols-[1fr_110px_110px_105px_190px] gap-4 border-b border-vpos-line bg-vpos-subtle px-4 py-3 text-[11px] font-extrabold tracking-wide text-vpos-muted uppercase md:grid">
           <span>Order</span><span>Payment</span><span>Status</span><span>Total</span><span />
         </div>
         {isLoading ? <ActivityEmpty icon="loader-4-line" label="Loading recent orders..." /> : error ? <ActivityError message={error} onRetry={onRetry} /> : orders.length === 0 ? <ActivityEmpty label="No recent orders match your filters." /> : orders.map((order, index) => (
           <div
             key={order.id}
+            // The whole row opens the order and its payments; the buttons on the right keep their own actions.
+            onClick={(event) => {
+              if ((event.target as HTMLElement).closest('button')) return
+              onAction?.('details', String(order.orderId))
+            }}
             className={cn(
-              'grid gap-3 px-4 py-4 transition-colors hover:bg-vpos-subtle/60 md:grid-cols-[1fr_110px_110px_105px_150px] md:items-center',
+              'grid cursor-pointer gap-3 px-4 py-4 transition-colors hover:bg-vpos-subtle/60 md:grid-cols-[1fr_110px_110px_105px_190px] md:items-center',
               index < orders.length - 1 && 'border-b border-vpos-line/70',
             )}
           >
-            <div className="flex min-w-0 items-center gap-3">
+            <button type="button" onClick={() => onAction?.('details', String(order.orderId))} className="flex min-w-0 items-center gap-3 border-0 bg-transparent p-0 text-left">
               <span className="grid h-10 w-10 shrink-0 place-items-center rounded-[10px] bg-vpos-sand text-vpos-primary">
                 <Icon name="receipt-line" />
               </span>
-              <div className="min-w-0">
-                <strong className="block truncate text-[14px] text-vpos-text">{order.id}</strong>
+              <span className="min-w-0">
+                <strong className="block truncate text-[14px] text-vpos-text underline-offset-2 hover:underline">{order.id}</strong>
                 <span className="mt-1 block truncate text-[12px] text-vpos-muted">{order.customer} · {order.items} · {order.time}</span>
-              </div>
-            </div>
+              </span>
+            </button>
             <span className="text-[13px] text-vpos-muted"><Icon name={paymentIcon(order.method)} className="mr-1 align-[-1px]" />{order.method}</span>
             <span className={cn(
               'w-fit rounded-full px-2.5 py-1 text-[11px] font-extrabold',
@@ -316,10 +322,13 @@ function RecentOrdersView({
                   <Icon name="play-circle-line" />Continue
                 </button>
               ) : null}
-              <button type="button" aria-label={`View receipt ${order.id}`} onClick={() => onAction?.('receipt', String(order.orderId))} className="grid h-8 w-8 place-items-center rounded-lg border-0 bg-vpos-subtle text-vpos-muted transition hover:bg-vpos-sand hover:text-vpos-primary">
-                <Icon name="file-list-3-line" />
+              <button type="button" title="Order & payment details" aria-label={`Details ${order.id}`} onClick={() => onAction?.('details', String(order.orderId))} className="grid h-8 w-8 place-items-center rounded-lg border-0 bg-vpos-subtle text-vpos-muted transition hover:bg-vpos-sand hover:text-vpos-primary">
+                <Icon name="eye-line" />
               </button>
-              <button type="button" aria-label={`Reorder ${order.id}`} onClick={() => onAction?.('reorder', String(order.orderId))} className="grid h-8 w-8 place-items-center rounded-lg border-0 bg-vpos-subtle text-vpos-muted transition hover:bg-vpos-sand hover:text-vpos-primary">
+              <button type="button" title="Print receipt" aria-label={`View receipt ${order.id}`} onClick={() => onAction?.('receipt', String(order.orderId))} className="grid h-8 w-8 place-items-center rounded-lg border-0 bg-vpos-subtle text-vpos-muted transition hover:bg-vpos-sand hover:text-vpos-primary">
+                <Icon name="printer-line" />
+              </button>
+              <button type="button" title="Sell the same items again" aria-label={`Reorder ${order.id}`} onClick={() => onAction?.('reorder', String(order.orderId))} className="grid h-8 w-8 place-items-center rounded-lg border-0 bg-vpos-subtle text-vpos-muted transition hover:bg-vpos-sand hover:text-vpos-primary">
                 <Icon name="refresh-line" />
               </button>
             </div>
@@ -473,7 +482,7 @@ function paymentIcon(method: string): string {
 
 function formatOrderTime(createdAt?: string): string {
   if (!createdAt) return 'Time unavailable'
-  const date = new Date(createdAt)
+  const date = parseServerTime(createdAt)
   if (Number.isNaN(date.getTime())) return 'Time unavailable'
 
   const time = new Intl.DateTimeFormat(undefined, { hour: 'numeric', minute: '2-digit' }).format(date)

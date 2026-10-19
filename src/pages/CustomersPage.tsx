@@ -25,6 +25,7 @@ import type { Customer, CustomerAddress, CustomerPayload } from '../features/cus
 import { cn } from '../lib/cn'
 import { paths } from '../lib/paths'
 import { pageContent } from '../lib/ui'
+import { parseServerTime } from '../lib/serverTime'
 
 const EMPTY_CUSTOMERS: Customer[] = []
 
@@ -34,7 +35,7 @@ function formatDate(value?: string) {
     day: '2-digit',
     month: 'short',
     year: 'numeric',
-  }).format(new Date(value))
+  }).format(parseServerTime(value))
 }
 
 function formatCustomerAddress(address: CustomerAddress) {

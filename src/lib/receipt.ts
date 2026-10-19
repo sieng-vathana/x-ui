@@ -2,6 +2,7 @@ import type { PosOrder } from '../features/orders/types'
 import type { BffStore } from '../features/stores/types'
 import { formatCashMix } from './cashTender'
 import { canConvertCurrency, convertCurrency, formatCurrency } from './currency'
+import { parseServerTime } from './serverTime'
 
 export type ReceiptPaymentMethod = 'cash' | 'card' | 'qr' | string | null | undefined
 
@@ -131,7 +132,7 @@ function formatPaymentMethod(method: ReceiptPaymentMethod): string {
 
 function formatReceiptDate(value?: string): string {
   if (!value) return 'Date unavailable'
-  const date = new Date(value)
+  const date = parseServerTime(value)
   if (Number.isNaN(date.getTime())) return value
   return new Intl.DateTimeFormat('en-GB', { dateStyle: 'medium', timeStyle: 'short' }).format(date)
 }

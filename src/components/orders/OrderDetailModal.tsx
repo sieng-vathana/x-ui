@@ -15,6 +15,8 @@ import {
   useShipOrder,
 } from '../../features/orders/useOrders'
 import { useDeliveryForOrder } from '../../features/deliveries/useDeliveries'
+import { usePaymentsForOrder } from '../../features/payments/usePayments'
+import type { Payment } from '../../features/payments/types'
 import { formatCurrency } from '../../lib/currency'
 import { formatReportDate } from '../../lib/reporting'
 import { useToast } from '../../context/ToastContext'
@@ -453,7 +455,108 @@ export function OrderDetailModal({
             </div>
           </div>
         </div>
+
+        <OrderPayments orderId={order.id} enabled={isOpen} />
       </div>
     </Modal>
+  )
+}
+
+const METHOD_LABEL: Record<string, { icon: string; label: string }> = {
+  CASH: { icon: 'money-dollar-circle-line', label: 'Cash' },
+  QR: { icon: 'qr-code-line', label: 'KHQR' },
+  CARD: { icon: 'bank-card-line', label: 'Card' },
+}
+
+const PROVIDER_LABEL: Record<string, string> = {
+  BAKONG: 'Bakong', KHQRPAY: 'KHQRPay', SIMULATED: 'Simulated', ABA: 'ABA', ACLEDA: 'ACLEDA',
+}
+
+/** Every payment recorded for the order: what was paid, how, when, and the bank reference. */
+function OrderPayments({ orderId, enabled }: { orderId: number; enabled: boolean }) {
+  const paymentsQuery = usePaymentsForOrder(enabled ? orderId : undefined)
+  const payments = [...(paymentsQuery.data ?? [])].sort((a, b) => {
+    // Paid first, then the newest attempt.
+    const rank = (payment: Payment) => (payment.status === 'PAID' || payment.status === 'PARTIALLY_REFUNDED' || payment.status === 'REFUNDED' ? 0 : 1)
+    return rank(a) - rank(b) || b.id - a.id
+  })
+
+  return (
+    <div className="rounded-[4px] border border-vpos-line bg-white">
+      <div className="flex items-center justify-between border-b border-vpos-line p-3.5">
+        <h4 className="flex items-center gap-1.5 text-[13px] font-bold text-vpos-text">
+          <Icon name="wallet-3-line" className="text-vpos-primary" /> Payments ({payments.length})
+        </h4>
+        {paymentsQuery.isFetching ? <Icon name="loader-4-line" className="animate-spin text-vpos-muted" /> : null}
+      </div>
+      {paymentsQuery.isError ? (
+        <p className="m-0 p-4 text-[13px] text-vpos-red">
+          {paymentsQuery.error instanceof Error ? paymentsQuery.error.message : 'Payments could not be loaded.'}
+        </p>
+      ) : !paymentsQuery.isLoading && payments.length === 0 ? (
+        <p className="m-0 p-4 text-[13px] text-vpos-muted">No payment has been recorded for this order yet.</p>
+      ) : (
+        <ul className="m-0 list-none divide-y divide-vpos-line p-0">
+          {payments.map((payment) => <PaymentRow key={payment.id} payment={payment} />)}
+        </ul>
+      )}
+    </div>
+  )
+}
+
+function PaymentRow({ payment }: { payment: Payment }) {
+  const [copied, setCopied] = useState(false)
+  const method = METHOD_LABEL[payment.method] ?? { icon: 'wallet-3-line', label: payment.method }
+  const provider = PROVIDER_LABEL[payment.provider]
+  const money = (value: number | null | undefined) => formatCurrency(Number(value ?? 0), payment.currencyCode)
+  const reference = payment.externalReference?.trim()
+  const unpaidQr = payment.status === 'PENDING' && payment.method === 'QR'
+  const copy = () => {
+    if (!reference) return
+    void navigator.clipboard?.writeText(reference).then(() => {
+      setCopied(true)
+      window.setTimeout(() => setCopied(false), 1500)
+    }).catch(() => undefined)
+  }
+
+  return (
+    <li className="flex flex-wrap items-start gap-3 p-3.5 text-[13px]">
+      <span className="grid h-9 w-9 shrink-0 place-items-center rounded-[8px] bg-vpos-subtle text-[17px] text-vpos-primary">
+        <Icon name={method.icon} />
+      </span>
+      <div className="min-w-0 flex-1 space-y-1">
+        <div className="flex flex-wrap items-center gap-2">
+          <strong className="text-vpos-text">{method.label}{provider ? ` · ${provider}` : ''}</strong>
+          <Status value={unpaidQr ? 'UNPAID' : payment.status} />
+          <span className="text-[11px] text-vpos-muted" data-locale-ignore>PMT-{payment.id}</span>
+        </div>
+        <div className="text-[12px] text-vpos-muted">
+          {payment.paidAt ? <>Paid {formatReportDate(payment.paidAt)}</> : <>Created {formatReportDate(payment.createdAt)}</>}
+        </div>
+        {payment.method === 'CASH' && payment.tenderedAmount != null ? (
+          <div className="text-[12px] text-vpos-muted">
+            Received <strong className="text-vpos-text">{money(payment.tenderedAmount)}</strong>
+            {' · '}Change <strong className="text-vpos-text">{money(payment.changeAmount)}</strong>
+          </div>
+        ) : null}
+        {Number(payment.refundedAmount ?? 0) > 0 ? (
+          <div className="text-[12px] text-vpos-red">Refunded {money(payment.refundedAmount)}</div>
+        ) : null}
+        {reference ? (
+          <div className="flex items-center gap-1.5 text-[12px] text-vpos-muted">
+            <span>Reference:</span>
+            <code className="max-w-[260px] truncate rounded bg-vpos-subtle px-1.5 py-0.5 font-mono text-[11px] text-vpos-text" title={reference} data-locale-ignore>{reference}</code>
+            <button type="button" onClick={copy} aria-label="Copy reference" className="grid h-6 w-6 place-items-center rounded border-0 bg-transparent text-vpos-muted hover:bg-vpos-subtle hover:text-vpos-text">
+              <Icon name={copied ? 'check-line' : 'file-copy-line'} />
+            </button>
+          </div>
+        ) : null}
+        {payment.note ? <div className="text-[12px] text-vpos-muted" data-locale-ignore>{payment.note}</div> : null}
+        {unpaidQr ? <div className="text-[12px] text-vpos-muted">This QR was shown but not paid.</div> : null}
+      </div>
+      <strong className={unpaidQr ? 'text-[14px] text-vpos-muted line-through' : 'text-[14px] text-vpos-text'} data-locale-ignore>
+        {money(payment.amount)}
+      </strong>
+    </li>
   )
 }
