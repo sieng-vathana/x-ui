@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
+import { permissionLabel, permissionSection } from '../lib/permissionLabels'
 import { Breadcrumb, Button, StoreSwitcher, Topbar } from '../components'
 import { ConfirmModal } from '../components/ui/ConfirmModal'
 import { FormField, TextAreaField } from '../components/ui/FormField'
@@ -233,8 +234,8 @@ export function RoleManagementPage() {
 
           <div className="space-y-6 p-5">
             <section className="grid grid-cols-1 gap-4 rounded-lg border border-vpos-line bg-vpos-subtle/50 p-4 md:grid-cols-2">
-              <FormField label="Role name" required value={roleName} disabled={!editable} onChange={(event) => setRoleName(event.target.value)} placeholder="e.g. Senior cashier" />
-              <FormField label="Role code" value={roleCode} disabled={!creating || !editable} onChange={(event) => setRoleCode(event.target.value.toUpperCase())} placeholder="Generated from name" />
+              {/* The role code is made from the name when the role is saved, so only the name is asked for. */}
+              <FormField className="md:col-span-2" label="Role name" required value={roleName} disabled={!editable} onChange={(event) => setRoleName(event.target.value)} placeholder="e.g. Senior cashier" />
               <TextAreaField className="md:col-span-2" label="Description" showToolbar={false} value={description} disabled={!editable} onChange={(event) => setDescription(event.target.value)} placeholder="Explain who should receive this role." />
             </section>
 
@@ -261,14 +262,14 @@ export function RoleManagementPage() {
               <div className="space-y-3">
                 {groupedPermissions.map(([moduleName, modulePermissions]) => (
                   <div key={moduleName} className="overflow-hidden rounded-lg border border-vpos-line">
-                    <div className="flex items-center justify-between border-b border-vpos-line bg-vpos-subtle px-4 py-2.5"><span className="text-[11px] font-extrabold uppercase tracking-[.12em] text-vpos-dark">{moduleName}</span><span className="text-[10px] font-semibold text-vpos-muted">{modulePermissions.filter((permission) => permissionIds.has(permission.id)).length}/{modulePermissions.length}</span></div>
+                    <div className="flex items-center justify-between border-b border-vpos-line bg-vpos-subtle px-4 py-2.5"><span className="text-[11px] font-extrabold uppercase tracking-[.12em] text-vpos-dark">{permissionSection(moduleName)}</span><span className="text-[10px] font-semibold text-vpos-muted">{modulePermissions.filter((permission) => permissionIds.has(permission.id)).length}/{modulePermissions.length}</span></div>
                     <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3">
                       {modulePermissions.map((permission) => {
                         const allowed = permissionIds.has(permission.id)
                         return (
                           <button key={permission.id} type="button" disabled={!editable} onClick={() => togglePermission(permission.id)} className="flex items-start gap-3 border-b border-vpos-line px-4 py-3 text-left last:border-b-0 hover:bg-vpos-subtle/60 md:border-r">
                             <span className={cn('mt-0.5 grid h-5 w-5 shrink-0 place-items-center rounded-[4px] border text-[13px]', allowed ? 'border-vpos-primary bg-vpos-primary text-white' : 'border-vpos-line bg-white text-transparent')}><Icon name="check-line" /></span>
-                            <span className="min-w-0"><span className="block text-[12px] font-bold text-vpos-dark">{permission.permissionName || permission.permissionCode}</span><code className="mt-0.5 block truncate text-[9px] text-vpos-muted">{permission.permissionCode}</code></span>
+                            <span className="min-w-0 text-[12px] font-bold text-vpos-dark">{permissionLabel(permission.permissionCode, permission.permissionName)}</span>
                           </button>
                         )
                       })}

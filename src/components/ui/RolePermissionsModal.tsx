@@ -1,5 +1,6 @@
 import { useMemo } from 'react'
 import type { UserRole, UserRoleDetails } from '../../features/users/types'
+import { permissionLabel, permissionSection } from '../../lib/permissionLabels'
 import { Button } from './Button'
 import { Icon } from './Icon'
 import { Modal } from './Modal'
@@ -73,8 +74,8 @@ export function RolePermissionsModal({
         <div className="space-y-5">
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
             <div className="rounded-lg border border-vpos-line bg-vpos-subtle p-3.5">
-              <span className="text-[10px] font-extrabold uppercase tracking-[0.12em] text-vpos-muted">Role code</span>
-              <div className="mt-1.5 font-mono text-[13px] font-bold text-vpos-dark">{details.roleCode}</div>
+              <span className="text-[10px] font-extrabold uppercase tracking-[0.12em] text-vpos-muted">Role</span>
+              <div className="mt-1.5 truncate text-[13px] font-bold text-vpos-dark">{details.roleName || role?.roleName}</div>
             </div>
             <div className="rounded-lg border border-vpos-green/20 bg-vpos-green-bg p-3.5">
               <span className="text-[10px] font-extrabold uppercase tracking-[0.12em] text-vpos-green">Allowed</span>
@@ -95,7 +96,7 @@ export function RolePermissionsModal({
                     <div className="flex items-center gap-2">
                       <Icon name="shield-keyhole-line" className="text-vpos-primary" />
                       <h3 className="text-[12px] font-extrabold uppercase tracking-[0.1em] text-vpos-dark">
-                        {module.name}
+                        {permissionSection(module.name)}
                       </h3>
                     </div>
                     <span className="text-[11px] font-semibold text-vpos-muted">
@@ -122,7 +123,7 @@ export function RolePermissionsModal({
                         <div className="min-w-0 flex-1">
                           <div className="flex flex-wrap items-center justify-between gap-2">
                             <span className="text-[12px] font-bold text-vpos-dark">
-                              {permission.permissionName || permission.permissionCode}
+                              {permissionLabel(permission.permissionCode, permission.permissionName)}
                             </span>
                             <span
                               className={`rounded-full px-2 py-0.5 text-[9px] font-extrabold uppercase tracking-wide ${
@@ -134,9 +135,6 @@ export function RolePermissionsModal({
                               {permission.allowed ? 'Allowed' : 'Not allowed'}
                             </span>
                           </div>
-                          <code className="mt-1 block truncate text-[10px] text-vpos-muted">
-                            {permission.permissionCode}
-                          </code>
                         </div>
                       </div>
                     ))}
