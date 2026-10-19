@@ -15,6 +15,7 @@ import {
   Topbar,
   type DataTableColumn,
 } from '../components'
+import { ProductImportModal } from '../components/products/ProductImportModal'
 import { ProductsSubnav } from '../components/products/ProductsSubnav'
 import { money } from '../data/mockup'
 import { useAdminStore } from '../hooks/useAdminStore'
@@ -143,6 +144,7 @@ export function ProductsPage() {
   const [statusFilter, setStatusFilter] = useState('All status')
   const [categoryFilter, setCategoryFilter] = useState('All categories')
   const [deleteTarget, setDeleteTarget] = useState<{ id: number | string; name: string } | null>(null)
+  const [importing, setImporting] = useState(false)
 
   const deleteProductMutation = useDeleteProduct()
   const { toast } = useToast()
@@ -315,7 +317,9 @@ export function ProductsPage() {
             <Breadcrumb items={[{ label: 'Products' }, { label: 'All products' }]} />
           </div>
           <div className="flex shrink-0 flex-wrap gap-2.5">
-            <Button variant="secondary">Import</Button>
+            <Button variant="secondary" onClick={() => setImporting(true)}>
+              <Icon name="upload-2-line" /> Import
+            </Button>
             <Button variant="primary" onClick={() => navigate(paths.productNew)}>
               <Icon name="add-line" /> Add product
             </Button>
@@ -412,6 +416,8 @@ export function ProductsPage() {
           }
         />
       </main>
+
+      <ProductImportModal open={importing} onClose={() => setImporting(false)} storeId={String(storeId)} products={apiProducts} />
 
       <ConfirmModal
         open={Boolean(deleteTarget)}

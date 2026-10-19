@@ -214,6 +214,9 @@ export interface CreateProductBrandPayload {
 
 export interface CreateProductPayload {
   storeId: number
+  /** Sold in every store, or only in storeIds. */
+  isGlobal?: boolean
+  storeIds?: number[]
   productCode?: string
   productName: string
   shortName?: string
