@@ -84,19 +84,7 @@ export function PosQrPaymentModal({
       footer={
         <>
           {onSwitchToCash ? (
-            <label className="mr-auto inline-flex h-10 items-center gap-2 rounded-[8px] border border-vpos-line bg-vpos-subtle px-3 text-[13px] font-semibold text-vpos-text">
-              <Icon name="qr-code-line" className="text-vpos-muted" />
-              <span className="sr-only">Payment method</span>
-              <select
-                value="qr"
-                onChange={(event) => { if (event.target.value === 'cash') onSwitchToCash() }}
-                disabled={!waiting && !isExpired}
-                className="cursor-pointer border-0 bg-transparent pr-1 text-[13px] font-semibold text-vpos-text outline-none"
-              >
-                <option value="qr">QR Code</option>
-                <option value="cash">Cash</option>
-              </select>
-            </label>
+            <PaymentMethodMenu disabled={!waiting && !isExpired} onSwitchToCash={onSwitchToCash} />
           ) : <span className="mr-auto" />}
           {canConfirm ? (
             <Button variant="secondary" onClick={onConfirmPaid} disabled={confirming}>
@@ -224,6 +212,79 @@ export function PosQrPaymentModal({
         </div>
       ) : null}
     </Modal>
+  )
+}
+
+const METHODS = [
+  { id: 'qr', icon: 'qr-code-line', label: 'QR Code', hint: 'Customer scans the KHQR' },
+  { id: 'cash', icon: 'money-dollar-circle-line', label: 'Cash', hint: 'Take dollars or riel instead' },
+] as const
+
+/** Picks how this order is paid; choosing Cash leaves the KHQR for the cash window. Opens upwards from the footer. */
+function PaymentMethodMenu({ disabled, onSwitchToCash }: { disabled: boolean; onSwitchToCash: () => void }) {
+  const [open, setOpen] = useState(false)
+  const rootRef = useRef<HTMLDivElement>(null)
+
+  useEffect(() => {
+    if (!open) return
+    const closeOutside = (event: PointerEvent) => {
+      if (!rootRef.current?.contains(event.target as Node)) setOpen(false)
+    }
+    document.addEventListener('pointerdown', closeOutside)
+    return () => document.removeEventListener('pointerdown', closeOutside)
+  }, [open])
+
+  return (
+    <div ref={rootRef} className="relative mr-auto">
+      <button
+        type="button"
+        aria-haspopup="menu"
+        aria-expanded={open}
+        aria-label="Payment method"
+        disabled={disabled}
+        onClick={() => setOpen((value) => !value)}
+        className={cn(
+          'inline-flex h-10 min-w-[170px] items-center gap-2 rounded-[8px] border bg-vpos-subtle px-3 text-[13px] font-semibold text-vpos-text transition-colors disabled:cursor-not-allowed disabled:opacity-50',
+          open ? 'border-vpos-primary' : 'border-vpos-line hover:border-vpos-muted',
+        )}
+      >
+        <Icon name="qr-code-line" className="text-[16px] text-vpos-muted" />
+        <span className="flex-1 text-left">QR Code</span>
+        <Icon name="arrow-down-s-line" className={cn('text-[18px] text-vpos-muted transition-transform', open && 'rotate-180')} />
+      </button>
+      {open ? (
+        <div role="menu" className="absolute bottom-[calc(100%+8px)] left-0 z-10 w-[260px] overflow-hidden rounded-[10px] border border-vpos-line bg-white p-1.5 shadow-vpos">
+          {METHODS.map((method) => {
+            const current = method.id === 'qr'
+            return (
+              <button
+                key={method.id}
+                type="button"
+                role="menuitemradio"
+                aria-checked={current}
+                onClick={() => {
+                  setOpen(false)
+                  if (!current) onSwitchToCash()
+                }}
+                className={cn(
+                  'flex w-full items-center gap-3 rounded-[8px] border-0 px-2.5 py-2 text-left transition-colors',
+                  current ? 'bg-vpos-subtle' : 'bg-transparent hover:bg-vpos-subtle',
+                )}
+              >
+                <span className={cn('grid h-8 w-8 shrink-0 place-items-center rounded-[8px] text-[17px]', current ? 'bg-vpos-primary text-white' : 'bg-vpos-subtle text-vpos-muted')}>
+                  <Icon name={method.icon} />
+                </span>
+                <span className="min-w-0 flex-1">
+                  <span className="block text-[13px] font-bold text-vpos-text">{method.label}</span>
+                  <span className="block truncate text-[11px] text-vpos-muted">{method.hint}</span>
+                </span>
+                {current ? <Icon name="check-line" className="text-[17px] text-vpos-primary" /> : null}
+              </button>
+            )
+          })}
+        </div>
+      ) : null}
+    </div>
   )
 }
 

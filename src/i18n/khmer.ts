@@ -2545,4 +2545,6 @@ export const khmerTranslations: Record<string, string> = {
   "Ask the customer to scan with any Cambodian banking app. The payment is confirmed automatically.": "សូមឱ្យអតិថិជនស្កេនដោយកម្មវិធីធនាគារណាមួយនៅកម្ពុជា។ ការបង់ប្រាក់នឹងត្រូវបានបញ្ជាក់ដោយស្វ័យប្រវត្តិ។",
   "Make a new QR for the same order, switch to cash, or hold the order for later.": "បង្កើត QR ថ្មីសម្រាប់ការបញ្ជាទិញដដែល ប្តូរទៅសាច់ប្រាក់ ឬដាក់ការបញ្ជាទិញរង់ចាំសិន។",
   "A new QR could not be created.": "មិនអាចបង្កើត QR ថ្មីបានទេ។",
+  "Customer scans the KHQR": "អតិថិជនស្កេន KHQR",
+  "Take dollars or riel instead": "ទទួលដុល្លារ ឬរៀលជំនួសវិញ",
 }
