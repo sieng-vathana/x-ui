@@ -25,6 +25,7 @@ import { StoresPage } from './pages/StoresPage'
 import { AppLoader } from './components/AppLoader'
 import { RequireAuth } from './components/auth/RequireAuth'
 import { RequirePermission } from './components/auth/RequirePermission'
+import { DeliverySettingsPage } from './pages/DeliverySettingsPage'
 import { AuthProvider } from './context/AuthContext'
 import { ToastProvider } from './context/ToastContext'
 import { Toaster } from './components/Toaster'
@@ -161,6 +162,9 @@ export default function App() {
                 <Route path="settings/layout" element={<BusinessProfilePage />} />
                 <Route path="settings/telegram" element={<BusinessProfilePage />} />
                 <Route path="settings/security" element={<BusinessProfilePage />} />
+                <Route element={<RequirePermission permission="x-store:update" />}>
+                  <Route path="settings/delivery" element={<DeliverySettingsPage />} />
+                </Route>
                 <Route path="settings/loyalty" element={<BusinessProfilePage />} />
                 <Route path="settings/plan" element={<PlanUsagePage />} />
                 <Route path="users" element={<UsersPage />} />

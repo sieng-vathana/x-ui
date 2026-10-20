@@ -74,13 +74,14 @@ const reportSubItems: Array<{ to: string; label: string; end?: boolean }> = [
   { to: paths.reportsTax, label: 'Tax, discounts & refunds' },
 ]
 
-const settingsSubItems: Array<{ to: string; label: string; end?: boolean; planFeature?: PlanFeature }> = [
+const settingsSubItems: Array<{ to: string; label: string; end?: boolean; planFeature?: PlanFeature; permission?: string }> = [
   { to: paths.settings, label: 'Business profile', end: true },
   { to: paths.settingsPos, label: 'POS configuration' },
   { to: paths.settingsLoyalty, label: 'Loyalty', planFeature: 'CUSTOMERS_LOYALTY' },
   { to: paths.settingsPlan, label: 'Plan & usage' },
   { to: paths.settingsTelegram, label: 'Telegram alerts' },
   { to: paths.settingsSecurity, label: 'Security & 2FA' },
+  { to: paths.settingsDelivery, label: 'Delivery settings', permission: 'x-store:update' },
   { to: paths.settingsLayout, label: 'Workspace layout' },
 ]
 
@@ -204,7 +205,9 @@ export function Sidebar({ state }: SidebarProps) {
   const visibleProductSubItems = productSubItems.filter(
     (item) => (!item.permission || user?.permissions.includes(item.permission)) && (!item.planFeature || plan.has(item.planFeature)),
   )
-  const visibleSettingsSubItems = settingsSubItems.filter((item) => !item.planFeature || plan.has(item.planFeature))
+  const visibleSettingsSubItems = settingsSubItems.filter((item) =>
+    (!item.planFeature || plan.has(item.planFeature)) && (!item.permission || user?.permissions.includes(item.permission)),
+  )
   const visibleSalesSubItems = salesSubItems.filter(
     (item) => !item.permission || user?.permissions.includes(item.permission),
   )
