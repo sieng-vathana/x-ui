@@ -41,6 +41,8 @@ export interface CreateCashPaymentInput {
   provider: 'NONE'
   idempotencyKey: string
   note?: string
+  /** When a cash sale was taken at the till (UTC, no zone); used for offline sales so they land in the right register. */
+  soldAt?: string
 }
 
 export interface PaymentBreakdown {

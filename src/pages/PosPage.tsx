@@ -16,6 +16,7 @@ import {
 } from '../components/pos/DiscountModal'
 import { PosActivityModal, type HeldOrder } from '../components/pos/PosActivityModal'
 import { PosCashPaymentModal } from '../components/pos/PosCashPaymentModal'
+import { OpenCashRegisterModal } from '../components/pos/OpenCashRegisterModal'
 import { PosContinueOrderModal, type ContinueOrderChoice } from '../components/pos/PosContinueOrderModal'
 import { OrderDetailModal } from '../components/orders/OrderDetailModal'
 import { PosQrPaymentModal } from '../components/pos/PosQrPaymentModal'
@@ -178,6 +179,7 @@ export function PosPage() {
   const [activityMode, setActivityMode] = useState<'hold' | 'recent' | null>(null)
   const [qrCheckout, setQrCheckout] = useState<{ orderNo: string; response: QrPaymentResponse; order?: PosOrder } | null>(null)
   const [cashPaymentOpen, setCashPaymentOpen] = useState(false)
+  const [openRegisterOpen, setOpenRegisterOpen] = useState(false)
   const [continueOrder, setContinueOrder] = useState<PosOrder | null>(null)
   const [continueBusy, setContinueBusy] = useState<ContinueOrderChoice | null>(null)
   const [cashForOrder, setCashForOrder] = useState<PosOrder | null>(null)
@@ -970,6 +972,7 @@ export function PosPage() {
       return null
     }
     if (payment === 'cash' && !currentCashSessionQuery.data) {
+      setOpenRegisterOpen(true)
       toast(
         currentCashSessionQuery.isLoading
           ? 'Checking the cash register. Try again in a moment.'
@@ -1079,6 +1082,7 @@ export function PosPage() {
   const completeCashPayment = useCallback(async (received: CashReceived, shownTotal: number) => {
     const checkout = prepareCheckout()
     if (!checkout) return
+    const takenAt = new Date()
     const { businessId, selectedStoreId, cashierId, input } = checkout
     const receiptWindow = settings.autoPrintReceipt ? openReceiptWindow() : null
 
@@ -1138,6 +1142,7 @@ export function PosPage() {
             currencyCode: input.currencyCode,
             method: 'CASH',
             provider: 'NONE',
+            soldAt: takenAt.toISOString().slice(0, 19),
             note: `POS cash payment, saved offline. Received ${formatCashMix(received.usd, received.khr)}, change ${formatCashMix(tender.changeUsd, tender.changeKhr)}, 1 USD = ${usdToKhrRate} KHR`,
           },
         })
@@ -2002,10 +2007,16 @@ export function PosPage() {
                   />
                 ) : null}
               </div>
-              {settings.cashEnabled && !currentCashSessionQuery.data ? (
-                <div className="mb-3 flex items-start gap-2 rounded-[4px] border border-vpos-orange/25 bg-vpos-orange-bg px-3 py-2.5 text-[12px] leading-5 text-vpos-orange">
-                  <Icon name="information-line" className="mt-0.5 shrink-0 text-[16px]" />
-                  <span>Open a cash register session before accepting cash payments. QR and card checkout remain available.</span>
+              {settings.cashEnabled && !currentCashSessionQuery.data && payment === 'cash' ? (
+                <div role="alert" className="mb-3 space-y-2 rounded-[4px] border border-vpos-orange/40 bg-vpos-orange-bg px-3 py-2.5 text-[12px] leading-5 text-vpos-orange">
+                  <div className="flex items-start gap-2">
+                    <Icon name="information-line" className="mt-0.5 shrink-0 text-[16px]" />
+                    <span>No cash register is open. Open one to take cash. QR and card checkout remain available.</span>
+                  </div>
+                  <Button variant="dark" className="h-9 w-full" onClick={() => setOpenRegisterOpen(true)} disabled={!offline.online}>
+                    <Icon name="cash-line" /> Open cash register
+                  </Button>
+                  {!offline.online ? <span className="block text-[11px]">The register needs the connection to open. Take QR or card when it is back.</span> : null}
                 </div>
               ) : null}
 
@@ -2117,6 +2128,15 @@ export function PosPage() {
         onConfirmPaid={() => void confirmQrPayment()}
         confirming={confirmPaymentMutation.isPending}
         autoCheckError={bakongCheckError}
+      />
+
+      <OpenCashRegisterModal
+        open={openRegisterOpen}
+        onClose={() => setOpenRegisterOpen(false)}
+        businessId={businessId}
+        storeId={Number(storeId)}
+        cashierId={Number(user?.id)}
+        currencyCode={currencyCode}
       />
 
       <PosCashPaymentModal
