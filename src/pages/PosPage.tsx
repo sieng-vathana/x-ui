@@ -52,8 +52,11 @@ import { paymentApi } from '../features/payments/paymentApi'
 import type { QrPaymentResponse } from '../features/payments/types'
 import { useProductsList } from '../features/products/useProducts'
 import { useStoresRaw } from '../features/stores/useStores'
+import { productSupportsStoreChannel, storeSupportsPos } from '../features/stores/salesChannel'
 import { useCustomerLookup, useCustomerPoints, useLoyaltyProgram } from '../features/loyalty/useLoyalty'
 import { usePosSettings, type PosPaymentMethod } from '../features/pos/posSettings'
+import { isRetryable, newOfflineSaleId, saveOfflineSale } from '../features/pos/offlineSales'
+import { useOfflineSales } from '../features/pos/useOfflineSales'
 import { useAdminStore } from '../hooks/useAdminStore'
 import { savedImageUrl, resolveImageUrl } from '../lib/api'
 import { evaluateCashTender, formatCashMix, type CashReceived } from '../lib/cashTender'
@@ -127,6 +130,7 @@ export function PosPage() {
   const currencyCode = settings.defaultCurrencyCode === 'BUSINESS' ? businessCurrency : settings.defaultCurrencyCode
   const usdToKhrRate = Number(user?.business.usdToKhrExchangeRate || 4000)
   const productsQuery = useProductsList(storeId)
+  const offline = useOfflineSales()
   const storesQuery = useStoresRaw()
   // Customers and loyalty are in the Business and Pro plans; on Starter every sale is to a walk-in customer.
   const hasCustomers = usePlanFeatures().has('CUSTOMERS_LOYALTY')
@@ -507,7 +511,7 @@ export function PosPage() {
 
   const products = useMemo<PosProduct[]>(() => {
     return (productsQuery.data ?? []).flatMap((product) => {
-      if (product.isSellable === false) return []
+      if (product.isSellable === false || !productSupportsStoreChannel(product.salesChannel, selectedStore?.salesChannel)) return []
       const categoryId = product.category?.id ? String(product.category.id) : 'general'
       const categoryName = product.category?.categoryName || 'General'
       return (product.variants ?? []).flatMap((variant) => {
@@ -539,7 +543,7 @@ export function PosPage() {
         }]
       })
     })
-  }, [currencyCode, productsQuery.data, usdToKhrRate])
+  }, [currencyCode, productsQuery.data, selectedStore?.salesChannel, usdToKhrRate])
 
   const stockByVariant = useMemo(() => {
     const stock = new Map<number, number | undefined>()
@@ -961,6 +965,10 @@ export function PosPage() {
       toast('That payment method is disabled in POS settings.', 'warning')
       return null
     }
+    if (payment !== 'cash' && !offline.online) {
+      toast('Card and KHQR payments need the internet. Take cash, or wait until the connection is back.', 'warning')
+      return null
+    }
     if (payment === 'cash' && !currentCashSessionQuery.data) {
       toast(
         currentCashSessionQuery.isLoading
@@ -995,7 +1003,7 @@ export function PosPage() {
       })),
     }
     return { businessId, selectedStoreId, cashierId, input }
-  }, [appliedPoints, currencyCode, currentCashSessionQuery.data, currentCashSessionQuery.isLoading, customerId, lines, payment, settings.allowNegativeStock, settings.requireCustomer, settings.roundingIncrement, storeId, taxRate, toast, user])
+  }, [appliedPoints, currencyCode, currentCashSessionQuery.data, currentCashSessionQuery.isLoading, customerId, lines, payment, offline.online, settings.allowNegativeStock, settings.requireCustomer, settings.roundingIncrement, storeId, taxRate, toast, user])
 
   const handlePayNow = useCallback(async () => {
     const checkout = prepareCheckout()
@@ -1112,6 +1120,35 @@ export function PosPage() {
       }
     } catch (error) {
       receiptWindow?.close()
+      // The connection dropped part way: keep the sale on this device and send it when the connection is back.
+      // Walk-in sales only, since customer points are checked with the server.
+      if (isRetryable(error) && Number(input.customerId ?? 0) === 0 && !input.loyaltyPointsToRedeem) {
+        const tender = evaluateCashTender(shownTotal, input.currencyCode, received, usdToKhrRate)
+        await saveOfflineSale({
+          id: newOfflineSaleId(),
+          createdAt: Date.now(),
+          currencyCode: input.currencyCode,
+          shownTotal,
+          tenderedAmount: tender.tendered,
+          orderInput: { ...input, allowNegativeStock: true },
+          payment: {
+            businessId,
+            storeId: selectedStoreId,
+            cashierId,
+            currencyCode: input.currencyCode,
+            method: 'CASH',
+            provider: 'NONE',
+            note: `POS cash payment, saved offline. Received ${formatCashMix(received.usd, received.khr)}, change ${formatCashMix(tender.changeUsd, tender.changeKhr)}, 1 USD = ${usdToKhrRate} KHR`,
+          },
+        })
+        setCashPaymentOpen(false)
+        setMobileOrderOpen(false)
+        setCart({})
+        setDiscountTargetId(null)
+        setRedeemPoints(0)
+        toast(`Connection lost. Sale saved on this device: ${formatCurrency(shownTotal, input.currencyCode)}, change ${formatCashMix(tender.changeUsd, tender.changeKhr)}. It will be sent when the connection is back.`, 'warning')
+        return
+      }
       toast(error instanceof Error ? error.message : 'Checkout could not be completed.', 'error')
     }
   }, [completeOrderMutation, createCashPaymentMutation, createOrderMutation, customerPointsQuery, getReceiptOptions, prepareCheckout, settings.autoPrintReceipt, toast, usdToKhrRate])
@@ -1237,6 +1274,26 @@ export function PosPage() {
     updateSettings({ menuView: nextView })
   }
 
+  if (selectedStore && !storeSupportsPos(selectedStore.salesChannel)) {
+    return (
+      <>
+        <Topbar
+          title="Point of Sale"
+          subtitle="POS is not enabled for this store"
+          actions={<StoreSwitcher compactOnMobile value={storeId} onChange={setStoreId} />}
+        />
+        <main className={pageContent}>
+          <section className="mx-auto mt-8 max-w-2xl rounded-xl border border-vpos-line bg-vpos-surface p-6 text-center shadow-vpos">
+            <span className="mx-auto grid h-12 w-12 place-items-center rounded-full bg-vpos-sand text-vpos-primary"><Icon name="store-2-line" className="text-2xl" /></span>
+            <h1 className="mt-4 text-lg font-extrabold text-vpos-text">This store is online-only</h1>
+            <p className="mt-2 text-sm leading-6 text-vpos-muted">Choose a POS-enabled store from the store selector, or change this store to “POS + Online” in Store settings.</p>
+            <Button className="mt-4" variant="secondary" onClick={() => navigate(paths.stores)}>Open store settings</Button>
+          </section>
+        </main>
+      </>
+    )
+  }
+
   return (
     <div ref={rootRef} className="relative min-h-screen bg-vpos-bg">
       {/* Your existing top bar + colors */}
@@ -1250,6 +1307,32 @@ export function PosPage() {
       />
 
       <main className={cn(pageContent, 'pb-24 xl:pb-6')}>
+        {!offline.online || offline.waiting > 0 || offline.attention.length > 0 ? (
+          <section role="status" className="mb-4 space-y-3 rounded-[10px] border border-vpos-orange/30 bg-vpos-orange-bg p-4 text-[13px] text-vpos-text">
+            {!offline.online ? (
+              <p className="m-0 font-semibold">
+                You are offline. Cash sales are saved on this device and sent when the connection is back. Card and KHQR are unavailable until then.
+              </p>
+            ) : null}
+            {offline.waiting > 0 ? (
+              <div className="flex flex-wrap items-center justify-between gap-3">
+                <span>{offline.waiting} {offline.waiting === 1 ? 'sale is' : 'sales are'} waiting to be sent.</span>
+                <Button variant="secondary" className="h-9" disabled={!offline.online || offline.sending} onClick={() => void offline.syncNow()}>
+                  <Icon name="refresh-line" /> {offline.sending ? 'Sending…' : 'Send now'}
+                </Button>
+              </div>
+            ) : null}
+            {offline.attention.map((sale) => (
+              <div key={sale.id} className="flex flex-wrap items-start justify-between gap-3 rounded-[8px] bg-white p-3">
+                <div>
+                  <strong className="block text-vpos-red">Needs a check: {formatCurrency(sale.shownTotal, sale.currencyCode)} cash sale</strong>
+                  <span className="text-vpos-muted">{sale.attention}</span>
+                </div>
+                <Button variant="secondary" className="h-9" onClick={() => void offline.dismiss(sale.id)}>Dismiss after checking</Button>
+              </div>
+            ))}
+          </section>
+        ) : null}
         <section className="mb-5 flex min-h-12 flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           <div className="min-w-0 flex-1">
             <Breadcrumb items={[{ label: 'Point of Sale' }]} />
@@ -1462,7 +1545,7 @@ export function PosPage() {
               <div className="rounded-[12px] border border-dashed border-vpos-line px-4 py-12 text-center text-[13px] text-vpos-muted">
                 Loading products for this store…
               </div>
-            ) : productsQuery.isError ? (
+            ) : productsQuery.isError && !productsQuery.data?.length ? (
               <div className="rounded-[12px] border border-dashed border-vpos-red/40 bg-vpos-red/5 px-4 py-12 text-center text-[13px] text-vpos-red">
                 {productsQuery.error instanceof Error ? productsQuery.error.message : 'Products could not be loaded.'}
               </div>

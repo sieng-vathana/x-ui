@@ -28,6 +28,7 @@ import {
   useUpdateProduct,
 } from '../features/products/useProducts'
 import { useStoresRaw } from '../features/stores/useStores'
+import { normalizeStoreSalesChannel } from '../features/stores/salesChannel'
 import { productApi } from '../features/products/productApi'
 import type { ProductVariant } from '../features/products/types'
 import { cn } from '../lib/cn'
@@ -285,6 +286,22 @@ export function ProductFormPage() {
   const fileInputRef = useRef<HTMLInputElement>(null)
 
   const effectiveStoreId = formStoreId || storeId
+  const assignedStores = isGlobal
+    ? rawStores
+    : rawStores.filter((store) => storeIds.map(Number).includes(Number(store.id)))
+  const restrictedStoreModes = new Set(
+    assignedStores
+      .map((store) => normalizeStoreSalesChannel(store.salesChannel))
+      .filter((channel) => channel !== 'BOTH'),
+  )
+  const forcedSalesChannel = restrictedStoreModes.size === 1
+    ? Array.from(restrictedStoreModes)[0]
+    : restrictedStoreModes.size > 1
+      ? 'BOTH'
+      : null
+  const effectiveSalesChannel = forcedSalesChannel || salesChannel
+  const productSupportsPos = effectiveSalesChannel !== 'ONLINE'
+  const productSupportsOnline = effectiveSalesChannel !== 'POS'
 
   const { data: apiCategories = [], isLoading: loadingCategories } = useProductCategories(effectiveStoreId)
   const { data: apiBrands = [], isLoading: loadingBrands } = useProductBrands(effectiveStoreId)
@@ -512,7 +529,15 @@ export function ProductFormPage() {
         toast('Please select at least one store location for this product.', 'warning')
         return
       }
-      const numSalesChannel = salesChannel === 'POS' ? 1 : salesChannel === 'ONLINE' ? 2 : 3
+      const missingPrice = variants.some((variant) =>
+        (productSupportsPos && (!variant.posPrice || Number(variant.posPrice) <= 0))
+        || (productSupportsOnline && (!variant.onlinePrice || Number(variant.onlinePrice) <= 0)),
+      )
+      if (missingPrice) {
+        toast(`Enter a valid ${productSupportsPos && productSupportsOnline ? 'POS and Online' : productSupportsPos ? 'POS' : 'Online'} selling price for every variant.`, 'warning')
+        return
+      }
+      const numSalesChannel = effectiveSalesChannel === 'POS' ? 1 : effectiveSalesChannel === 'ONLINE' ? 2 : 3
       
       let uploadedThumbnail: string | undefined = undefined
       let uploadedImages: { imageUrl: string }[] | undefined = undefined
@@ -565,12 +590,12 @@ export function ProductFormPage() {
           ? (resolveImageUrl(existingProduct.thumbnail) ?? existingProduct.thumbnail)
           : undefined),
         images: uploadedImages || (existingProduct?.images as any),
-        description,
+        description: productSupportsOnline ? description : existingProduct?.description || '',
         category: categoryId ? { id: Number(categoryId) } : undefined,
         brand: brandId ? { id: Number(brandId) } : undefined,
         unit: unitId ? { id: Number(unitId) } : undefined,
         tax: taxId ? { id: Number(taxId) } : undefined,
-        isFeatured,
+        isFeatured: productSupportsOnline && isFeatured,
         isSellable,
         isStockable,
         variants: variants.length > 0 ? variants.map((v, index) => ({
@@ -580,9 +605,9 @@ export function ProductFormPage() {
           variantName: v.variantName || 'Default',
           image: variantImageUrls.get(v.key),
           costPrice: v.costPrice ? Number(v.costPrice) : 0,
-          posPrice: v.posPrice ? Number(v.posPrice) : 0,
-          compareAtPrice: v.compareAtPrice ? Number(v.compareAtPrice) : 0,
-          onlinePrice: v.onlinePrice ? Number(v.onlinePrice) : 0,
+          posPrice: productSupportsPos && v.posPrice ? Number(v.posPrice) : 0,
+          compareAtPrice: productSupportsOnline && v.compareAtPrice ? Number(v.compareAtPrice) : 0,
+          onlinePrice: productSupportsOnline && v.onlinePrice ? Number(v.onlinePrice) : 0,
           stockQuantity: v.stockQuantity !== '' ? Number(v.stockQuantity) : 0,
           quantity: v.stockQuantity !== '' ? Number(v.stockQuantity) : 0,
           stockAlertQty: v.stockAlertQty !== '' ? Number(v.stockAlertQty) : 5,
@@ -1053,15 +1078,15 @@ export function ProductFormPage() {
                     <FormField label="Product name" required value={productName} onChange={(e) => setProductName(e.target.value)} placeholder="e.g. Iced Americano" />
                   </div>
                   <FormField label="Product code" value={productCode} onChange={(e) => setProductCode(e.target.value.toUpperCase())} placeholder="e.g. ICE-AMER-001" />
-                  <FormField label="Short name" value={shortName} onChange={(e) => setShortName(e.target.value)} placeholder="e.g. Iced Americano" />
+                  {productSupportsPos ? <FormField label="Short name" value={shortName} onChange={(e) => setShortName(e.target.value)} placeholder="e.g. Iced Americano" /> : null}
                   <FormField label="Currency" required value={currencyCode} onChange={(e) => setCurrencyCode(e.target.value.toUpperCase())} placeholder="USD" maxLength={3} />
                   <Select label="Category" requiredMark placeholder={loadingCategories ? "Loading categories…" : "Select a category"} value={categoryId} onChange={setCategoryId} options={categoryOptions} searchable />
                   <Select label="Brand" placeholder={loadingBrands ? "Loading brands…" : "Select a brand"} value={brandId} onChange={setBrandId} options={brandOptions} searchable />
                   <Select label="Unit" requiredMark placeholder={loadingUnits ? "Loading units…" : "Select a unit"} value={unitId} onChange={setUnitId} options={unitOptions} />
                   <Select label="Tax" placeholder={loadingTaxes ? "Loading taxes…" : "Select a tax rate"} value={taxId} onChange={setTaxId} options={taxOptions} />
-                  <div className="md:col-span-2">
-                    <TextAreaField label="Description" value={description} onChange={(e) => setDescription(e.target.value)} placeholder="Write a short product description…" />
-                  </div>
+                  {productSupportsOnline ? <div className="md:col-span-2">
+                    <TextAreaField label="Online product description" value={description} onChange={(e) => setDescription(e.target.value)} placeholder="Describe the item for online shoppers…" />
+                  </div> : null}
                 </div>
               </article>
 
@@ -1155,19 +1180,26 @@ export function ProductFormPage() {
               <article className={cn(card, 'p-[22px]')}>
                 <div className={formSectionTitle}>
                   <h3 className="m-0 text-[15px]">Sales channel</h3>
-                  <p className="mt-1.5 mb-0 text-[12px] text-vpos-muted">Where this product is sold.</p>
+                  <p className="mt-1.5 mb-0 text-[12px] text-vpos-muted">Product availability follows the selected store setup.</p>
                 </div>
-                <Select
-                  label="Channel"
+                {forcedSalesChannel ? (
+                  <div className="rounded-lg border border-vpos-line bg-vpos-subtle/50 px-3 py-2.5 text-[13px] font-bold text-vpos-text">
+                    {forcedSalesChannel === 'POS' ? 'POS only' : forcedSalesChannel === 'ONLINE' ? 'Online store only' : 'POS + Online'}
+                    <span className="mt-1 block text-[11px] font-medium text-vpos-muted">
+                      {forcedSalesChannel === 'BOTH' ? 'This product covers stores with different sales modes.' : 'Set by the selected store’s sales mode.'}
+                    </span>
+                  </div>
+                ) : <Select
+                  label="Product channel"
                   placeholder="Select channel"
-                  value={salesChannel}
+                  value={effectiveSalesChannel}
                   onChange={(v) => setSalesChannel(v as typeof salesChannel)}
                   options={[
                     { value: 'POS', label: 'POS only' },
                     { value: 'BOTH', label: 'POS + Online' },
                     { value: 'ONLINE', label: 'Online only' },
                   ]}
-                />
+                />}
               </article>
 
               <article className={cn(card, 'p-[22px]')}>
@@ -1175,9 +1207,9 @@ export function ProductFormPage() {
                   <h3 className="m-0 text-[15px]">Settings</h3>
                   <p className="mt-1.5 mb-0 text-[12px] text-vpos-muted">Product visibility and behavior.</p>
                 </div>
-                <Toggle checked={isSellable} onChange={setIsSellable} label="Available for sale" description="Show this item in POS and orders" />
+                <Toggle checked={isSellable} onChange={setIsSellable} label="Available for sale" description={productSupportsPos && productSupportsOnline ? 'Show this item in POS and online orders' : productSupportsPos ? 'Show this item in POS' : 'Show this item in the online store'} />
                 <Toggle checked={isStockable} onChange={setIsStockable} label="Track inventory" description="Update stock after every sale" />
-                <Toggle checked={isFeatured} onChange={setIsFeatured} label="Featured product" description="Highlight in catalog and recommendations" />
+                {productSupportsOnline ? <Toggle checked={isFeatured} onChange={setIsFeatured} label="Featured product" description="Highlight in the online catalog" /> : null}
               </article>
             </aside>
           </div>
@@ -1422,8 +1454,8 @@ export function ProductFormPage() {
                           </label>
                         </div>
                       </div>
-                      <FormField label="SKU" required value={v.sku} onChange={(e) => updateVariant(v.key, 'sku', e.target.value.toUpperCase())} placeholder="e.g. ICE-AMER-M" />
-                      <FormField label="Barcode" required value={v.barcode} onChange={(e) => updateVariant(v.key, 'barcode', e.target.value)} placeholder="e.g. 885001020001" />
+                      <FormField label="SKU" required={productSupportsPos} value={v.sku} onChange={(e) => updateVariant(v.key, 'sku', e.target.value.toUpperCase())} placeholder="e.g. ICE-AMER-M" />
+                      {productSupportsPos ? <FormField label="Barcode" required value={v.barcode} onChange={(e) => updateVariant(v.key, 'barcode', e.target.value)} placeholder="e.g. 885001020001" /> : null}
                       <Select label="Supplier" placeholder="Select a supplier" value={v.supplierId} onChange={(val) => updateVariant(v.key, 'supplierId', val)} options={supplierOptions} searchable />
                     </div>
 
@@ -1431,9 +1463,9 @@ export function ProductFormPage() {
                       <strong className="mb-2 block text-[12px] font-extrabold tracking-[.02em] text-vpos-primary-2">Pricing</strong>
                       <div className={cn(formGrid)}>
                         <FormField label="Cost price" type="number" step="0.01" value={v.costPrice} onChange={(e) => updateVariant(v.key, 'costPrice', e.target.value)} placeholder="0.00" />
-                        <FormField label="POS selling price" required type="number" step="0.01" value={v.posPrice} onChange={(e) => updateVariant(v.key, 'posPrice', e.target.value)} placeholder="0.00" />
-                        <FormField label="Compare-at price" type="number" step="0.01" value={v.compareAtPrice} onChange={(e) => updateVariant(v.key, 'compareAtPrice', e.target.value)} placeholder="Original price (shown crossed out)" />
-                        <FormField label="Online price" type="number" step="0.01" value={v.onlinePrice} onChange={(e) => updateVariant(v.key, 'onlinePrice', e.target.value)} placeholder="0.00" />
+                        {productSupportsPos ? <FormField label="POS selling price" required type="number" step="0.01" value={v.posPrice} onChange={(e) => updateVariant(v.key, 'posPrice', e.target.value)} placeholder="0.00" /> : null}
+                        {productSupportsOnline ? <FormField label="Compare-at price" type="number" step="0.01" value={v.compareAtPrice} onChange={(e) => updateVariant(v.key, 'compareAtPrice', e.target.value)} placeholder="Original price (shown crossed out)" /> : null}
+                        {productSupportsOnline ? <FormField label="Online price" required type="number" step="0.01" value={v.onlinePrice} onChange={(e) => updateVariant(v.key, 'onlinePrice', e.target.value)} placeholder="0.00" /> : null}
                         <FormField label="Stock quantity" type="number" value={v.stockQuantity} onChange={(e) => updateVariant(v.key, 'stockQuantity', e.target.value)} placeholder="0" />
                         <FormField label="Stock alert at" type="number" value={v.stockAlertQty} onChange={(e) => updateVariant(v.key, 'stockAlertQty', e.target.value)} placeholder="5" />
                       </div>
@@ -1476,7 +1508,7 @@ export function ProductFormPage() {
                     <div className="mt-1 flex flex-wrap items-center gap-3 text-[12px] text-vpos-muted font-medium">
                       <span>Code: <strong className="text-vpos-dark">{productCode || 'Auto-generated'}</strong></span>
                       <span>•</span>
-                      <span>Channel: <strong className="text-vpos-dark">{salesChannel === 'POS' ? 'POS only' : salesChannel === 'ONLINE' ? 'Online only' : 'POS + Online'}</strong></span>
+                      <span>Channel: <strong className="text-vpos-dark">{effectiveSalesChannel === 'POS' ? 'POS only' : effectiveSalesChannel === 'ONLINE' ? 'Online only' : 'POS + Online'}</strong></span>
                       <span>•</span>
                       <span>Currency: <strong className="text-vpos-dark">{currencyCode}</strong></span>
                     </div>
@@ -1606,9 +1638,9 @@ export function ProductFormPage() {
                     <tr>
                       <th className="py-3 px-4">Variant</th>
                       <th className="py-3 px-4">SKU</th>
-                      <th className="py-3 px-4">Barcode</th>
-                      <th className="py-3 px-4 text-right">POS Price</th>
-                      <th className="py-3 px-4 text-right">Online Price</th>
+                      {productSupportsPos ? <th className="py-3 px-4">Barcode</th> : null}
+                      {productSupportsPos ? <th className="py-3 px-4 text-right">POS Price</th> : null}
+                      {productSupportsOnline ? <th className="py-3 px-4 text-right">Online Price</th> : null}
                       <th className="py-3 px-4 text-right">Cost Price</th>
                       <th className="py-3 px-4 text-right">Initial Stock</th>
                     </tr>
@@ -1629,13 +1661,13 @@ export function ProductFormPage() {
                           </div>
                         </td>
                         <td className="py-3 px-4 font-mono text-[12px] text-vpos-muted">{v.sku || '—'}</td>
-                        <td className="py-3 px-4 font-mono text-[12px] text-vpos-muted">{v.barcode || '—'}</td>
-                        <td className="py-3 px-4 text-right font-bold text-vpos-primary">
+                        {productSupportsPos ? <td className="py-3 px-4 font-mono text-[12px] text-vpos-muted">{v.barcode || '—'}</td> : null}
+                        {productSupportsPos ? <td className="py-3 px-4 text-right font-bold text-vpos-primary">
                           ${Number(v.posPrice || 0).toFixed(2)}
-                        </td>
-                        <td className="py-3 px-4 text-right text-vpos-muted">
+                        </td> : null}
+                        {productSupportsOnline ? <td className="py-3 px-4 text-right text-vpos-muted">
                           {v.onlinePrice ? `$${Number(v.onlinePrice).toFixed(2)}` : '—'}
-                        </td>
+                        </td> : null}
                         <td className="py-3 px-4 text-right text-vpos-muted">
                           {v.costPrice ? `$${Number(v.costPrice).toFixed(2)}` : '—'}
                         </td>

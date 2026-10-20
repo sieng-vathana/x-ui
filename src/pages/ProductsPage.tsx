@@ -19,6 +19,8 @@ import { ProductImportModal } from '../components/products/ProductImportModal'
 import { ProductsSubnav } from '../components/products/ProductsSubnav'
 import { money } from '../data/mockup'
 import { useAdminStore } from '../hooks/useAdminStore'
+import { useStoresRaw } from '../features/stores/useStores'
+import { normalizeStoreSalesChannel, storeSupportsOnline, storeSupportsPos } from '../features/stores/salesChannel'
 import { useToast } from '../context/ToastContext'
 import { cn } from '../lib/cn'
 import { paths } from '../lib/paths'
@@ -144,6 +146,11 @@ export function ProductsPage() {
   // Importing from Excel or CSV is in the Business and Pro plans.
   const canImport = usePlanFeatures().has('PRODUCT_IMPORT')
   const { storeId, setStoreId } = useAdminStore()
+  const storesQuery = useStoresRaw()
+  const activeStore = storesQuery.data?.find((store) => String(store.id) === String(storeId))
+  const activeStoreChannel = normalizeStoreSalesChannel(activeStore?.salesChannel)
+  const showPosPrice = storeSupportsPos(activeStoreChannel)
+  const showOnlinePrice = storeSupportsOnline(activeStoreChannel)
   const [statusFilter, setStatusFilter] = useState('All status')
   const [categoryFilter, setCategoryFilter] = useState('All categories')
   const [deleteTarget, setDeleteTarget] = useState<{ id: number | string; name: string } | null>(null)
@@ -199,10 +206,26 @@ export function ProductsPage() {
           return false
         return true
       })
-  }, [apiProducts, statusFilter, categoryFilter])
+  }, [activeStoreChannel, apiProducts, statusFilter, categoryFilter])
 
   const columns: DataTableColumn<any>[] = useMemo(
-    () => [
+    () => {
+      const priceColumns: DataTableColumn<any>[] = []
+      if (showPosPrice) priceColumns.push({
+        id: 'posPrice',
+        header: 'POS Price',
+        cell: (p) => <span className="font-bold text-vpos-primary-2">{money(p.posPrice)}</span>,
+      })
+      if (showOnlinePrice) priceColumns.push({
+        id: 'onlinePrice',
+        header: 'Online Price',
+        cell: (p) => (
+          <span className="text-vpos-muted">
+            {p.onlinePrice != null && p.onlinePrice > 0 ? money(p.onlinePrice) : '—'}
+          </span>
+        ),
+      })
+      return [
       {
         id: 'product',
         header: 'Product',
@@ -250,20 +273,7 @@ export function ProductsPage() {
           </span>
         ),
       },
-      {
-        id: 'posPrice',
-        header: 'POS Price',
-        cell: (p) => <span className="font-bold text-vpos-primary-2">{money(p.posPrice)}</span>,
-      },
-      {
-        id: 'onlinePrice',
-        header: 'Online Price',
-        cell: (p) => (
-          <span className="text-vpos-muted">
-            {p.onlinePrice != null && p.onlinePrice > 0 ? money(p.onlinePrice) : '—'}
-          </span>
-        ),
-      },
+      ...priceColumns,
       {
         id: 'stock',
         header: 'Stock',
@@ -303,8 +313,9 @@ export function ProductsPage() {
           />
         ),
       },
-    ],
-    [navigate],
+      ]
+    },
+    [navigate, showOnlinePrice, showPosPrice],
   )
 
   return (

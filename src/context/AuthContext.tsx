@@ -11,6 +11,7 @@ import { useLocation } from 'react-router-dom'
 import { useQueryClient } from '@tanstack/react-query'
 import { authApi, type RegistrationOutcome } from '../features/auth/authApi'
 import type { AuthenticatedUser, RegistrationInput, SignInInput } from '../features/auth/types'
+import { clearOfflineSession, loadOfflineSession, saveOfflineSession } from '../lib/offlineSession'
 
 type BusinessBrandInput = { name: string; logoUrl?: string }
 type BusinessSettingsInput = {
@@ -49,6 +50,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       queryClient.setQueryData(['stores', { businessId: session.user.business.id }], session.stores)
     }
     setUser(session.user)
+    void saveOfflineSession(session)
   }, [queryClient])
 
   useEffect(() => {
@@ -60,7 +62,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
     setIsRestoring(true)
     authApi.restore().then((session) => {
-      if (mounted && session) applySession(session)
+      if (!mounted) return
+      if (session) applySession(session)
+      else void clearOfflineSession()
+    }).catch(async () => {
+      // No connection: the POS opens with the session saved on this device; requests resume when it is back.
+      const saved = await loadOfflineSession()
+      if (mounted && saved) setUser(saved.user)
     }).finally(() => {
       if (mounted) setIsRestoring(false)
     })
@@ -112,6 +120,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       await authApi.signOut()
     } finally {
       queryClient.removeQueries({ queryKey: ['stores'] })
+      void clearOfflineSession()
       setUser(null)
     }
   }, [queryClient])

@@ -17,6 +17,8 @@ import { useToast } from '../context/ToastContext'
 import { useAdminStore } from '../hooks/useAdminStore'
 import { money } from '../data/mockup'
 import { useDeleteProduct, useProduct } from '../features/products/useProducts'
+import { useStoresRaw } from '../features/stores/useStores'
+import { normalizeStoreSalesChannel, storeSupportsOnline, storeSupportsPos } from '../features/stores/salesChannel'
 import { cn } from '../lib/cn'
 import { paths } from '../lib/paths'
 import { card, pageContent } from '../lib/ui'
@@ -26,6 +28,11 @@ export function ProductDetailPage() {
   const navigate = useNavigate()
   const { id } = useParams()
   const { storeId, setStoreId } = useAdminStore()
+  const storesQuery = useStoresRaw()
+  const activeStore = storesQuery.data?.find((store) => String(store.id) === String(storeId))
+  const activeStoreChannel = normalizeStoreSalesChannel(activeStore?.salesChannel)
+  const showPosPrice = storeSupportsPos(activeStoreChannel)
+  const showOnlinePrice = storeSupportsOnline(activeStoreChannel)
   const { toast } = useToast()
 
   const { data: product, isLoading, refetch } = useProduct(id)
@@ -64,10 +71,27 @@ export function ProductDetailPage() {
   const posPrice = defaultVariant?.posPrice ?? 0
   const onlinePrice = defaultVariant?.onlinePrice
   const costPrice = defaultVariant?.costPrice ?? 0
-  const profitMargin = posPrice > 0 && costPrice > 0 ? (((posPrice - costPrice) / posPrice) * 100).toFixed(1) : null
+  const marginPrice = showPosPrice ? posPrice : Number(onlinePrice || 0)
+  const profitMargin = marginPrice > 0 && costPrice > 0 ? (((marginPrice - costPrice) / marginPrice) * 100).toFixed(1) : null
 
   const variantColumns: DataTableColumn<any>[] = useMemo(
-    () => [
+    () => {
+      const priceColumns: DataTableColumn<any>[] = []
+      if (showPosPrice) priceColumns.push({
+        id: 'posPrice',
+        header: 'POS Price',
+        cell: (v) => <span className="font-bold text-vpos-primary-2">{money(v.posPrice ?? 0)}</span>,
+      })
+      if (showOnlinePrice) priceColumns.push({
+        id: 'onlinePrice',
+        header: 'Online Price',
+        cell: (v) => (
+          <span className="text-vpos-muted">
+            {v.onlinePrice != null && v.onlinePrice > 0 ? money(v.onlinePrice) : '—'}
+          </span>
+        ),
+      })
+      return [
       {
         id: 'image',
         header: 'Image',
@@ -103,28 +127,15 @@ export function ProductDetailPage() {
       },
       {
         id: 'sku',
-        header: 'SKU / Barcode',
+        header: showPosPrice ? 'SKU / Barcode' : 'SKU',
         cell: (v) => (
           <div>
             <strong className="block text-[12px] font-mono text-vpos-text">{v.sku || '—'}</strong>
-            <small className="block text-[11px] font-mono text-vpos-muted">{v.barcode || '—'}</small>
+            {showPosPrice ? <small className="block text-[11px] font-mono text-vpos-muted">{v.barcode || '—'}</small> : null}
           </div>
         ),
       },
-      {
-        id: 'posPrice',
-        header: 'POS Price',
-        cell: (v) => <span className="font-bold text-vpos-primary-2">{money(v.posPrice ?? 0)}</span>,
-      },
-      {
-        id: 'onlinePrice',
-        header: 'Online Price',
-        cell: (v) => (
-          <span className="text-vpos-muted">
-            {v.onlinePrice != null && v.onlinePrice > 0 ? money(v.onlinePrice) : '—'}
-          </span>
-        ),
-      },
+      ...priceColumns,
       {
         id: 'costPrice',
         header: 'Cost Price',
@@ -169,8 +180,9 @@ export function ProductDetailPage() {
           )
         },
       },
-    ],
-    [product],
+      ]
+    },
+    [product, showOnlinePrice, showPosPrice],
   )
 
   if (isLoading) {
@@ -335,23 +347,23 @@ export function ProductDetailPage() {
               </div>
 
               {/* Price Callout Banner */}
-              <div className="grid grid-cols-2 gap-4 rounded-xl border border-vpos-line/70 bg-vpos-sand/40 p-4 sm:grid-cols-3">
-                <div>
+              <div className={`grid grid-cols-1 gap-4 rounded-xl border border-vpos-line/70 bg-vpos-sand/40 p-4 ${showPosPrice && showOnlinePrice ? 'sm:grid-cols-3' : 'sm:grid-cols-2'}`}>
+                {showPosPrice ? <div>
                   <small className="block text-[11px] font-bold uppercase tracking-wider text-vpos-muted">
                     POS Selling Price
                   </small>
                   <strong className="mt-0.5 block text-[22px] font-black text-vpos-primary-2">
                     {money(posPrice)}
                   </strong>
-                </div>
-                <div>
+                </div> : null}
+                {showOnlinePrice ? <div>
                   <small className="block text-[11px] font-bold uppercase tracking-wider text-vpos-muted">
                     Online Price
                   </small>
                   <strong className="mt-0.5 block text-[22px] font-bold text-vpos-text">
                     {onlinePrice != null && onlinePrice > 0 ? money(onlinePrice) : '—'}
                   </strong>
-                </div>
+                </div> : null}
                 <div>
                   <small className="block text-[11px] font-bold uppercase tracking-wider text-vpos-muted">
                     Profit Margin

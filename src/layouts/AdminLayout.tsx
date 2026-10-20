@@ -29,6 +29,7 @@ export function AdminLayout() {
   const { data: stores = [] } = useStores()
   const [storeId, setStoreIdState] = useState(() => readStoredValue(ACTIVE_STORE_STORAGE_KEY, ''))
   const { data: rawStores = [] } = useStoresRaw()
+  const selectedStore = rawStores.find((store) => String(store.id) === String(storeId))
   const suspendedStore = rawStores.find((store) => String(store.id) === String(storeId) && store.suspended)
   const sidebar = useSidebarLayout()
   const isHorizontal = !sidebar.isMobile && sidebar.config.layout === 'horizontal'
@@ -87,7 +88,7 @@ export function AdminLayout() {
       data-topbar-color={sidebar.config.topbar}
     >
       <RealtimeBridge />
-      <Sidebar state={sidebar} />
+      <Sidebar state={sidebar} storeSalesChannel={selectedStore?.salesChannel} />
       {sidebar.isMobile && sidebar.mobileOpen ? (
         <button type="button" aria-label="Close navigation" className="fixed inset-0 z-[35] bg-vpos-black/40" onClick={() => sidebar.setMobileOpen(false)} />
       ) : null}

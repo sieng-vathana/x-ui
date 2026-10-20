@@ -174,7 +174,9 @@ export const authApi = {
         headers: { 'X-Client-Type': 'web' },
       })
       return response.data?.user ? asSession(response.data) : null
-    } catch {
+    } catch (error) {
+      // No connection: rethrown so the app can open the session saved on this device.
+      if (error instanceof TypeError) throw error
       return null
     }
   },

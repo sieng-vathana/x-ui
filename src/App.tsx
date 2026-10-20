@@ -1,3 +1,4 @@
+import { startOfflineCache } from './lib/offlineCache'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { useEffect, useState } from 'react'
 import { BrowserRouter, Navigate, Route, Routes } from 'react-router-dom'
@@ -56,6 +57,12 @@ const queryClient = new QueryClient({
 })
 
 export default function App() {
+  // The saved POS data is read back before the first screen, so the POS never starts empty when offline.
+  const [restored, setRestored] = useState(false)
+  useEffect(() => {
+    void startOfflineCache(queryClient).finally(() => setRestored(true))
+  }, [])
+
   const { isLoading, isStarting } = useAppLoading()
   const [preloaderEnabled, setPreloaderEnabled] = useState(() => typeof document === 'undefined' || document.documentElement.dataset.preloader !== 'disabled')
 
@@ -64,6 +71,8 @@ export default function App() {
     window.addEventListener('app-theme-config-changed', sync)
     return () => window.removeEventListener('app-theme-config-changed', sync)
   }, [])
+
+  if (!restored) return null
 
   return (
     <QueryClientProvider client={queryClient}>

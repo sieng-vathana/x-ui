@@ -51,6 +51,7 @@ export interface RegistrationInput {
   storeAddressLine1: string
   storeCity: string
   storeCountryCode: string
+  storeSalesChannel: 'POS' | 'ONLINE' | 'BOTH'
   storeLatitude?: number
   storeLongitude?: number
   /** STARTER, BUSINESS or PRO, chosen on the last sign-up step. */

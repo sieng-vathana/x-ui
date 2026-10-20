@@ -7,6 +7,7 @@ import { EmailMfaSettings } from '../components/auth/EmailMfaSettings'
 import { Breadcrumb, Icon, StoreSwitcher, Topbar } from '../components'
 import { useAuth } from '../context/AuthContext'
 import { useStores } from '../features/stores/useStores'
+import { storeSupportsPos } from '../features/stores/salesChannel'
 import { useAdminStore } from '../hooks/useAdminStore'
 import { card, pageContent } from '../lib/ui'
 import { paths } from '../lib/paths'
@@ -35,6 +36,8 @@ export function BusinessProfilePage() {
   })
   const { storeId, setStoreId, sidebar } = useAdminStore()
   const { data: stores = [] } = useStores()
+  const selectedStore = stores.find((store) => store.id === storeId)
+  const hasPos = storeSupportsPos(selectedStore?.salesChannel)
   const location = useLocation()
   const section = location.pathname === paths.settingsPos
     ? 'pos'
@@ -96,14 +99,19 @@ export function BusinessProfilePage() {
           </div>
           <div className="p-6 sm:p-7"><BusinessBrandForm /></div>
         </section> : null}
-        {section === 'pos' && user ? <section className={`${card} overflow-hidden p-0`}>
+        {!hasPos && (section === 'pos' || section === 'loyalty') ? <section className={`${card} p-6 text-center`}>
+          <Icon name="store-2-line" className="text-3xl text-vpos-muted" />
+          <h2 className="mt-3 text-[17px] font-extrabold text-vpos-text">POS is not enabled for this store</h2>
+          <p className="mx-auto mt-2 max-w-lg text-[13px] leading-5 text-vpos-muted">POS configuration and cashier loyalty settings apply to POS-enabled stores. Choose a POS-enabled store or change this store’s sales mode in Store management.</p>
+        </section> : null}
+        {section === 'pos' && hasPos && user ? <section className={`${card} overflow-hidden p-0`}>
           <div className="border-b border-vpos-line bg-vpos-subtle/45 px-6 py-5 sm:px-7">
             <h2 className="m-0 text-[17px] font-extrabold text-vpos-text">POS and currency</h2>
             <p className="mt-1 mb-0 text-[13px] text-vpos-muted">Set the register currency, exchange rate, payment methods, and checkout behavior.</p>
           </div>
           <div className="p-5 sm:p-7"><PosConfigurationForm business={user.business} stores={stores} updateBusinessSettings={updateBusinessSettings} /></div>
         </section> : null}
-        {section === 'loyalty' && user ? <section className={`${card} overflow-hidden p-0`}>
+        {section === 'loyalty' && hasPos && user ? <section className={`${card} overflow-hidden p-0`}>
           <div className="border-b border-vpos-line bg-vpos-subtle/45 px-6 py-5 sm:px-7">
             <h2 className="m-0 text-[17px] font-extrabold text-vpos-text">Loyalty points and member prices</h2>
             <p className="mt-1 mb-0 text-[13px] text-vpos-muted">Find customers by phone at the POS. They earn points on what they pay and can use them on a later sale.</p>

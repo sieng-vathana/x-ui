@@ -3,6 +3,7 @@ import { useAuth } from '../../context/AuthContext'
 import { ApiError } from '../../lib/api'
 import { storeApi } from './storeApi'
 import type { BffStore, CreateStoreRequest, UpdateStoreRequest } from './types'
+import { normalizeStoreSalesChannel } from './salesChannel'
 import type { StoreOption } from '../../components/pos/StoreSwitcher'
 
 function storeImageUrl(store: BffStore): string | undefined {
@@ -17,6 +18,7 @@ export function toStoreOption(store: BffStore): StoreOption {
     name: store.name,
     address: address || undefined,
     image: storeImageUrl(store),
+    salesChannel: normalizeStoreSalesChannel(store.salesChannel),
   }
 }
 
@@ -65,6 +67,7 @@ export function useCreateStore() {
       storeApi.create({ ...request, businessId: Number(user?.business.id) }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['stores'] })
+      queryClient.invalidateQueries({ queryKey: ['stores', 'marketplace'] })
     },
   })
 }
@@ -77,6 +80,7 @@ export function useUpdateStore() {
       storeApi.update(id, request),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['stores'] })
+      queryClient.invalidateQueries({ queryKey: ['stores', 'marketplace'] })
     },
   })
 }

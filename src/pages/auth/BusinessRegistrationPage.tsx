@@ -41,6 +41,7 @@ type RegistrationForm = {
   storeAddressLine1: string
   storeCity: string
   storeCountryCode: string
+  storeSalesChannel: 'POS' | 'ONLINE' | 'BOTH'
   storeLatitude: string
   storeLongitude: string
   plan: PlanCode
@@ -66,6 +67,7 @@ const initialForm: RegistrationForm = {
   storeAddressLine1: '',
   storeCity: '',
   storeCountryCode: 'KH',
+  storeSalesChannel: 'BOTH',
   storeLatitude: '',
   storeLongitude: '',
   plan: 'BUSINESS',
@@ -171,6 +173,7 @@ export function BusinessRegistrationPage() {
         storeAddressLine1: form.storeAddressLine1,
         storeCity: form.storeCity,
         storeCountryCode: form.storeCountryCode,
+        storeSalesChannel: form.storeSalesChannel,
         storeLatitude: Number(form.storeLatitude),
         storeLongitude: Number(form.storeLongitude),
         plan: form.plan,
@@ -335,6 +338,17 @@ function StoreStep({ form, updateField, onLocationChange }: StepProps & { onLoca
         <Field label="Street address" value={form.storeAddressLine1} onChange={(value) => updateField('storeAddressLine1', value)} required className="sm:col-span-2" />
         <Field label="City" value={form.storeCity} onChange={(value) => updateField('storeCity', value)} required />
         <Field label="Country code" value={form.storeCountryCode} onChange={(value) => updateField('storeCountryCode', value.toUpperCase())} required />
+        <Select
+          label="How will this store sell?"
+          className="auth-select"
+          value={form.storeSalesChannel}
+          onChange={(value) => updateField('storeSalesChannel', value as RegistrationForm['storeSalesChannel'])}
+          options={[
+            { value: 'POS', label: 'POS only' },
+            { value: 'ONLINE', label: 'Online store only' },
+            { value: 'BOTH', label: 'POS + Online' },
+          ]}
+        />
       </div>
       <div className="auth-location-section">
         <StoreLocationPicker latitude={form.storeLatitude} longitude={form.storeLongitude} onChange={onLocationChange} />

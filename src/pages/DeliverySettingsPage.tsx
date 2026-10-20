@@ -3,6 +3,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Breadcrumb, Button, Icon, StoreSwitcher, Topbar } from '../components'
 import { useToast } from '../context/ToastContext'
 import { useStoresRaw } from '../features/stores/useStores'
+import { storeSupportsOnline } from '../features/stores/salesChannel'
 import { deliveryApi, type DeliveryProviderType } from '../features/deliveries/deliveryApi'
 import { useAdminStore } from '../hooks/useAdminStore'
 import { card, pageContent } from '../lib/ui'
@@ -22,6 +23,7 @@ export function DeliverySettingsPage() {
   const stores = storesQuery.data ?? []
   const selectedStoreId = Number(storeId)
   const selectedStore = stores.find((store) => store.id === selectedStoreId)
+  const onlineEnabled = storeSupportsOnline(selectedStore?.salesChannel)
 
   const providersQuery = useQuery({
     queryKey: ['deliveryProviders'],
@@ -31,7 +33,7 @@ export function DeliverySettingsPage() {
   const configQuery = useQuery({
     queryKey: ['storeDeliveryConfig', selectedStoreId],
     queryFn: () => deliveryApi.getStoreConfig(selectedStoreId),
-    enabled: Number.isInteger(selectedStoreId) && selectedStoreId > 0,
+    enabled: Number.isInteger(selectedStoreId) && selectedStoreId > 0 && onlineEnabled,
     staleTime: 30_000,
   })
 
@@ -112,6 +114,12 @@ export function DeliverySettingsPage() {
             <Icon name="store-2-line" className="text-4xl text-vpos-muted" />
             <h2 className="mt-3 text-[16px] font-extrabold text-vpos-text">No store is available</h2>
             <p className="mt-1 text-[13px] text-vpos-muted">Create or activate a store before configuring its delivery options.</p>
+          </section>
+        ) : selectedStore && !onlineEnabled ? (
+          <section className={`${card} p-7 text-center`}>
+            <span className="mx-auto grid h-12 w-12 place-items-center rounded-full bg-vpos-subtle text-vpos-muted"><Icon name="store-2-line" className="text-xl" /></span>
+            <h2 className="mt-3 text-[15px] font-extrabold text-vpos-text">Delivery is unavailable for this store</h2>
+            <p className="mx-auto mt-1 max-w-lg text-[13px] leading-5 text-vpos-muted">Delivery choices are used for online orders. Set this store to “Online store only” or “POS + Online” to configure delivery providers.</p>
           </section>
         ) : configQuery.isError || providersQuery.isError ? (
           <section className={`${card} p-6`}>

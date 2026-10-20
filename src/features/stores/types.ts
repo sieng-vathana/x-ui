@@ -1,4 +1,5 @@
 export type MarketplaceStatus = 'NOT_LISTED' | 'PENDING_REVIEW' | 'NEEDS_CHANGES' | 'APPROVED' | 'REJECTED'
+export type StoreSalesChannel = 'POS' | 'ONLINE' | 'BOTH'
 
 export type StoreDay = 'MONDAY' | 'TUESDAY' | 'WEDNESDAY' | 'THURSDAY' | 'FRIDAY' | 'SATURDAY' | 'SUNDAY'
 
@@ -19,6 +20,8 @@ export interface BffStore {
   name: string
   code: string
   storeType?: string
+  /** POS, Online store, or both. Older store payloads default to BOTH in the UI. */
+  salesChannel?: StoreSalesChannel | null
   addressLine1: string
   addressLine2: string | null
   landmark: string | null
@@ -60,6 +63,7 @@ export interface CreateStoreRequest {
   name: string
   code: string
   storeType?: string
+  salesChannel: StoreSalesChannel
   addressLine1: string
   addressLine2?: string
   landmark?: string

@@ -1,11 +1,14 @@
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
-import { Breadcrumb, Button, Icon, MetricCard, Modal, Status, Topbar } from '../components'
+import { Breadcrumb, Button, Icon, MetricCard, Modal, Status, StoreSwitcher, Topbar } from '../components'
 import { useToast } from '../context/ToastContext'
 import { formatCurrency } from '../lib/currency'
 import { pageContent, searchField, selectClass } from '../lib/ui'
 import { paths } from '../lib/paths'
 import { parseServerTime } from '../lib/serverTime'
+import { useAdminStore } from '../hooks/useAdminStore'
+import { useStoresRaw } from '../features/stores/useStores'
+import { storeSupportsOnline, storeSupportsPos } from '../features/stores/salesChannel'
 
 type OrderStatus = 'PENDING_CONFIRMATION' | 'CONFIRMED' | 'PACKING' | 'SHIPPED' | 'DELIVERED' | 'COMPLETED' | 'CANCELLED'
 type PaymentStatus = 'PAID' | 'PENDING' | 'UNPAID'
@@ -148,6 +151,11 @@ function paymentStatusClass(status: PaymentStatus) {
 
 export function OrderManagementPage() {
   const { toast } = useToast()
+  const { storeId, setStoreId } = useAdminStore()
+  const storesQuery = useStoresRaw()
+  const selectedStore = storesQuery.data?.find((store) => String(store.id) === String(storeId))
+  const hasOnline = storeSupportsOnline(selectedStore?.salesChannel)
+  const hasPos = storeSupportsPos(selectedStore?.salesChannel)
   const [orders, setOrders] = useState(initialOrders)
   const [query, setQuery] = useState('')
   const [statusFilter, setStatusFilter] = useState('All orders')
@@ -157,22 +165,27 @@ export function OrderManagementPage() {
   const [rejectReason, setRejectReason] = useState('')
   const [rejectNote, setRejectNote] = useState('')
 
+  const storeOrders = useMemo(() => orders.filter((order) => order.channel === 'Online' ? hasOnline : hasPos), [hasOnline, hasPos, orders])
+  useEffect(() => {
+    if ((channelFilter === 'Online' && !hasOnline) || (channelFilter === 'POS' && !hasPos)) setChannelFilter('All channels')
+  }, [channelFilter, hasOnline, hasPos])
+
   const selectedOrder = orders.find((order) => order.id === selectedOrderId) ?? null
   const rejectingOrder = orders.find((order) => order.id === rejectingOrderId) ?? null
   const visibleOrders = useMemo(() => {
     const search = query.trim().toLowerCase()
-    return orders.filter((order) => {
+    return storeOrders.filter((order) => {
       const matchesSearch = !search || [order.id, order.customer, order.phone, order.area].some((value) => value.toLowerCase().includes(search))
       const matchesStatus = statusFilter === 'All orders'
         || (statusFilter === 'Needs attention' ? order.status === 'PENDING_CONFIRMATION' || order.paymentStatus !== 'PAID' : order.status === statusFilter)
       const matchesChannel = channelFilter === 'All channels' || order.channel === channelFilter
       return matchesSearch && matchesStatus && matchesChannel
     })
-  }, [orders, query, statusFilter, channelFilter])
+  }, [storeOrders, query, statusFilter, channelFilter])
 
-  const todayOrders = orders.filter((order) => order.placedAt.startsWith('2026-10-13'))
-  const needsAttention = orders.filter((order) => order.status === 'PENDING_CONFIRMATION' || (order.paymentStatus !== 'PAID' && order.status !== 'CANCELLED')).length
-  const inProgress = orders.filter((order) => ['CONFIRMED', 'PACKING', 'SHIPPED', 'DELIVERED'].includes(order.status)).length
+  const todayOrders = storeOrders.filter((order) => order.placedAt.startsWith('2026-10-13'))
+  const needsAttention = storeOrders.filter((order) => order.status === 'PENDING_CONFIRMATION' || (order.paymentStatus !== 'PAID' && order.status !== 'CANCELLED')).length
+  const inProgress = storeOrders.filter((order) => ['CONFIRMED', 'PACKING', 'SHIPPED', 'DELIVERED'].includes(order.status)).length
   const todaySales = todayOrders.filter((order) => order.paymentStatus === 'PAID' && order.status !== 'CANCELLED').reduce((sum, order) => sum + total(order), 0)
 
   const advanceOrder = (order: DemoOrder) => {
@@ -211,14 +224,30 @@ export function OrderManagementPage() {
     if (order.status === 'PENDING_CONFIRMATION' || (order.paymentStatus !== 'PAID' && order.status !== 'CANCELLED')) counts['Needs attention'] = (counts['Needs attention'] || 0) + 1
     counts['All orders'] = (counts['All orders'] || 0) + 1
     return counts
-  }, {}), [orders])
+  }, {}), [storeOrders])
+
+  if (!hasOnline) {
+    return (
+      <>
+        <Topbar title="Order management" subtitle="Online order acceptance is not enabled for this store" actions={<StoreSwitcher value={storeId} onChange={setStoreId} />} />
+        <main className={pageContent}>
+          <Breadcrumb items={[{ label: 'Orders' }, { label: 'Order management' }]} />
+          <section className="mx-auto mt-6 max-w-2xl rounded-[4px] border border-vpos-line bg-vpos-surface p-6 text-center shadow-vpos">
+            <Icon name="global-line" className="text-3xl text-vpos-muted" />
+            <h1 className="mt-3 text-lg font-extrabold text-vpos-text">Online orders are not enabled for this store</h1>
+            <p className="mt-2 text-sm leading-6 text-vpos-muted">Choose an online-enabled store to review customer orders and manage acceptance or fulfillment.</p>
+          </section>
+        </main>
+      </>
+    )
+  }
 
   return (
     <>
       <Topbar
         title="Order management"
-        subtitle="Review new orders and keep fulfillment moving"
-        actions={<Link to={paths.pos} className="inline-flex h-[38px] items-center gap-2 rounded-[4px] bg-vpos-primary px-3.5 text-[13px] font-semibold text-white no-underline hover:bg-vpos-primary-2 sm:px-4"><Icon name="add-line" /> <span className="hidden sm:inline">Create sale</span></Link>}
+        subtitle="Review online orders and keep fulfillment moving"
+        actions={<div className="flex items-center gap-2">{hasPos ? <Link to={paths.pos} className="inline-flex h-[38px] items-center gap-2 rounded-[4px] bg-vpos-primary px-3.5 text-[13px] font-semibold text-white no-underline hover:bg-vpos-primary-2 sm:px-4"><Icon name="add-line" /> <span className="hidden sm:inline">Create sale</span></Link> : null}<StoreSwitcher value={storeId} onChange={setStoreId} /></div>}
       />
       <main className={pageContent}>
         <section className="mb-5 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
@@ -245,7 +274,7 @@ export function OrderManagementPage() {
             <div className="flex flex-col justify-between gap-2 sm:flex-row sm:items-center">
               <div>
                 <h2 className="m-0 text-[16px] font-bold text-vpos-text">Orders</h2>
-                <p className="mb-0 mt-1 text-[12px] text-vpos-muted">{visibleOrders.length} of {orders.length} sample orders</p>
+                <p className="mb-0 mt-1 text-[12px] text-vpos-muted">{visibleOrders.length} of {storeOrders.length} sample orders</p>
               </div>
               <button type="button" onClick={clearFilters} className="inline-flex w-fit items-center gap-1 border-0 bg-transparent p-1 text-[12px] font-semibold text-vpos-primary hover:underline"><Icon name="restart-line" /> Clear filters</button>
             </div>
@@ -277,7 +306,7 @@ export function OrderManagementPage() {
               </label>
               <label className="sr-only" htmlFor="order-channel">Sales channel</label>
               <select id="order-channel" className={`${selectClass} w-full sm:w-[170px]`} value={channelFilter} onChange={(event) => setChannelFilter(event.target.value)}>
-                <option>All channels</option><option>Online</option><option>POS</option>
+                <option>All channels</option><option>Online</option>{hasPos ? <option>POS</option> : null}
               </select>
             </div>
           </div>

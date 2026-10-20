@@ -5,6 +5,8 @@ import { productApi } from '../../features/products/productApi'
 import { MAX_IMPORT_ROWS, readSpreadsheet, templateCsv, toImportRows, type ImportRow } from '../../features/products/productImport'
 import type { ProductItem } from '../../features/products/types'
 import { useProductBrands, useProductCategories, useProductUnits } from '../../features/products/useProducts'
+import { useStoresRaw } from '../../features/stores/useStores'
+import { normalizeStoreSalesChannel } from '../../features/stores/salesChannel'
 import { money } from '../../data/mockup'
 import { Button } from '../ui/Button'
 import { Icon } from '../ui/Icon'
@@ -23,6 +25,11 @@ export function ProductImportModal({ open, onClose, storeId, products }: {
   const { user } = useAuth()
   const queryClient = useQueryClient()
   const businessId = Number(user?.business?.id)
+  const storesQuery = useStoresRaw()
+  const storeChannel = normalizeStoreSalesChannel(storesQuery.data?.find((store) => String(store.id) === String(storeId))?.salesChannel)
+  const productChannel = storeChannel === 'POS' ? 1 : storeChannel === 'ONLINE' ? 2 : 3
+  const supportsPos = storeChannel !== 'ONLINE'
+  const supportsOnline = storeChannel !== 'POS'
   const categoriesQuery = useProductCategories(storeId)
   const brandsQuery = useProductBrands(storeId)
   const unitsQuery = useProductUnits(storeId)
@@ -126,8 +133,8 @@ export function ProductImportModal({ open, onClose, storeId, products }: {
           sku: row.sku || `SKU-${stamp}`,
           barcode: row.barcode || `BAR-${stamp}`,
           variantName: 'Default',
-          posPrice: row.price,
-          onlinePrice: row.onlinePrice ?? row.price,
+          posPrice: supportsPos ? row.price : 0,
+          onlinePrice: supportsOnline ? (row.onlinePrice ?? row.price) : 0,
           costPrice: row.cost ?? 0,
           compareAtPrice: 0,
           stockQuantity: row.stock ?? 0,
@@ -143,8 +150,8 @@ export function ProductImportModal({ open, onClose, storeId, products }: {
           productName: row.name,
           shortName: row.name,
           currencyCode: 'USD',
-          salesChannel: 1,
-          description: row.description,
+          salesChannel: productChannel,
+          description: supportsOnline ? row.description : '',
           category: categoryId ? { id: categoryId } : undefined,
           brand: brandId ? { id: brandId } : undefined,
           unit: unitId ? { id: unitId } : undefined,
@@ -199,6 +206,7 @@ export function ProductImportModal({ open, onClose, storeId, products }: {
         <div className="space-y-4">
           <ol className="m-0 list-decimal space-y-1.5 pl-5 text-[13px] leading-5 text-vpos-text">
             <li>Download the template and fill one product per row. Name and Price are required.</li>
+            <li>{storeChannel === 'POS' ? 'This POS-only store imports the required Price as its POS selling price.' : storeChannel === 'ONLINE' ? 'This online-only store imports the required Price as its online selling price; Online price can override it.' : 'Price is used for POS; Online price can override it for online orders.'}</li>
             <li>Save it as Excel (.xlsx) or CSV, then choose the file below.</li>
             <li>Check the rows, then import. Nothing is added until you press Import.</li>
           </ol>

@@ -19,6 +19,8 @@ import { useRecentOrders, useSalesSummary, useSalesTrend, useTopProducts } from 
 import type { SalesTrend } from '../features/orders/types'
 import { useProductsList } from '../features/products/useProducts'
 import type { ProductItem } from '../features/products/types'
+import { useStoresRaw } from '../features/stores/useStores'
+import { storeSupportsPos } from '../features/stores/salesChannel'
 import { usePosSettings } from '../features/pos/posSettings'
 import { useAdminStore } from '../hooks/useAdminStore'
 import { formatCurrency } from '../lib/currency'
@@ -46,6 +48,9 @@ interface TrendPoint {
 export function DashboardPage() {
   const { user } = useAuth()
   const { storeId, setStoreId } = useAdminStore()
+  const storesQuery = useStoresRaw()
+  const selectedStore = storesQuery.data?.find((store) => String(store.id) === String(storeId))
+  const hasPos = storeSupportsPos(selectedStore?.salesChannel)
   const { settings } = usePosSettings(user?.business.id)
   const businessCurrency = (user?.business.defaultCurrencyCode || 'USD').toUpperCase()
   const [currency, setCurrency] = useState(businessCurrency)
@@ -66,7 +71,7 @@ export function DashboardPage() {
   const paymentsQuery = usePaymentBreakdown(storeId, range.from, range.to, currency, canReadReports && canReadPayments)
   const ordersQuery = useRecentOrders(storeId, canReadOrders, 0, 8)
   const catalogQuery = useProductsList(storeId, canReadProducts)
-  const cashSessionQuery = useCurrentCashSession(storeId, user?.id, registerCurrency, canReadPayments)
+  const cashSessionQuery = useCurrentCashSession(storeId, user?.id, registerCurrency, canReadPayments && hasPos)
 
   const summary = summaryQuery.data
   const paymentRows = paymentsQuery.data ?? []
@@ -79,7 +84,7 @@ export function DashboardPage() {
   const paymentTotal = paymentRows.reduce((total, row) => total + Number(row.totalAmount || 0), 0)
   const paymentCount = paymentRows.reduce((total, row) => total + Number(row.paymentCount || 0), 0)
   const displayName = firstName(user?.name || 'there')
-  const reportError = [summaryQuery, trendQuery, topProductsQuery, paymentsQuery, ordersQuery, catalogQuery, cashSessionQuery]
+  const reportError = [summaryQuery, trendQuery, topProductsQuery, paymentsQuery, ordersQuery, catalogQuery, ...(hasPos ? [cashSessionQuery] : [])]
     .find((query) => query.isError)?.error
 
   const trendPoints = useMemo(
@@ -96,7 +101,7 @@ export function DashboardPage() {
       paymentsQuery.refetch(),
       ordersQuery.refetch(),
       catalogQuery.refetch(),
-      cashSessionQuery.refetch(),
+      ...(hasPos ? [cashSessionQuery.refetch()] : []),
     ])
   }
 
@@ -134,13 +139,13 @@ export function DashboardPage() {
               <Icon name="add-circle-line" />
               Add product
             </Link>
-            <Link
+            {hasPos ? <Link
               to={paths.pos}
               className="inline-flex min-h-[39px] items-center justify-center gap-2 rounded-[4px] border border-vpos-line bg-white px-4 text-[14px] font-semibold text-vpos-text no-underline transition-colors hover:border-vpos-primary hover:bg-vpos-subtle"
             >
               <Icon name="store-2-line" />
               Open POS
-            </Link>
+            </Link> : null}
           </div>
         </section>
 
@@ -281,7 +286,7 @@ export function DashboardPage() {
           </article>
         </section>
 
-        <section className="mt-[18px] grid grid-cols-1 gap-[18px] xl:grid-cols-[minmax(0,1.15fr)_minmax(330px,.85fr)]">
+        <section className={cn('mt-[18px] grid grid-cols-1 gap-[18px]', hasPos ? 'xl:grid-cols-[minmax(0,1.15fr)_minmax(330px,.85fr)]' : 'xl:grid-cols-1')}>
           <article className={cn(card, 'dashboard-panel overflow-hidden p-0')}>
             <div className="flex items-start justify-between gap-3 border-b border-vpos-line px-5 py-4">
               <SectionHeader title="Top-selling products" subtitle="Ranked by completed units sold" />
@@ -381,7 +386,7 @@ export function DashboardPage() {
             )}
           </article>
 
-          <article className={cn(card, 'dashboard-panel overflow-hidden p-5')}>
+          {hasPos ? <article className={cn(card, 'dashboard-panel overflow-hidden p-5')}>
             <SectionHeader
               title="Cash register"
               subtitle="Your current register session"
@@ -406,11 +411,11 @@ export function DashboardPage() {
                 <Link to={paths.salesCashRegister} className="inline-flex min-h-[34px] items-center justify-center gap-2 rounded-[4px] bg-vpos-primary px-3 text-[12px] font-semibold text-white no-underline hover:bg-vpos-primary-2">Open register</Link>
               </div>
             )}
-          </article>
+          </article> : null}
         </section>
 
         <section className="mt-[18px] flex flex-wrap items-center justify-between gap-3 rounded-[4px] border border-vpos-line bg-vpos-subtle px-4 py-3 text-[12px] text-vpos-muted">
-          <span>Sales and payment reports are filtered to <strong className="text-vpos-text">{currency}</strong>. Cash register amounts use the register currency ({registerCurrency}).</span>
+          <span>Sales and payment reports are filtered to <strong className="text-vpos-text">{currency}</strong>.{hasPos ? <> Cash register amounts use the register currency (<strong className="text-vpos-text">{registerCurrency}</strong>).</> : null}</span>
           <Button variant="text" onClick={refreshDashboard}><Icon name="refresh-line" /> Refresh overview</Button>
         </section>
       </main>

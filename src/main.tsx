@@ -13,6 +13,13 @@ if (!rootElement) {
 
 initializeThemeConfig()
 
+// The app shell works offline once it has loaded online; only in production builds (dev servers change often).
+if (import.meta.env.PROD && 'serviceWorker' in navigator) {
+  window.addEventListener('load', () => {
+    void navigator.serviceWorker.register('/sw.js').catch(() => undefined)
+  })
+}
+
 createRoot(rootElement).render(
   <StrictMode> 
     <App />

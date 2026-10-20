@@ -15,6 +15,7 @@ import { SalesSubnav } from '../components/sales/SalesSubnav'
 import { useAuth } from '../context/AuthContext'
 import { useToast } from '../context/ToastContext'
 import { useStoresRaw } from '../features/stores/useStores'
+import { storeSupportsOnline } from '../features/stores/salesChannel'
 import { useAdminStore } from '../hooks/useAdminStore'
 import {
   useDeliveries,
@@ -53,6 +54,7 @@ export function ShipmentsPage() {
   const [viewOrderId, setViewOrderId] = useState<number | null>(null)
 
   const selectedStore = storesQuery.data?.find((store) => String(store.id) === String(storeId))
+  const hasOnline = storeSupportsOnline(selectedStore?.salesChannel)
   const currency = (user?.business.defaultCurrencyCode || 'USD').toUpperCase()
 
   const deliveriesQuery = useDeliveries({
@@ -60,7 +62,7 @@ export function ShipmentsPage() {
     status: statusFilter === 'All status' ? undefined : statusFilter,
     providerType: providerFilter === 'All providers' ? undefined : providerFilter,
     size: 100,
-  })
+  }, hasOnline)
 
   const updateStatusMutation = useUpdateDeliveryStatus()
   const orderDetailQuery = useOrder(viewOrderId ?? undefined, Boolean(viewOrderId))
@@ -183,6 +185,22 @@ export function ShipmentsPage() {
       ),
     },
   ], [currency, updateStatusMutation.isPending])
+
+  if (!hasOnline) {
+    return (
+      <>
+        <Topbar title="Shipments & fulfillment" subtitle="Delivery management is available for online orders" actions={<StoreSwitcher value={storeId} onChange={setStoreId} />} />
+        <main className={pageContent}>
+          <SalesSubnav />
+          <section className="mx-auto max-w-2xl rounded-[4px] border border-vpos-line bg-vpos-surface p-6 text-center shadow-vpos">
+            <Icon name="truck-line" className="text-3xl text-vpos-muted" />
+            <h1 className="mt-3 text-lg font-extrabold text-vpos-text">Online orders are not enabled for this store</h1>
+            <p className="mt-2 text-sm leading-6 text-vpos-muted">Set this store to “Online store only” or “POS + Online” before managing delivery providers and shipments.</p>
+          </section>
+        </main>
+      </>
+    )
+  }
 
   return (
     <>

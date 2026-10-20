@@ -23,6 +23,7 @@ import {
 import { STORE_TYPE_OPTIONS } from '../components/stores/StoreFormModal'
 import { useAuth } from '../context/AuthContext'
 import type { BffStore, StoreDay, StoreOpeningHours } from '../features/stores/types'
+import { storeSalesChannelLabel, storeSupportsOnline } from '../features/stores/salesChannel'
 import { useToast } from '../context/ToastContext'
 import { useAdminStore } from '../hooks/useAdminStore'
 import { useDelayedLoading } from '../hooks/useDelayedLoading'
@@ -589,7 +590,7 @@ export function StoresPage() {
                                 >
                                   {mp.label}
                                 </span>
-                                {store.marketplaceStatus === 'NOT_LISTED' || !store.marketplaceStatus || store.marketplaceStatus === 'REJECTED' || store.marketplaceStatus === 'NEEDS_CHANGES' ? (
+                                {storeSupportsOnline(store.salesChannel) && (store.marketplaceStatus === 'NOT_LISTED' || !store.marketplaceStatus || store.marketplaceStatus === 'REJECTED' || store.marketplaceStatus === 'NEEDS_CHANGES') ? (
                                   <Button
                                     variant="text"
                                     className="text-[11px] text-vpos-primary font-bold"
@@ -600,7 +601,7 @@ export function StoresPage() {
                                   >
                                     Apply
                                   </Button>
-                                ) : null}
+                                ) : !storeSupportsOnline(store.salesChannel) ? <span className="text-[10px] font-medium text-vpos-muted">POS-only store</span> : null}
                               </div>
                             </td>
                             <td className="px-4 py-3">
@@ -759,6 +760,9 @@ function StoreCard({
           <span className="inline-flex items-center gap-1 font-semibold text-vpos-text">
             <Icon name="price-tag-3-line" /> {storeCategory}
           </span>
+          <span className="inline-flex items-center gap-1">
+            <Icon name="exchange-line" /> {storeSalesChannelLabel(store.salesChannel)}
+          </span>
           {store.phone ? (
             <span className="inline-flex items-center gap-1">
               <Icon name="phone-line" /> {store.phone}
@@ -794,7 +798,9 @@ function StoreCard({
           </div>
         ) : null}
 
-        {store.marketplaceStatus === 'NOT_LISTED' || !store.marketplaceStatus || store.marketplaceStatus === 'REJECTED' || store.marketplaceStatus === 'NEEDS_CHANGES' ? (
+        {!storeSupportsOnline(store.salesChannel) ? (
+          <p className="mb-3 rounded-md bg-vpos-subtle px-3 py-2 text-center text-[11px] text-vpos-muted">POS-only stores cannot be listed in the online marketplace.</p>
+        ) : store.marketplaceStatus === 'NOT_LISTED' || !store.marketplaceStatus || store.marketplaceStatus === 'REJECTED' || store.marketplaceStatus === 'NEEDS_CHANGES' ? (
           <Button
             variant="secondary"
             className="mb-3 w-full border-emerald-300 text-[12px] text-emerald-700 hover:bg-emerald-50"

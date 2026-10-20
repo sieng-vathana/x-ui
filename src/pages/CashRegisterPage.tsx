@@ -24,6 +24,8 @@ import {
   useOpenCashSession,
 } from '../features/payments/usePayments'
 import { useAdminStore } from '../hooks/useAdminStore'
+import { useStoresRaw } from '../features/stores/useStores'
+import { storeSupportsPos } from '../features/stores/salesChannel'
 import { formatCashMix } from '../lib/cashTender'
 import { DEFAULT_USD_TO_KHR_RATE, formatCurrency } from '../lib/currency'
 import { formatReportDate } from '../lib/reporting'
@@ -34,6 +36,9 @@ export function CashRegisterPage() {
   const { user } = useAuth()
   const { toast } = useToast()
   const { storeId, setStoreId } = useAdminStore()
+  const storesQuery = useStoresRaw()
+  const selectedStore = storesQuery.data?.find((store) => String(store.id) === String(storeId))
+  const hasPos = storeSupportsPos(selectedStore?.salesChannel)
   const { settings } = usePosSettings(user?.business.id)
   const businessCurrency = (user?.business.defaultCurrencyCode || 'USD').toUpperCase()
   const currency = settings.defaultCurrencyCode === 'BUSINESS'
@@ -45,8 +50,8 @@ export function CashRegisterPage() {
   const businessId = Number(user?.business.id)
   const canLoadRegister = Boolean(user && Number.isInteger(storeNumber) && storeNumber > 0 && Number.isInteger(cashierId) && cashierId > 0)
 
-  const currentQuery = useCurrentCashSession(storeId, cashierId, currency, canLoadRegister)
-  const historyQuery = useCashSessionHistory(storeId, cashierId, currency, canLoadRegister)
+  const currentQuery = useCurrentCashSession(storeId, cashierId, currency, canLoadRegister && hasPos)
+  const historyQuery = useCashSessionHistory(storeId, cashierId, currency, canLoadRegister && hasPos)
   const openMutation = useOpenCashSession()
   const movementMutation = useAddCashMovement()
   const closeMutation = useCloseCashSession()
@@ -158,6 +163,22 @@ export function CashRegisterPage() {
 
   const refresh = () => {
     void Promise.all([currentQuery.refetch(), historyQuery.refetch()])
+  }
+
+  if (!hasPos) {
+    return (
+      <>
+        <Topbar title="Cash register" subtitle="Cash sessions are used by POS stores" actions={<StoreSwitcher value={storeId} onChange={setStoreId} />} />
+        <main className={pageContent}>
+          <SalesSubnav />
+          <section className={`${card} mx-auto max-w-2xl p-6 text-center`}>
+            <Icon name="store-2-line" className="text-3xl text-vpos-muted" />
+            <h1 className="mt-3 text-lg font-extrabold text-vpos-text">POS is not enabled for this store</h1>
+            <p className="mt-2 text-sm leading-6 text-vpos-muted">Choose a POS-enabled store or change this store to “POS + Online” in store settings.</p>
+          </section>
+        </main>
+      </>
+    )
   }
 
   return (

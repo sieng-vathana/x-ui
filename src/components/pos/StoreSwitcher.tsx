@@ -2,6 +2,7 @@ import { useEffect, useId, useRef, useState } from 'react'
 import { cn } from '../../lib/cn'
 import { stores as defaultStores } from '../../data/mockup'
 import { useStores } from '../../features/stores/useStores'
+import { storeSalesChannelLabel } from '../../features/stores/salesChannel'
 import { useDelayedLoading } from '../../hooks/useDelayedLoading'
 import { resolveImageUrl } from '../../lib/api'
 import { Icon } from '../ui/Icon'
@@ -13,6 +14,7 @@ export interface StoreOption {
   address?: string
   logo?: string
   image?: string
+  salesChannel?: 'POS' | 'ONLINE' | 'BOTH'
 }
 
 export interface StoreSwitcherProps {
@@ -195,6 +197,9 @@ export function StoreSwitcher({
                       {store.address}
                     </small>
                   ) : null}
+                  <small className="mt-0.5 block truncate text-[11px] font-semibold text-vpos-primary">
+                    {storeSalesChannelLabel('salesChannel' in store ? store.salesChannel : undefined)}
+                  </small>
                 </span>
                 <Icon
                   name="check-line"

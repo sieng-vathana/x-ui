@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import {
   Breadcrumb,
   Button,
@@ -18,6 +18,7 @@ import { useRecentOrders } from '../features/orders/useOrders'
 import { orderApi } from '../features/orders/orderApi'
 import type { PosOrder } from '../features/orders/types'
 import { useStoresRaw } from '../features/stores/useStores'
+import { storeSupportsOnline, storeSupportsPos } from '../features/stores/salesChannel'
 import { useAdminStore } from '../hooks/useAdminStore'
 import { formatCurrency } from '../lib/currency'
 import { formatReportDate } from '../lib/reporting'
@@ -45,6 +46,13 @@ export function SalesPage() {
   const { toast } = useToast()
   const { storeId, setStoreId } = useAdminStore()
   const storesQuery = useStoresRaw()
+  const selectedStore = storesQuery.data?.find((store) => String(store.id) === String(storeId))
+  const showOnlineChannel = storeSupportsOnline(selectedStore?.salesChannel)
+  const showPosChannel = storeSupportsPos(selectedStore?.salesChannel)
+  const availableOrderChannels = [
+    ...(showOnlineChannel ? ['ONLINE' as const] : []),
+    ...(showPosChannel ? ['POS' as const] : []),
+  ]
 
   const [channel, setChannel] = useState<(typeof channels)[number]>('All channels')
   const [status, setStatus] = useState<(typeof statuses)[number]>('All status')
@@ -60,15 +68,24 @@ export function SalesPage() {
     size: 100,
   })
 
+  useEffect(() => {
+    if ((channel === 'ONLINE' && !showOnlineChannel) || (channel === 'POS' && !showPosChannel)) {
+      setChannel('All channels')
+    }
+  }, [channel, showOnlineChannel, showPosChannel])
+
   const orders = useMemo(() => ordersQuery.data?.content ?? [], [ordersQuery.data])
   const currency = (user?.business.defaultCurrencyCode || 'USD').toUpperCase()
-  const selectedStore = storesQuery.data?.find((store) => String(store.id) === String(storeId))
 
   const filteredOrders = useMemo(() => orders.filter((order) => (
     (payment === 'All payments' || order.paymentMethod === payment)
   )), [orders, payment])
 
   const onlineCount = orders.filter((order) => order.orderChannel === 'ONLINE').length
+  const posCount = orders.filter((order) => order.orderChannel === 'POS').length
+  const selectedChannelCount = showOnlineChannel && showPosChannel
+    ? `${onlineCount} / ${posCount}`
+    : String(showOnlineChannel ? onlineCount : posCount)
   const completedCount = orders.filter((order) => order.orderStatus === 'COMPLETED').length
   const loadedSales = orders
     .filter((order) => order.orderStatus === 'COMPLETED')
@@ -197,11 +214,11 @@ export function SalesPage() {
             icon={<Icon name="file-list-3-line" />}
           />
           <MetricCard
-            label="Online Orders"
-            value={String(onlineCount)}
-            trend="Marketplace / Delivery"
+            label={showOnlineChannel && showPosChannel ? 'Online / POS orders' : showOnlineChannel ? 'Online Orders' : 'POS Sales'}
+            value={selectedChannelCount}
+            trend={showOnlineChannel && showPosChannel ? 'Marketplace / In-store' : showOnlineChannel ? 'Marketplace / Delivery' : 'In-store transactions'}
             trendAs="small"
-            icon={<Icon name="global-line" />}
+            icon={<Icon name={showOnlineChannel && showPosChannel ? 'exchange-line' : showOnlineChannel ? 'global-line' : 'store-2-line'} />}
             iconTone="primary"
           />
           <MetricCard
@@ -237,7 +254,7 @@ export function SalesPage() {
                 value={channel === 'All channels' ? '' : channel}
                 onChange={(value) => setChannel((value || 'All channels') as (typeof channels)[number])}
                 placeholder="All channels"
-                options={channels.slice(1).map((value) => ({ value, label: value === 'ONLINE' ? 'Online / Marketplace' : 'In-Store POS' }))}
+                options={availableOrderChannels.map((value) => ({ value, label: value === 'ONLINE' ? 'Online / Marketplace' : 'In-Store POS' }))}
               />
               <Select
                 variant="toolbar"
