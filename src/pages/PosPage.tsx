@@ -65,7 +65,7 @@ import { cn } from '../lib/cn'
 import { maxRedeemablePoints, pointsValue } from '../lib/loyalty'
 import { canConvertCurrency, convertCurrency, formatCurrency, formatKhr } from '../lib/currency'
 import { paths } from '../lib/paths'
-import { openReceiptWindow, printReceipt as openReceiptPrint, type ReceiptCash } from '../lib/receipt'
+import { openReceiptWindow, printReceipt as openReceiptPrint, printReceiptInFrame, type ReceiptCash } from '../lib/receipt'
 import { card, pageContent, searchField } from '../lib/ui'
 import { parseServerTime } from '../lib/serverTime'
 
@@ -251,16 +251,14 @@ export function PosPage() {
 
   /** Completes an order whose payment is already in, and prints its receipt when that is switched on. */
   const finishPaidOrder = useCallback(async (order: PosOrder, method: string | null | undefined, message: string, cash?: ReceiptCash) => {
-    const receiptWindow = settings.autoPrintReceipt ? openReceiptWindow() : null
     try {
       const completed = await completeOrderMutation.mutateAsync(order.id)
       toast(message, 'success')
       void customerPointsQuery.refetch()
-      if (settings.autoPrintReceipt && !openReceiptPrint(completed, getReceiptOptions(completed, method, cash), receiptWindow)) {
-        toast('The receipt window was blocked. Allow pop-ups for this POS site and reprint it from Recent orders.', 'warning')
+      if (settings.autoPrintReceipt && !printReceiptInFrame(completed, getReceiptOptions(completed, method, cash))) {
+        toast('The receipt could not be printed. Reprint it from Recent orders.', 'warning')
       }
     } catch (error) {
-      receiptWindow?.close()
       throw error
     }
   }, [completeOrderMutation, customerPointsQuery, getReceiptOptions, settings.autoPrintReceipt, toast])
@@ -308,7 +306,6 @@ export function PosPage() {
     if (!qr.payment.qrImageDataUrl?.startsWith('data:image/')) {
       throw new Error('The payment service did not return a valid QR image.')
     }
-    pendingQrReceiptWindowRef.current = settings.autoPrintReceipt ? openReceiptWindow() : null
     setQrCheckout({ orderNo: qr.order.orderNo, response: qr.payment, order: qr.order })
     if (!usesBakongKhqr) {
       window.setTimeout(() => {
@@ -1018,7 +1015,6 @@ export function PosPage() {
     }
     const { businessId, selectedStoreId, cashierId, input } = checkout
 
-    const receiptWindow = settings.autoPrintReceipt ? openReceiptWindow() : null
 
     try {
       if (payment === 'card') {
@@ -1037,11 +1033,10 @@ export function PosPage() {
         })
         const completed = await completeOrderMutation.mutateAsync(order.id)
         toast(`Order ${order.orderNo} completed.`, 'success')
-        if (settings.autoPrintReceipt && !openReceiptPrint(completed, getReceiptOptions(completed, payment), receiptWindow)) {
-          toast('The receipt window was blocked. Allow pop-ups for this POS site and reprint it from Recent orders.', 'warning')
+        if (settings.autoPrintReceipt && !printReceiptInFrame(completed, getReceiptOptions(completed, payment))) {
+          toast('The receipt could not be printed. Reprint it from Recent orders.', 'warning')
         }
       } else {
-        pendingQrReceiptWindowRef.current = receiptWindow
         const items = lines
           .map((line) => `${line.product.name} x${line.qty}`)
           .join(', ')
@@ -1073,8 +1068,6 @@ export function PosPage() {
       setRedeemPoints(0)
       if (payment === 'card') void customerPointsQuery.refetch()
     } catch (error) {
-      receiptWindow?.close()
-      if (pendingQrReceiptWindowRef.current === receiptWindow) pendingQrReceiptWindowRef.current = null
       toast(error instanceof Error ? error.message : 'Checkout could not be completed.', 'error')
     }
   }, [completeOrderMutation, createCardPaymentMutation, createOrderMutation, createPosQrCheckoutMutation, customerPointsQuery, getReceiptOptions, lines, payment, prepareCheckout, settings.autoPrintReceipt, simulatePaymentCallbackMutation, toast, usesBakongKhqr])
@@ -1084,7 +1077,6 @@ export function PosPage() {
     if (!checkout) return
     const takenAt = new Date()
     const { businessId, selectedStoreId, cashierId, input } = checkout
-    const receiptWindow = settings.autoPrintReceipt ? openReceiptWindow() : null
 
     try {
       const order = await createOrderMutation.mutateAsync(input)
@@ -1119,11 +1111,10 @@ export function PosPage() {
       void customerPointsQuery.refetch()
       toast(tender.changeAllKhr > 0 ? `Order ${order.orderNo} completed. Give change: ${change}.` : `Order ${order.orderNo} completed.`, 'success')
       const cash: ReceiptCash = { receivedUsd: received.usd, receivedKhr: received.khr, changeUsd: tender.changeUsd, changeKhr: tender.changeKhr }
-      if (settings.autoPrintReceipt && !openReceiptPrint(completed, getReceiptOptions(completed, 'cash', cash), receiptWindow)) {
-        toast('The receipt window was blocked. Allow pop-ups for this POS site and reprint it from Recent orders.', 'warning')
+      if (settings.autoPrintReceipt && !printReceiptInFrame(completed, getReceiptOptions(completed, 'cash', cash))) {
+        toast('The receipt could not be printed. Reprint it from Recent orders.', 'warning')
       }
     } catch (error) {
-      receiptWindow?.close()
       // The connection dropped part way: keep the sale on this device and send it when the connection is back.
       // Walk-in sales only, since customer points are checked with the server.
       if (isRetryable(error) && Number(input.customerId ?? 0) === 0 && !input.loyaltyPointsToRedeem) {
@@ -1193,10 +1184,8 @@ export function PosPage() {
       .then((order) => {
         toast(`Payment received. Order ${qrCheckout.orderNo} completed.`, 'success')
         void customerPointsQuery.refetch()
-        const receiptWindow = pendingQrReceiptWindowRef.current
-        pendingQrReceiptWindowRef.current = null
-        if (settings.autoPrintReceipt && !openReceiptPrint(order, getReceiptOptions(order, 'qr'), receiptWindow)) {
-          toast('The receipt window was blocked. Allow pop-ups for this POS site and reprint it from Recent orders.', 'warning')
+        if (settings.autoPrintReceipt && !printReceiptInFrame(order, getReceiptOptions(order, 'qr'))) {
+          toast('The receipt could not be printed. Reprint it from Recent orders.', 'warning')
         }
       })
       .catch((error) => {

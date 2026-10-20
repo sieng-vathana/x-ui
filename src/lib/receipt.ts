@@ -83,7 +83,46 @@ export function openReceiptWindow(): Window | null {
 export function printReceipt(order: PosOrder, options: ReceiptOptions, targetWindow?: Window | null): boolean {
   const printWindow = targetWindow === undefined ? openReceiptWindow() : targetWindow
   if (!printWindow || printWindow.closed) return false
+  printWindow.document.open()
+  printWindow.document.write(renderReceiptHtml(order, options))
+  printWindow.document.close()
+  return true
+}
 
+/**
+ * Prints the receipt from a hidden frame, so no window opens and no pop-up blocker is involved. Used when a sale
+ * completes, so the receipt never appears while the customer is still paying.
+ */
+export function printReceiptInFrame(order: PosOrder, options: ReceiptOptions): boolean {
+  const frame = document.createElement('iframe')
+  frame.setAttribute('aria-hidden', 'true')
+  frame.style.position = 'fixed'
+  frame.style.width = '0'
+  frame.style.height = '0'
+  frame.style.border = '0'
+  frame.style.right = '0'
+  frame.style.bottom = '0'
+  document.body.appendChild(frame)
+  const frameWindow = frame.contentWindow
+  if (!frameWindow) {
+    frame.remove()
+    return false
+  }
+  frameWindow.document.open()
+  frameWindow.document.write(renderReceiptHtml(order, options))
+  frameWindow.document.close()
+  window.setTimeout(() => {
+    try {
+      frameWindow.focus()
+      frameWindow.print()
+    } finally {
+      window.setTimeout(() => frame.remove(), 1500)
+    }
+  }, 150)
+  return true
+}
+
+export function renderReceiptHtml(order: PosOrder, options: ReceiptOptions): string {
   const isKm = (options.language ?? (typeof window !== 'undefined' && window.localStorage.getItem('vpos.portal-language') === 'km' ? 'km' : 'en')) === 'km'
   const tx = (key: string): string => (isKm ? (RECEIPT_STRINGS_KM[key] ?? key) : key)
 
@@ -146,10 +185,7 @@ export function printReceipt(order: PosOrder, options: ReceiptOptions, targetWin
   const html = `<!doctype html><html><head><meta charset="utf-8"><title>${escapeReceiptText(order.orderNo || tx('Receipt'))}</title><style>
 @page{size:${options.paperSize} auto;margin:0}*{box-sizing:border-box}body{width:${options.paperSize};max-width:100%;margin:0 auto;padding:12px 9px;font:12px/1.4 Arial,sans-serif;color:#111;background:#fff}.center{text-align:center}.logo{display:block;width:52px;height:52px;margin:0 auto 6px;object-fit:contain}.business{font-size:16px;font-weight:800}.store{margin-top:2px;color:#444;font-size:11px;font-weight:700}.muted{color:#666;font-size:10px}.rule{border-top:1px dashed #888;margin:10px 0}.details{display:grid;gap:3px;margin-top:10px}.detail{display:flex;justify-content:space-between;gap:8px;font-size:10px}.detail span:first-child{color:#666}.detail span:last-child{text-align:right;font-weight:700}.items{display:grid;gap:9px}.item{display:flex;align-items:flex-start;justify-content:space-between;gap:8px}.item-copy{min-width:0;display:grid;gap:1px}.item-copy strong{font-size:11px}.item-variant,.item-meta{color:#666;font-size:10px}.item-total{white-space:nowrap;font-size:11px}.discount{color:#a22}.summary{display:grid;gap:5px}.summary .line{display:flex;justify-content:space-between;gap:8px}.summary .label{color:#666}.grand{border-top:1px solid #111;margin-top:3px;padding-top:7px;font-size:15px;font-weight:800}.secondary{text-align:right;color:#666;font-size:10px}.footer{margin-top:14px;text-align:center;color:#666;font-size:10px;white-space:pre-line}
 </style></head><body><div class="center">${logo}<div class="business">${escapeReceiptText(options.businessName || 'TinhLuk')}</div>${store?.name ? `<div class="store">${escapeReceiptText(store.name)}</div>` : ''}${storeLines.map((line) => `<div class="muted">${escapeReceiptText(line)}</div>`).join('')}${taxRegistration}<div class="muted">${tx('SALES RECEIPT')}</div></div><div class="details">${detailRow(tx('Receipt'), order.orderNo || `#${order.id}`)}${detailRow(tx('Date'), formatReceiptDate(order.completedAt || order.createdAt, isKm))}${options.cashierName ? detailRow(tx('Cashier'), options.cashierName) : ''}${customer}${detailRow(tx('Payment'), paymentLabel)}</div><div class="rule"></div><div class="items">${itemRows || `<div class="muted">${tx('No line items')}</div>`}</div><div class="rule"></div><div class="summary"><div class="line"><span class="label">${tx('Subtotal')}</span><strong>${formatCurrency(subtotal, currency)}</strong></div>${discount > 0 ? `<div class="line"><span class="label">${tx('Discount')}</span><strong>−${formatCurrency(discount, currency)}</strong></div>` : ''}<div class="line"><span class="label">${tx('Tax / VAT')}</span><strong>${formatCurrency(tax, currency)}</strong></div>${Math.abs(rounding) >= 0.005 ? `<div class="line"><span class="label">${tx('Rounding')}</span><strong>${rounding > 0 ? '+' : '−'}${formatCurrency(Math.abs(rounding), currency)}</strong></div>` : ''}<div class="line grand"><span>${tx('Total')}</span><strong>${formatCurrency(total, currency)}</strong></div>${secondaryTotal !== undefined ? `<div class="secondary">≈ ${formatCurrency(secondaryTotal, secondaryCurrency)} · ${isKm ? 'អត្រាប្តូរប្រាក់' : 'Rate'} 1 USD = ${rate.toLocaleString('en-US')} KHR</div>` : ''}${cashLines}${loyaltyLines}</div><div class="footer">${escapeReceiptText(footer)}</div><script>window.onload=()=>{window.print();window.onafterprint=()=>window.close()}</script></body></html>`
-  printWindow.document.open()
-  printWindow.document.write(html)
-  printWindow.document.close()
-  return true
+  return html
 }
 
 function detailRow(label: string, value: string | undefined): string {
