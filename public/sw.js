@@ -1,6 +1,6 @@
 // Offline shell for the portal. Keeps the built app so the POS can load without a connection.
 // The API is never cached: POS data is kept by the app itself (see src/lib/offlineCache.ts).
-const CACHE = 'tinhluk-shell-v2'
+const CACHE = 'tinhluk-shell-v3'
 const SHELL = '/'
 
 // Saved as soon as the worker installs, so the app works offline even on the first offline visit.
@@ -41,6 +41,14 @@ async function precacheShell() {
   await cache.put(SHELL, new Response(html, { headers: { 'Content-Type': 'text/html; charset=utf-8' } }))
   const assets = [...new Set([...html.matchAll(/(?:src|href)="(\/assets\/[^"]+)"/g)].map((match) => match[1]))]
   await cache.addAll(assets)
+  // Icon fonts are loaded by the stylesheets, not the page, so their files are saved from the CSS too.
+  const fonts = []
+  for (const asset of assets.filter((url) => url.endsWith('.css'))) {
+    const response = (await cache.match(asset)) ?? (await fetch(asset))
+    const css = await response.text()
+    for (const match of css.matchAll(/url\(\s*["']?(\/assets\/[^"')\s]+)/g)) fonts.push(match[1])
+  }
+  await cache.addAll([...new Set(fonts)])
 }
 
 async function cacheFirst(request) {

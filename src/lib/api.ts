@@ -7,6 +7,8 @@ export class ApiError extends Error {
   }
 }
 
+import { markReachable, markUnreachable } from './connection'
+
 export interface ApiClientOptions {
   baseUrl?: string
   getToken?: () => string | undefined
@@ -110,16 +112,24 @@ export class ApiClient {
 
     const isFormData = typeof FormData !== 'undefined' && init.body instanceof FormData
 
-    const response = await fetch(url, {
-      ...init,
-      credentials: init.credentials ?? 'include',
-      headers: {
-        Accept: 'application/json',
-        ...(init.body && !isFormData ? { 'Content-Type': 'application/json' } : {}),
-        ...(token ? { Authorization: `Bearer ${token}` } : {}),
-        ...init.headers,
-      },
-    })
+    let response: Response
+    try {
+      response = await fetch(url, {
+        ...init,
+        credentials: init.credentials ?? 'include',
+        headers: {
+          Accept: 'application/json',
+          ...(init.body && !isFormData ? { 'Content-Type': 'application/json' } : {}),
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+          ...init.headers,
+        },
+      })
+    } catch (error) {
+      // No answer from the server at all: the POS shows offline mode until a request gets through.
+      if (error instanceof TypeError) markUnreachable()
+      throw error
+    }
+    markReachable()
 
     if (response.status === 401 && !isAuthRequest) {
       const refreshed = await this.refreshSession()

@@ -1,20 +1,11 @@
-import { useCallback, useEffect, useState, useSyncExternalStore } from 'react'
+import { useCallback, useEffect, useState } from 'react'
+import { useConnection } from '../../lib/connection'
 import { dismissOfflineSale, listOfflineSales, subscribeOfflineSales, syncOfflineSales, type OfflineSale } from './offlineSales'
 
 const RETRY_EVERY_MS = 15_000
 
-function subscribeToNetwork(listener: () => void) {
-  window.addEventListener('online', listener)
-  window.addEventListener('offline', listener)
-  return () => {
-    window.removeEventListener('online', listener)
-    window.removeEventListener('offline', listener)
-  }
-}
-
-/** Whether the browser currently reports a connection. */
 export function useIsOnline(): boolean {
-  return useSyncExternalStore(subscribeToNetwork, () => navigator.onLine, () => true)
+  return useConnection().online
 }
 
 /**
@@ -31,7 +22,6 @@ export function useOfflineSales() {
   }, [])
 
   const syncNow = useCallback(async () => {
-    if (!navigator.onLine) return
     setSending(true)
     try {
       await syncOfflineSales()
