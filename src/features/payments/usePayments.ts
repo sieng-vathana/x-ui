@@ -1,4 +1,6 @@
+import { useEffect, useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { useRealtimeEvent, useRealtimeStatus } from '../../lib/realtime'
 import { ApiError } from '../../lib/api'
 import { paymentApi } from './paymentApi'
 import type { ReportBucket } from '../orders/types'
@@ -28,29 +30,30 @@ export function useCreateBakongPosQrCheckout() {
   return useMutation({ mutationFn: paymentApi.createBakongPosQr })
 }
 
-/** How often a pending Bakong KHQR is checked; the sale completes within this long of the customer paying. */
-const BAKONG_CHECK_INTERVAL_MS = 1500
-
-/** While a Bakong KHQR is pending, asks Bakong every 1.5 seconds whether it has been paid. */
-export function useBakongPaymentCheck(id: number | undefined, enabled: boolean) {
-  const queryClient = useQueryClient()
-
-  return useQuery({
-    queryKey: ['payment', id, 'bakong-check'],
-    queryFn: async () => {
-      const payment = await paymentApi.checkBakong(id!)
-      queryClient.setQueryData(['payment', payment.id], payment)
-      return payment
-    },
-    enabled: enabled && Boolean(id),
-    refetchInterval: (query) => (
-      query.state.status !== 'error' && query.state.data?.status === 'PENDING' ? BAKONG_CHECK_INTERVAL_MS : false
-    ),
-    retry: false,
-    refetchOnWindowFocus: false,
-    gcTime: 0,
+/**
+ * The server asks Bakong about every open KHQR and pushes the result; this is why it could not ask just now
+ * (no API token, Bakong down), or undefined. The server repeats a failure every 30 seconds while it lasts.
+ */
+export function useBakongCheckError(id: number | undefined): string | undefined {
+  const [failure, setFailure] = useState<{ id: number; message: string; at: number }>()
+  const [, setExpired] = useState(0)
+  useRealtimeEvent('payment.check_failed', ({ data }) => {
+    if (id !== undefined && Number(data.paymentId) === id) {
+      setFailure({ id, message: String(data.message || 'Bakong could not be reached.'), at: Date.now() })
+    }
   })
+  useRealtimeEvent('payment.updated', ({ data }) => {
+    if (Number(data.paymentId) === id) setFailure(undefined)
+  })
+  useEffect(() => {
+    if (!failure) return
+    const timer = window.setTimeout(() => setExpired((count) => count + 1), FAILURE_SHOWN_MS)
+    return () => window.clearTimeout(timer)
+  }, [failure])
+  return failure && failure.id === id && Date.now() - failure.at < FAILURE_SHOWN_MS ? failure.message : undefined
 }
+
+const FAILURE_SHOWN_MS = 40_000
 
 export function useConfirmPayment() {
   const queryClient = useQueryClient()
@@ -168,11 +171,14 @@ export function useCloseCashSession() {
 }
 
 export function usePaymentStatus(id?: number) {
+  const live = useRealtimeStatus() === 'connected'
   return useQuery({
     queryKey: ['payment', id],
     queryFn: () => paymentApi.get(id!),
     enabled: Boolean(id),
-    refetchInterval: (query) => query.state.data?.status === 'PENDING' ? 3000 : false,
+    // Reloaded when the payment service pushes a change. Only while the live connection is down does a pending
+    // payment fall back to being read every 5 seconds, so a paid KHQR is never missed.
+    refetchInterval: (query) => (!live && query.state.data?.status === 'PENDING' ? 5000 : false),
   })
 }
 

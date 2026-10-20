@@ -43,7 +43,7 @@ import {
   useCreateSimulatedPosQrCheckout,
   useCreateBakongPosQrCheckout,
   useConfirmPayment,
-  useBakongPaymentCheck,
+  useBakongCheckError,
   useCurrentCashSession,
   usePaymentStatus,
   useSimulatePaymentCallback,
@@ -188,10 +188,9 @@ export function PosPage() {
   const completedQrPaymentIdRef = useRef<number | null>(null)
   const pendingQrReceiptWindowRef = useRef<Window | null>(null)
   const qrPaymentQuery = usePaymentStatus(qrCheckout?.response.payment.id)
-  const bakongCheckQuery = useBakongPaymentCheck(
-    qrCheckout?.response.payment.id,
-    qrCheckout?.response.payment.provider === 'BAKONG'
-      && (qrPaymentQuery.data?.status ?? qrCheckout.response.payment.status) === 'PENDING',
+  // The server checks Bakong and pushes the result; this is only why it could not check, if it could not.
+  const bakongCheckError = useBakongCheckError(
+    qrCheckout?.response.payment.provider === 'BAKONG' ? qrCheckout.response.payment.id : undefined,
   )
   const closeQrCheckout = useCallback(() => {
     const paymentStatus = qrPaymentQuery.data?.status ?? qrCheckout?.response.payment.status
@@ -2034,7 +2033,7 @@ export function PosPage() {
         onClose={closeQrCheckout}
         onConfirmPaid={() => void confirmQrPayment()}
         confirming={confirmPaymentMutation.isPending}
-        autoCheckError={bakongCheckQuery.error instanceof Error ? bakongCheckQuery.error.message : undefined}
+        autoCheckError={bakongCheckError}
       />
 
       <PosCashPaymentModal

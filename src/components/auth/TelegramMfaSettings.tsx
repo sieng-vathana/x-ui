@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState } from 'react'
 import { Icon } from '../ui/Icon'
 import { useToast } from '../../context/ToastContext'
 import { telegramMfaApi, type TelegramMfaStatus } from '../../features/auth/telegramMfaApi'
+import { REALTIME_RECONNECTED, useRealtimeEvent } from '../../lib/realtime'
 
 export function TelegramMfaSettings() {
   const { toast } = useToast()
@@ -18,11 +19,8 @@ export function TelegramMfaSettings() {
   }, [toast])
 
   useEffect(() => { void loadStatus() }, [loadStatus])
-  useEffect(() => {
-    if (!status?.linkPending) return
-    const timer = window.setInterval(() => { void loadStatus() }, 3000)
-    return () => window.clearInterval(timer)
-  }, [loadStatus, status?.linkPending])
+  // Pressing Start in Telegram links the account; the user service pushes that, so the page updates at once.
+  useRealtimeEvent(['telegram.mfa.linked', REALTIME_RECONNECTED], () => { void loadStatus() })
   useEffect(() => {
     if (!linkUrl) return
     const timer = window.setTimeout(() => setLinkUrl(''), 10 * 60 * 1000)

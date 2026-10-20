@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from 'react'
 import { Link, Outlet } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
+import { RealtimeBridge } from '../components/realtime/RealtimeBridge'
 import { Sidebar } from '../components/layout/Sidebar'
 import { SidebarSettingsDrawer } from '../components/layout/SidebarSettingsDrawer'
 import { useSidebarLayout, type SidebarLayoutState } from '../hooks/useSidebarLayout'
@@ -23,7 +24,7 @@ export function AdminLayout() {
     queryKey: ['businessReview', businessId],
     queryFn: () => authApi.getBusinessReview(businessId!),
     enabled: Boolean(businessId && businessId !== 'workspace'),
-    refetchInterval: 30000,
+    // Reloaded when the backoffice approves, rejects or suspends the merchant (pushed by RealtimeBridge).
   })
   const { data: stores = [] } = useStores()
   const [storeId, setStoreIdState] = useState(() => readStoredValue(ACTIVE_STORE_STORAGE_KEY, ''))
@@ -85,6 +86,7 @@ export function AdminLayout() {
       data-sidebar-color={sidebar.config.color}
       data-topbar-color={sidebar.config.topbar}
     >
+      <RealtimeBridge />
       <Sidebar state={sidebar} />
       {sidebar.isMobile && sidebar.mobileOpen ? (
         <button type="button" aria-label="Close navigation" className="fixed inset-0 z-[35] bg-vpos-black/40" onClick={() => sidebar.setMobileOpen(false)} />

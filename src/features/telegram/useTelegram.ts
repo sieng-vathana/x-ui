@@ -3,13 +3,12 @@ import { telegramApi, type TelegramChatChanges, type TelegramPreferences, type T
 
 const statusKey = (businessId: number | undefined) => ['telegram', businessId] as const
 
-/** While waiting for someone to press Start in Telegram, checks every 3 seconds until the link is used. */
+/** Reloaded when the bot links or drops a chat: the business service pushes telegram.chats.changed (see RealtimeBridge). */
 export function useTelegramStatus(businessId: number | undefined, waitingForConnection: boolean) {
   return useQuery({
     queryKey: statusKey(businessId),
     queryFn: () => telegramApi.status(businessId!, waitingForConnection),
     enabled: Boolean(businessId),
-    refetchInterval: (query) => (waitingForConnection && query.state.data?.linkPending !== false ? 3000 : false),
   })
 }
 
