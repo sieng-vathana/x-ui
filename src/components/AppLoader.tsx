@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import loaderMark from '../assets/icons8-kali-linux-480.png'
+import loaderMark from '../assets/tinhluk-logo.png'
 
 const EXIT_DURATION_MS = 220
 
@@ -62,11 +62,11 @@ export function AppLoader({ isLoading, isStarting }: AppLoaderProps) {
 
       <div className="relative flex flex-col items-center justify-center p-8 text-center z-10">
         {/* Pop-in Icon (Pure icon without any background container) */}
-        <div className="relative mb-5 flex items-center justify-center animate-pop-in-zoom">
+        <div className="relative mb-5 flex items-center justify-center rounded-2xl bg-white px-5 py-3 shadow-sm animate-pop-in-zoom">
           <img
             src={loaderMark}
-            alt="Logo"
-            className="app-loader-icon h-20 w-20 object-contain"
+            alt="TinhLuk"
+            className="app-loader-icon h-10 w-auto max-w-[220px] object-contain"
           />
         </div>
 

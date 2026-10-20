@@ -1164,7 +1164,7 @@ html[data-bs-theme='dark'] .animate-pulse {
 }
 
 .app-loader-icon {
-  filter: invert(1);
+  filter: none;
 }
 
 html[data-bs-theme='dark'] .app-loader-wrapper {
@@ -1175,7 +1175,7 @@ html[data-bs-theme='dark'] .app-loader-wrapper {
 }
 
 html[data-bs-theme='dark'] .app-loader-icon {
-  filter: invert(0) !important;
+  filter: none !important;
 }
 
 @keyframes pop-in-zoom {
