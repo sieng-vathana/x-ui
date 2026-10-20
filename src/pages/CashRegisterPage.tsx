@@ -12,6 +12,7 @@ import {
   Topbar,
 } from '../components'
 import { SalesSubnav } from '../components/sales/SalesSubnav'
+import { OfflineQueueCard } from '../components/pos/OfflineQueueCard'
 import { useAuth } from '../context/AuthContext'
 import { useToast } from '../context/ToastContext'
 import { usePosSettings } from '../features/pos/posSettings'
@@ -189,6 +190,8 @@ export function CashRegisterPage() {
         actions={<StoreSwitcher value={storeId} onChange={setStoreId} />}
       />
       <main className={pageContent}>
+        {user?.business.id ? <OfflineQueueCard businessId={Number(user.business.id)} /> : null}
+
         <section className="mb-5 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           <Breadcrumb items={[{ label: 'Sales', to: paths.sales }, { label: 'Cash register' }]} />
           <Button variant="secondary" onClick={refresh} disabled={currentQuery.isFetching || historyQuery.isFetching}>

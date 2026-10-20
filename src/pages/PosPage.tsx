@@ -131,7 +131,11 @@ export function PosPage() {
   const currencyCode = settings.defaultCurrencyCode === 'BUSINESS' ? businessCurrency : settings.defaultCurrencyCode
   const usdToKhrRate = Number(user?.business.usdToKhrExchangeRate || 4000)
   const productsQuery = useProductsList(storeId)
-  const offline = useOfflineSales()
+  const offline = useOfflineSales(
+    Number(user?.business.id) && Number(storeId) && Number(user?.id)
+      ? { businessId: Number(user?.business.id), storeId: Number(storeId), cashierId: Number(user?.id), currencyCode }
+      : undefined,
+  )
   const storesQuery = useStoresRaw()
   // Customers and loyalty are in the Business and Pro plans; on Starter every sale is to a walk-in customer.
   const hasCustomers = usePlanFeatures().has('CUSTOMERS_LOYALTY')
