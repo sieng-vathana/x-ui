@@ -176,9 +176,9 @@ export function usePaymentStatus(id?: number) {
     queryKey: ['payment', id],
     queryFn: () => paymentApi.get(id!),
     enabled: Boolean(id),
-    // Reloaded when the payment service pushes a change. Only while the live connection is down does a pending
-    // payment fall back to being read every 5 seconds, so a paid KHQR is never missed.
-    refetchInterval: (query) => (!live && query.state.data?.status === 'PENDING' ? 5000 : false),
+    // Pushed changes arrive at once, but a missed push must never leave the cashier waiting: a pending payment is
+    // also read from our own payment service every few seconds (a database read, not a Bakong call).
+    refetchInterval: (query) => (query.state.data?.status === 'PENDING' ? (live ? 4000 : 3000) : false),
   })
 }
 
