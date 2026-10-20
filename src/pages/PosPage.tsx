@@ -2013,7 +2013,7 @@ export function PosPage() {
                     <Icon name="information-line" className="mt-0.5 shrink-0 text-[16px]" />
                     <span>No cash register is open. Open one to take cash. QR and card checkout remain available.</span>
                   </div>
-                  <Button variant="dark" className="h-9 w-full" onClick={() => setOpenRegisterOpen(true)} disabled={!offline.online}>
+                  <Button variant="primary" className="h-9 w-full" onClick={() => setOpenRegisterOpen(true)} disabled={!offline.online}>
                     <Icon name="cash-line" /> Open cash register
                   </Button>
                   {!offline.online ? <span className="block text-[11px]">The register needs the connection to open. Take QR or card when it is back.</span> : null}
