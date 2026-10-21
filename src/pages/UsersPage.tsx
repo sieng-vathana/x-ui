@@ -54,7 +54,8 @@ export function UsersPage() {
   const canUpdate = permissions.includes('x-user:update')
   const canDelete = permissions.includes('x-user:delete')
   const { data: users = [], isLoading } = useUsers()
-  const { data: roles = [] } = useRoles()
+  const { data: roles = [], isLoading: rolesLoading } = useRoles()
+  const hasStaffRoles = roles.some((role) => role.roleCode.toUpperCase() !== 'OWNER')
   const { data: stores = [] } = useStores()
   const rolesByCode = useMemo(
     () => new Map(roles.map((role) => [role.roleCode.toUpperCase(), role])),
@@ -303,9 +304,19 @@ export function UsersPage() {
               <Icon name="shield-keyhole-line" /> Manage Roles
             </Button>
             {canCreate ? (
-              <Button variant="primary" onClick={handleOpenCreate} disabled={!roles.some((role) => role.roleCode.toUpperCase() !== 'OWNER')}>
-                <Icon name="add-line" /> Add Staff User
-              </Button>
+              <div className="flex flex-col items-end gap-1">
+                <Button
+                  variant="primary"
+                  onClick={handleOpenCreate}
+                  disabled={rolesLoading || !hasStaffRoles}
+                  title={!rolesLoading && !hasStaffRoles ? 'Create a staff role in Manage Roles before adding a staff user.' : undefined}
+                >
+                  <Icon name="add-line" /> Add Staff User
+                </Button>
+                {!rolesLoading && !hasStaffRoles ? (
+                  <span className="text-[11px] text-vpos-muted">Create a staff role in Manage Roles first.</span>
+                ) : null}
+              </div>
             ) : null}
           </div>
         </section>
