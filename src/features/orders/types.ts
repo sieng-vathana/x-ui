@@ -98,6 +98,9 @@ export interface PosOrder {
   completedAt?: string
   loyaltyPointsRedeemed?: number | null
   loyaltyPointsEarned?: number | null
+  /** Who to call about an online order; set for guest checkout and when the shopper gives it. */
+  contactName?: string | null
+  contactPhone?: string | null
 }
 
 export interface OrderFilters {
