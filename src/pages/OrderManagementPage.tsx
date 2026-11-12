@@ -183,6 +183,47 @@ export function OrderManagementPage() {
     },
     onError: (error) => toast(error instanceof Error ? error.message : 'The payment could not be recorded.', 'error'),
   })
+  // A shopper's KHQR goes to the merchant's Bakong account. Bakong is asked once more; when it cannot answer
+  // (for example its daily check limit) or has not seen the money, the merchant can confirm it from their bank app.
+  const [khqrNotice, setKhqrNotice] = useState<string | null>(null)
+  const pendingKhqr = async (order: PosOrder) => {
+    const payments = await paymentApi.listForOrder(order.id)
+    return payments.find((payment) => payment.method === 'QR' && payment.provider === 'BAKONG' && payment.status === 'PENDING')
+      ?? payments.find((payment) => payment.method === 'QR' && payment.status === 'PAID')
+  }
+  const finishPaid = (order: PosOrder) => {
+    setCollectingOrderId(null)
+    setKhqrNotice(null)
+    updateOrder.mutate({ order, action: 'complete' })
+  }
+  const checkKhqr = useMutation({
+    mutationFn: async (order: PosOrder) => {
+      const payment = await pendingKhqr(order)
+      if (!payment) throw new Error('This order has no KHQR payment. Use Cash received if the customer paid in cash.')
+      if (payment.status === 'PAID') return payment
+      try {
+        return await paymentApi.checkBakong(payment.id)
+      } catch (error) {
+        throw new Error(`Bakong could not confirm the payment right now${error instanceof Error && error.message ? ` (${error.message})` : ''}.`)
+      }
+    },
+    onSuccess: (payment, order) => {
+      if (payment.status === 'PAID') finishPaid(order)
+      else setKhqrNotice('Bakong has not seen this payment yet.')
+    },
+    onError: (error) => setKhqrNotice(error instanceof Error ? error.message : 'Bakong could not be reached.'),
+  })
+  const confirmKhqr = useMutation({
+    mutationFn: async (order: PosOrder) => {
+      const payment = await pendingKhqr(order)
+      if (!payment) throw new Error('This order has no KHQR payment to confirm.')
+      if (payment.status === 'PAID') return payment
+      // Keep the QR's own reference so the payment can still be matched to the bank transaction.
+      return paymentApi.confirm({ id: payment.id, externalReference: payment.externalReference || `confirmed-by-merchant-${order.id}` })
+    },
+    onSuccess: (_payment, order) => finishPaid(order),
+    onError: (error) => toast(error instanceof Error ? error.message : 'The payment could not be confirmed.', 'error'),
+  })
   const busyOrderId = updateOrder.isPending ? updateOrder.variables?.order.id : collectCash.isPending ? collectCash.variables?.id : null
   const collectingOrder = orders.find((order) => order.id === collectingOrderId) ?? null
 
@@ -384,18 +425,22 @@ export function OrderManagementPage() {
 
         <Modal
           open={Boolean(collectingOrder)}
-          onClose={() => setCollectingOrderId(null)}
+          onClose={() => { setCollectingOrderId(null); setKhqrNotice(null) }}
           size="md"
           title="Take payment"
           description={collectingOrder ? `${collectingOrder.orderNo || collectingOrder.id} · ${customerName(collectingOrder)}` : undefined}
-          footer={collectingOrder ? <div className="flex w-full flex-col-reverse justify-end gap-2 sm:flex-row"><Button variant="secondary" onClick={() => setCollectingOrderId(null)}>Not yet</Button><Button variant="secondary" disabled={updateOrder.isPending || collectCash.isPending} onClick={() => { updateOrder.mutate({ order: collectingOrder, action: 'complete' }); setCollectingOrderId(null) }}><Icon name="qr-code-line" /> Paid by KHQR</Button><Button variant="primary" disabled={collectCash.isPending} onClick={() => collectCash.mutate(collectingOrder)}><Icon name="money-dollar-circle-line" /> {collectCash.isPending ? 'Saving…' : 'Cash received'}</Button></div> : undefined}
+          footer={collectingOrder ? <div className="flex w-full flex-col-reverse justify-end gap-2 sm:flex-row"><Button variant="secondary" onClick={() => { setCollectingOrderId(null); setKhqrNotice(null) }}>Not yet</Button><Button variant="secondary" disabled={checkKhqr.isPending || confirmKhqr.isPending || collectCash.isPending} onClick={() => { setKhqrNotice(null); checkKhqr.mutate(collectingOrder) }}><Icon name="qr-code-line" /> {checkKhqr.isPending ? 'Checking Bakong…' : 'Paid by KHQR'}</Button><Button variant="primary" disabled={collectCash.isPending} onClick={() => collectCash.mutate(collectingOrder)}><Icon name="money-dollar-circle-line" /> {collectCash.isPending ? 'Saving…' : 'Cash received'}</Button></div> : undefined}
         >
           {collectingOrder ? <div className="space-y-3 text-[13px] text-vpos-text">
             <p className="m-0">This order is not paid yet. Collect <strong>{formatCurrency(Number(collectingOrder.grandTotal), collectingOrder.currencyCode)}</strong> before handing it over.</p>
             <ul className="m-0 list-disc space-y-1 pl-5 text-[12px] text-vpos-muted">
               <li><strong className="text-vpos-text">Cash received</strong> records a cash payment and completes the order.</li>
-              <li><strong className="text-vpos-text">Paid by KHQR</strong> completes the order once the bank has confirmed the customer's KHQR payment.</li>
+              <li><strong className="text-vpos-text">Paid by KHQR</strong> asks Bakong whether the customer's KHQR was paid, then completes the order.</li>
             </ul>
+            {khqrNotice ? <div className="space-y-2 rounded-[4px] border border-vpos-orange/25 bg-vpos-orange-bg p-3 text-[12px]">
+              <p className="m-0 text-vpos-text">{khqrNotice} If <strong>{formatCurrency(Number(collectingOrder.grandTotal), collectingOrder.currencyCode)}</strong> from this customer is already in your bank app, confirm it yourself.</p>
+              <Button variant="primary" className="min-h-[32px] px-2.5 text-[11px]" disabled={confirmKhqr.isPending} onClick={() => confirmKhqr.mutate(collectingOrder)}><Icon name="check-line" /> {confirmKhqr.isPending ? 'Saving…' : 'I see the money in my bank app'}</Button>
+            </div> : null}
           </div> : null}
         </Modal>
 
