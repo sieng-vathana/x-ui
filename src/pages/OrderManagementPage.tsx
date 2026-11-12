@@ -11,6 +11,8 @@ import { useAdminStore } from '../hooks/useAdminStore'
 import { useStoresRaw } from '../features/stores/useStores'
 import { storeSupportsOnline, storeSupportsPos } from '../features/stores/salesChannel'
 import { orderApi } from '../features/orders/orderApi'
+import { paymentApi } from '../features/payments/paymentApi'
+import { useAuth } from '../context/AuthContext'
 import type { PosOrder } from '../features/orders/types'
 
 /** How many of the latest orders the page loads; filters and counts apply to these. */
@@ -128,6 +130,7 @@ function formatTotals(orders: PosOrder[]) {
 
 export function OrderManagementPage() {
   const { toast } = useToast()
+  const { user } = useAuth()
   const queryClient = useQueryClient()
   const { storeId, setStoreId } = useAdminStore()
   const storesQuery = useStoresRaw()
@@ -152,6 +155,7 @@ export function OrderManagementPage() {
   const [channelFilter, setChannelFilter] = useState('All channels')
   const [selectedOrderId, setSelectedOrderId] = useState<number | null>(null)
   const [rejectingOrderId, setRejectingOrderId] = useState<number | null>(null)
+  const [collectingOrderId, setCollectingOrderId] = useState<number | null>(null)
 
   const updateOrder = useMutation({
     mutationFn: ({ order, action }: { order: PosOrder; action: Action }) => orderApi[action](order.id),
@@ -161,7 +165,26 @@ export function OrderManagementPage() {
     },
     onError: (error) => toast(error instanceof Error ? error.message : 'The order could not be updated.', 'error'),
   })
-  const busyOrderId = updateOrder.isPending ? updateOrder.variables?.order.id : null
+  // An unpaid order is paid at the counter before it is completed: cash is recorded as a paid payment first.
+  const collectCash = useMutation({
+    mutationFn: async (order: PosOrder) => {
+      await paymentApi.createCash({
+        orderId: order.id, businessId: order.businessId, storeId: order.storeId, cashierId: Number(user?.id),
+        amount: Number(order.grandTotal), tenderedAmount: Number(order.grandTotal), currencyCode: order.currencyCode,
+        method: 'CASH', provider: 'NONE', idempotencyKey: `order-${order.id}-cash-at-handover`,
+        note: `Collected for ${order.orderNo || order.id}`,
+      })
+      return orderApi.complete(order.id)
+    },
+    onSuccess: (_updated, order) => {
+      toast(`Cash recorded and ${order.orderNo || order.id} completed.`, 'success')
+      setCollectingOrderId(null)
+      void queryClient.invalidateQueries({ queryKey: ['orders'] })
+    },
+    onError: (error) => toast(error instanceof Error ? error.message : 'The payment could not be recorded.', 'error'),
+  })
+  const busyOrderId = updateOrder.isPending ? updateOrder.variables?.order.id : collectCash.isPending ? collectCash.variables?.id : null
+  const collectingOrder = orders.find((order) => order.id === collectingOrderId) ?? null
 
   const storeOrders = useMemo(() => orders.filter((order) => isOnline(order) ? hasOnline : hasPos), [hasOnline, hasPos, orders])
   useEffect(() => {
@@ -187,7 +210,14 @@ export function OrderManagementPage() {
   const inProgress = storeOrders.filter((order) => ACTIVE_STATUSES.includes(order.orderStatus)).length
   const paidToday = todayOrders.filter((order) => ['PAID', 'COD_COLLECTED', 'REMITTED'].includes(order.paymentStatus) && order.orderStatus !== 'CANCELLED')
 
-  const run = (order: PosOrder, action: Action) => updateOrder.mutate({ order, action })
+  const run = (order: PosOrder, action: Action) => {
+    // Completing needs the full amount paid, so an unpaid order asks how the customer paid.
+    if (action === 'complete' && order.paymentStatus === 'UNPAID') {
+      setCollectingOrderId(order.id)
+      return
+    }
+    updateOrder.mutate({ order, action })
+  }
 
   const rejectOrder = () => {
     if (!rejectingOrder) return
@@ -349,6 +379,23 @@ export function OrderManagementPage() {
             </div>
 
             <section className="overflow-hidden rounded-[4px] border border-vpos-line"><div className="flex items-center justify-between border-b border-vpos-line bg-vpos-subtle/50 px-4 py-3"><h3 className="m-0 text-[12px] font-bold text-vpos-text">Items ({(selectedOrder.items ?? []).reduce((sum, item) => sum + Number(item.quantity ?? item.qty ?? 0), 0)})</h3><span className="text-[11px] text-vpos-muted">Payment: {paymentMethodLabel(selectedOrder)}</span></div><div className="divide-y divide-vpos-line">{(selectedOrder.items ?? []).map((item) => <div key={item.id} className="flex items-center justify-between gap-4 px-4 py-3"><div><p className="m-0 text-[12px] font-semibold text-vpos-text">{item.productName}</p>{item.variantName ? <p className="mb-0 mt-0.5 text-[10px] text-vpos-muted">{item.variantName}</p> : null}<p className="mb-0 mt-1 text-[10px] text-vpos-muted">Qty {item.quantity ?? item.qty} × {formatCurrency(Number(item.unitPrice), selectedOrder.currencyCode)}</p></div><strong className="shrink-0 text-[12px] text-vpos-text">{formatCurrency(Number(item.total), selectedOrder.currencyCode)}</strong></div>)}</div><div className="space-y-2 border-t border-vpos-line bg-vpos-subtle/30 px-4 py-3 text-[12px]"><div className="flex justify-between text-vpos-muted"><span>Subtotal</span><span>{formatCurrency(Number(selectedOrder.subtotal), selectedOrder.currencyCode)}</span></div>{Number(selectedOrder.discount) > 0 ? <div className="flex justify-between text-vpos-muted"><span>Discount</span><span>−{formatCurrency(Number(selectedOrder.discount), selectedOrder.currencyCode)}</span></div> : null}{Number(selectedOrder.deliveryFee) > 0 ? <div className="flex justify-between text-vpos-muted"><span>Delivery fee</span><span>{formatCurrency(Number(selectedOrder.deliveryFee), selectedOrder.currencyCode)}</span></div> : null}<div className="flex justify-between border-t border-vpos-line pt-2 text-[14px] font-bold text-vpos-text"><span>Total</span><span>{formatCurrency(Number(selectedOrder.grandTotal), selectedOrder.currencyCode)}</span></div></div></section>
+          </div> : null}
+        </Modal>
+
+        <Modal
+          open={Boolean(collectingOrder)}
+          onClose={() => setCollectingOrderId(null)}
+          size="md"
+          title="Take payment"
+          description={collectingOrder ? `${collectingOrder.orderNo || collectingOrder.id} · ${customerName(collectingOrder)}` : undefined}
+          footer={collectingOrder ? <div className="flex w-full flex-col-reverse justify-end gap-2 sm:flex-row"><Button variant="secondary" onClick={() => setCollectingOrderId(null)}>Not yet</Button><Button variant="secondary" disabled={updateOrder.isPending || collectCash.isPending} onClick={() => { updateOrder.mutate({ order: collectingOrder, action: 'complete' }); setCollectingOrderId(null) }}><Icon name="qr-code-line" /> Paid by KHQR</Button><Button variant="primary" disabled={collectCash.isPending} onClick={() => collectCash.mutate(collectingOrder)}><Icon name="money-dollar-circle-line" /> {collectCash.isPending ? 'Saving…' : 'Cash received'}</Button></div> : undefined}
+        >
+          {collectingOrder ? <div className="space-y-3 text-[13px] text-vpos-text">
+            <p className="m-0">This order is not paid yet. Collect <strong>{formatCurrency(Number(collectingOrder.grandTotal), collectingOrder.currencyCode)}</strong> before handing it over.</p>
+            <ul className="m-0 list-disc space-y-1 pl-5 text-[12px] text-vpos-muted">
+              <li><strong className="text-vpos-text">Cash received</strong> records a cash payment and completes the order.</li>
+              <li><strong className="text-vpos-text">Paid by KHQR</strong> completes the order once the bank has confirmed the customer's KHQR payment.</li>
+            </ul>
           </div> : null}
         </Modal>
 
